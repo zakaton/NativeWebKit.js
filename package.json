@@ -1,0 +1,21 @@
+{
+    "name": "nativewebkit",
+    "version": "1.0.0",
+    "description": "Access Native API's in Safari",
+    "type": "module",
+    "main": "build/nativewebkit.js",
+    "module": "./build/nativewebkit.module.js",
+    "exports": {
+        ".": {
+            "import": "./build/nativewebkit.module.js"
+        },
+        "./src/*": "./src/*"
+    },
+    "browserslist": [
+        "last 3 Safari major versions, not dead"
+    ],
+    "repository": "https://github.com/zakaton/NativeWebKit.js.git",
+    "author": "Zack <zack@ukaton.com>",
+    "license": "MIT",
+    "private": true
+}
