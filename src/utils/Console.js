@@ -60,12 +60,11 @@ class Console {
      * @param {string|undefined} prefix
      */
     constructor(prefix) {
+        super();
         if (prefix) {
             this.prefix = prefix;
         }
     }
 }
-
-window.C = Console;
 
 export default Console;
