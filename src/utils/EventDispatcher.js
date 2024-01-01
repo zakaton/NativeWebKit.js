@@ -1,14 +1,53 @@
+/**
+ * @typedef EventDispatcherEvent
+ * @type {object}
+ * @property {string} type
+ */
+
+/**
+ * @typedef {(event: EventDispatcherEvent) => void} EventListener
+ */
+
 // based on https://github.com/mrdoob/eventdispatcher.js/
 class EventDispatcher {
+    /** @type {string[]} */
+    get eventTypes() {
+        return [];
+    }
+
+    /**
+     * @param {string} type
+     * @returns {boolean}
+     */
+    #isValidEventType(type) {
+        if (this.eventTypes.length == 0) {
+            return true;
+        }
+        return this.eventTypes.includes(type);
+    }
+
+    /**
+     * @param {string} type
+     * @throws {Error}
+     */
+    #assertValidEventType(type) {
+        if (!this.#isValidEventType(type)) {
+            throw Error(`invalid event type "${type}"`);
+        }
+    }
+
     /** @type {Object.<string, [function]|undefined>|undefined} */
     #listeners;
 
     /**
      * @param {string} type
-     * @param {function} listener
+     * @param {EventListener} listener
      * @param {object|undefined} options
+     * @throws {Error}
      */
     addEventListener(type, listener, options) {
+        this.#assertValidEventType(type);
+
         if (!this.#listeners) this.#listeners = {};
 
         if (options?.once) {
@@ -33,19 +72,23 @@ class EventDispatcher {
     /**
      *
      * @param {string} type
-     * @param {function} listener
+     * @param {EventListener} listener
      * @returns {boolean}
+     * @throws {Error}
      */
     hasEventListener(type, listener) {
+        this.#assertValidEventType(type);
         return this.#listeners?.[type]?.includes(listener);
     }
 
     /**
      * @param {string} type
-     * @param {function} listener
+     * @param {EventListener} listener
      * @returns {boolean}
+     * @throws {Error}
      */
     removeEventListener(type, listener) {
+        this.#assertValidEventType(type);
         if (this.hasEventListener(type, listener)) {
             const index = this.#listeners[type].indexOf(listener);
             this.#listeners[type].splice(index, 1);
@@ -55,11 +98,11 @@ class EventDispatcher {
     }
 
     /**
-     *
-     * @param {object} event
-     * @param {string} event.type
+     * @param {EventDispatcherEvent} event
+     * @throws {Error}
      */
     dispatchEvent(event) {
+        this.#assertValidEventType(event.type);
         if (this.#listeners?.[event.type]) {
             event.target = this;
 

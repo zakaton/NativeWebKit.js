@@ -5,11 +5,15 @@ import AppMessagePoll from "./utils/AppMessagePoll.js";
 
 /** @typedef {"isAvailable" | "isActive" | "startUpdates" | "stopUpdates" | "getData"} HMMessageType */
 
+/** @typedef {"isAvailable" | "isActive" | "motionData"} HMEventType */
+
 /** @typedef {import("./utils/messaging.js").NKMessage} NKMessage */
+
 /**
  * @typedef HMMessage
  * @type {object}
  * @property {HMMessageType} type
+ * @property {object} message
  */
 
 /** @typedef {"default" | "left headphone" | "right headphone" | "unknown"} HeadphoneMotionSensorLocation */
@@ -21,15 +25,31 @@ import AppMessagePoll from "./utils/AppMessagePoll.js";
  * @property {HeadphoneMotionSensorLocation} sensorLocation
  * @property {[number]} quaternion
  * @property {[number]} euler
- * @property {number} heading
  * @property {[number]} userAcceleration
  * @property {[number]} gravity
  * @property {[number]} rotationRate
  */
 
+/**
+ * @typedef HMEvent
+ * @type {object}
+ * @property {HMEventType} type
+ * @property {object} message
+ */
+
+/**
+ * @typedef {(event: HMEvent) => void} HMEventListener
+ */
+
 const _console = new Console("HeadphoneMotionManager");
 
 class HeadphoneMotionManager extends EventDispatcher {
+    static #EventsTypes = ["isAvailable", "isActive", "motionData"];
+    /** @type {HMEventType[]} */
+    get eventTypes() {
+        return HeadphoneMotionManager.#EventsTypes;
+    }
+
     static #shared = new HeadphoneMotionManager();
     static get shared() {
         return this.#shared;
@@ -47,6 +67,42 @@ class HeadphoneMotionManager extends EventDispatcher {
         return formattedMessage;
     }
 
+    /**
+     * @param {HMEventType} type
+     * @param {HMEventListener} listener
+     * @param {object|undefined} options
+     */
+    addEventListener(type, listener, options) {
+        return super.addEventListener(...arguments);
+    }
+    /**
+     * @param {HMEventType} type
+     * @param {HMEventListener} listener
+     * @returns {boolean}
+     */
+    removeEventListener(type, listener) {
+        return super.removeEventListener(...arguments);
+    }
+    /**
+     * @param {HMEventType} type
+     * @param {HMEventListener} listener
+     * @returns {boolean}
+     */
+    hasEventListener(type, listener) {
+        return super.hasEventListener(...arguments);
+    }
+    /**
+     * @param {HMMessage} event
+     */
+    dispatchEvent(event) {
+        return super.dispatchEvent(...arguments);
+    }
+
+    /** @type {boolean} */
+    #checkAvailabilityOnLoad = false;
+    /** @type {boolean} */
+    #stopUpdatesOnUnload = false;
+
     /** HeadphoneMotionManager is a singleton - use HeadphoneMotionManager.shared */
     constructor() {
         super();
@@ -58,19 +114,21 @@ class HeadphoneMotionManager extends EventDispatcher {
         addAppListener(this.#onAppMessage.bind(this), this.#prefix);
 
         window.addEventListener("load", () => {
-            //this.checkIsAvailable();
+            if (this.#checkAvailabilityOnLoad) {
+                this.checkIsAvailable();
+            }
         });
         window.addEventListener("unload", () => {
-            if (this.#isActive) {
+            if (this.#isActive && this.#stopUpdatesOnUnload) {
                 this.stopUpdates();
             }
         });
     }
 
-    /** @type {boolean} */
+    /** @type {boolean|null} */
     #isAvailable = null;
     get isAvailable() {
-        return this.#isAvailable;
+        return Boolean(this.#isAvailable);
     }
     /** @param {boolean} newValue */
     #onIsAvailableUpdated(newValue) {
@@ -91,10 +149,10 @@ class HeadphoneMotionManager extends EventDispatcher {
         await sendMessageToApp(this.#formatMessage({ type: "isAvailable" }));
     }
 
-    /** @type {boolean} */
+    /** @type {boolean|null} */
     #isActive = null;
     get isActive() {
-        return this.#isActive;
+        return Boolean(this.#isActive);
     }
     /** @param {boolean} newIsActive */
     #onIsActiveUpdated(newIsActive) {
@@ -195,7 +253,7 @@ class HeadphoneMotionManager extends EventDispatcher {
     #checkMotionDataMessage() {
         return this.#formatMessage({ type: "getData", timestamp: this.#motionDataTimestamp });
     }
-    #motionDataPoll = new AppMessagePoll(this.#checkMotionDataMessage.bind(this), 1000);
+    #motionDataPoll = new AppMessagePoll(this.#checkMotionDataMessage.bind(this), 20);
 
     /**
      * @param {HMMessage} message
@@ -211,7 +269,7 @@ class HeadphoneMotionManager extends EventDispatcher {
                 this.#onIsActiveUpdated(message.isActive);
                 break;
             case "getData":
-                this.#onMotionData(message);
+                this.#onMotionData(message.motionData);
                 break;
             default:
                 _console.error(`uncaught message type ${type}`);
