@@ -1,0 +1,47 @@
+<html>
+    <head>
+        <title>A-Frame | Headphone Motion | NativeWebKit.js</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script src="../../src/aframe/aframe-v1.5.0.min.js"></script>
+        <script type="module" src="./script.js"></script>
+    </head>
+    <style>
+        a-scene {
+            width: 400px;
+            height: 400px;
+            margin: auto;
+            border-radius: 40px;
+            overflow: hidden;
+            border: solid black;
+        }
+    </style>
+    <body>
+        <h1>A-Frame | Headphone Motion | NativeWebKit.js</h1>
+
+        <div id="controls"></div>
+        <a-scene
+            embedded
+            xr-mode-ui="enabled: false;"
+            device-orientation-permission-ui="enabled: false"
+            renderer="colorManagement: true;"
+        >
+            <a-assets>
+                <a-asset-item id="headAsset" src="./monkey.gltf"></a-asset-item>
+            </a-assets>
+
+            <a-camera
+                id="camera"
+                camera="fov: 50; zoom: 2;"
+                look-controls="enabled: false;"
+                wasd-controls="enabled: false;"
+                position="0 0 8"
+            ></a-camera>
+
+            <a-entity id="target">
+                <a-entity id="targetCorrection">
+                    <a-entity id="head" gltf-model="#headAsset" visible="true"></a-entity>
+                </a-entity>
+            </a-entity>
+        </a-scene>
+    </body>
+</html>
