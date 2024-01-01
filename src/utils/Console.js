@@ -31,7 +31,7 @@ class Console {
     #log = console.log.bind(console);
 
     /** @type {boolean} */
-    isWarningEnabled = false;
+    isWarningEnabled = true;
     /** @type {LogFunction} */
     get warn() {
         return this.isWarningEnabled ? this.#warn : this.#emptyFunction;
@@ -40,7 +40,7 @@ class Console {
     #warn = console.warn.bind(console);
 
     /** @type {boolean} */
-    isErrorEnabled = false;
+    isErrorEnabled = true;
     /** @type {LogFunction} */
     get error() {
         return this.isErrorEnabled ? this.#error : this.#emptyFunction;

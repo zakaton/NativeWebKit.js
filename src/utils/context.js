@@ -4,9 +4,9 @@ const isInSafari = /Safari/i.test(userAgent) && !/Chrome/i.test(userAgent);
 
 const isInApp = /NativeWebKit/i.test(userAgent);
 
-const isSafariExtensionInstalled = isInSafari && Boolean(window.isNativeWebKitSafariExtensionInstalled);
+const isSafariExtensionInstalled = () => isInSafari && Boolean(window.isNativeWebKitSafariExtensionInstalled);
 
-const isNativeWebKitEnabled = isInApp || isSafariExtensionInstalled;
+const isNativeWebKitEnabled = () => isInApp || isSafariExtensionInstalled();
 
 const is_iOS = /iPad|iPhone|iPod/.test(userAgent);
 

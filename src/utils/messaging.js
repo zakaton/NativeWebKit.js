@@ -15,30 +15,59 @@ function generateAppMessageId() {
     return id;
 }
 
-/** @type {Map.<function, function>} */
-const appListeners = new Map();
+/** @type {Object.<string, [(NKMessage) => void]>} */
+const appListeners = {};
 /**
  * @param {function} callback
+ * @param {string} prefix
  */
-function addAppListener(callback) {
-    const windowListener = (event) => {
-        callback(event.detail);
-    };
-    appListeners.set(callback, windowListener);
-    window.addEventListener("nativewebkit-receive", windowListener);
+function addAppListener(callback, prefix) {
+    _console.log(`adding callback with prefix "${prefix}"`, callback);
+    if (!appListeners[prefix]) {
+        appListeners[prefix] = [];
+    }
+    appListeners[prefix].push(callback);
+}
+
+if (!window.__NATIVEWEBKIT_LISTENER_FLAG__) {
+    window.__NATIVEWEBKIT_LISTENER_FLAG__ = true;
+    _console.log(`adding "nativewebkit-receive" window listener`);
+
+    window.addEventListener("nativewebkit-receive", (event) => {
+        /** @type {NKMessage|NKMessage[]} */
+        let messages = event.detail;
+        if (!Array.isArray(messages)) {
+            messages = [messages];
+        }
+        _console.log("nativewebkit-receive messages", messages);
+        messages.forEach((message) => {
+            const [prefix, type] = message.type.split("-");
+            _console.log(`received "${prefix}" message of type "${type}"`, message);
+            message.type = type;
+            if (!appListeners[prefix] || appListeners[prefix].length == 0) {
+                _console.warn("no callbacks listening for prefix", prefix);
+            } else {
+                appListeners[prefix].forEach((callback) => {
+                    _console.log("triggering callback", callback, "for message", message);
+                    callback(message);
+                });
+            }
+        });
+    });
 }
 
 /**
  * @param {function} callback
+ * @param {string} prefix
  */
-function removeAppListener(callback) {
-    if (!appListeners.has(callback)) {
-        _console.warn("no appListener for callback", callback);
+function removeAppListener(callback, prefix) {
+    if (!appListeners[prefix]?.includes(callback)) {
+        _console.warn("no appListener for callback", callback, "for prefix", prefix);
         return;
     }
-    const windowListener = appListeners.get(callback);
-    window.removeEventListener("nativewebkit-receive", windowListener);
-    appListeners.delete(callback);
+    const index = appListeners[prefix].indexOf(callback);
+    appListeners[prefix].splice(index, 1);
+    _console.log("removed app listener");
 }
 
 /**
@@ -49,10 +78,12 @@ function removeAppListener(callback) {
 
 /**
  * @param {NKMessage|NKMessage[]} message
- * @returns {Promise<object>}
+ * @returns {Promise<boolean>} did receive message?
  */
 async function sendMessageToApp(message) {
-    if (isNativeWebKitEnabled) {
+    Boolean(window.isNativeWebKitSafariExtensionInstalled);
+    if (isNativeWebKitEnabled()) {
+        _console.log("sending message to app...", message);
         if (isInApp) {
             return webkit.messageHandlers.nativewebkit_reply.postMessage(message);
         } else {
@@ -62,8 +93,13 @@ async function sendMessageToApp(message) {
                 window.addEventListener(
                     `nativewebkit-receive-${id}`,
                     (event) => {
-                        const response = event.detail;
-                        resolve(response);
+                        /** @type {boolean} */
+                        const didReceiveMessage = event.detail;
+                        _console.log(`did receive message for nativewebkit-receive-${id}?`, didReceiveMessage);
+                        if (!didReceiveMessage) {
+                            _console.error(`didn't receive message for nativewebkit-receive-${id}`);
+                        }
+                        resolve(didReceiveMessage);
                         appMessageIds.delete(id);
                     },
                     { once: true }
