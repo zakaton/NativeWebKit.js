@@ -3,45 +3,117 @@
         <title>A-Frame | Headphone Motion | NativeWebKit.js</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script src="../../src/aframe/aframe-v1.5.0.min.js"></script>
+
+        <!-- required to get aframe-orbit-controls-component to work -->
+        <script>
+            THREE.Quaternion.prototype.inverse = THREE.Quaternion.prototype.invert;
+            THREE.Math = THREE.MathUtils;
+        </script>
+        <!-- https://github.com/tizzle/aframe-orbit-controls-component -->
+        <script src="../../src/aframe/aframe-orbit-controls-component.min.js"></script>
+
         <script type="module" src="./script.js"></script>
     </head>
     <style>
         a-scene {
-            width: 400px;
-            height: 400px;
+            width: 350px;
+            height: 350px;
             margin: auto;
             border-radius: 40px;
             overflow: hidden;
             border: solid black;
         }
+
+        #controls {
+            margin: auto;
+            width: fit-content;
+            display: flex;
+            flex-direction: column;
+        }
+        #controls > div {
+            display: flex;
+            flex-direction: row;
+            gap: 0.5rem;
+            justify-content: space-evenly;
+        }
+
+        label {
+            display: block;
+        }
     </style>
     <body>
         <h1>A-Frame | Headphone Motion | NativeWebKit.js</h1>
 
-        <div id="controls"></div>
-        <a-scene
-            embedded
-            xr-mode-ui="enabled: false;"
-            device-orientation-permission-ui="enabled: false"
-            renderer="colorManagement: true;"
-        >
+        <a-scene embedded xr-mode-ui="enabled: false;" device-orientation-permission-ui="enabled: false">
             <a-assets>
                 <a-asset-item id="headAsset" src="./monkey.gltf"></a-asset-item>
             </a-assets>
 
+            <a-light type="directional" position="2 2 -2" target="#lightTarget"></a-light>
+            <a-light type="directional" position="2 2 2" target="#lightTarget"></a-light>
+            <a-entity id="lightTarget"></a-entity>
+
             <a-camera
                 id="camera"
                 camera="fov: 50; zoom: 2;"
-                look-controls="enabled: false;"
-                wasd-controls="enabled: false;"
                 position="0 0 8"
+                orbit-controls="
+                    enableZoom: false;
+                    autoRotate: false;
+                    target: #orbitTarget;
+                    enableDamping: true;
+                    dampingFactor: 0.125;
+                    rotateSpeed:0.25;
+                    minDistance:3;
+                    maxDistance:100;
+                "
             ></a-camera>
 
+            <a-entity id="orbitTarget"></a-entity>
+
             <a-entity id="target">
-                <a-entity id="targetCorrection">
-                    <a-entity id="head" gltf-model="#headAsset" visible="true"></a-entity>
+                <a-entity id="targetPositionOffset">
+                    <a-entity id="targetRotationOffset">
+                        <a-entity id="head" gltf-model="#headAsset" visible="true"></a-entity>
+                    </a-entity>
                 </a-entity>
             </a-entity>
         </a-scene>
+
+        <div id="controls">
+            <div>
+                <label>is available? <input id="isAvailable" type="checkbox" disabled /></label>
+                <label>is active? <input id="isActive" type="checkbox" disabled /></label>
+            </div>
+            <div>
+                <button id="startUpdates" disabled>start updates</button>
+                <button id="stopUpdates" disabled>stop updates</button>
+            </div>
+            <div>
+                <label>
+                    <select id="orientation">
+                        <optgroup label="orientation">
+                            <option>no orientation</option>
+                            <option selected>quaternion</option>
+                            <option>euler</option>
+                            <option>rotation rate</option>
+                        </optgroup>
+                    </select>
+                </label>
+                <button id="resetOrientation" disabled>reset</button>
+                <button id="toggleMirrorMode">enable mirror</button>
+            </div>
+            <div class="row">
+                <label>
+                    <select id="translation">
+                        <optgroup label="translation">
+                            <option selected>no translation</option>
+                            <option>user acceleration</option>
+                            <option>gravity</option>
+                        </optgroup>
+                    </select>
+                </label>
+            </div>
+        </div>
     </body>
 </html>

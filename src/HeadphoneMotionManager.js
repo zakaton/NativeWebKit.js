@@ -5,7 +5,7 @@ import AppMessagePoll from "./utils/AppMessagePoll.js";
 
 /** @typedef {"isAvailable" | "isActive" | "startUpdates" | "stopUpdates" | "getData"} HMMessageType */
 
-/** @typedef {"isAvailable" | "isActive" | "motionData"} HMEventType */
+/** @typedef {"isAvailable" | "isActive" | "motionData" | "sensorLocation"} HMEventType */
 
 /** @typedef {import("./utils/messaging.js").NKMessage} NKMessage */
 
@@ -44,7 +44,8 @@ import AppMessagePoll from "./utils/AppMessagePoll.js";
 const _console = new Console("HeadphoneMotionManager");
 
 class HeadphoneMotionManager extends EventDispatcher {
-    static #EventsTypes = ["isAvailable", "isActive", "motionData"];
+    /** @type {HMEventType[]} */
+    static #EventsTypes = ["isAvailable", "isActive", "motionData", "sensorLocation"];
     /** @type {HMEventType[]} */
     get eventTypes() {
         return HeadphoneMotionManager.#EventsTypes;
@@ -92,7 +93,7 @@ class HeadphoneMotionManager extends EventDispatcher {
         return super.hasEventListener(...arguments);
     }
     /**
-     * @param {HMMessage} event
+     * @param {HMEventType} event
      */
     dispatchEvent(event) {
         return super.dispatchEvent(...arguments);
@@ -100,8 +101,31 @@ class HeadphoneMotionManager extends EventDispatcher {
 
     /** @type {boolean} */
     #checkAvailabilityOnLoad = false;
+    get checkAvailabilityOnLoad() {
+        return this.#checkAvailabilityOnLoad;
+    }
+    /** @throws {Error} if newValue is not a boolean */
+    set checkAvailabilityOnLoad(newValue) {
+        if (typeof newValue == "boolean") {
+            this.#checkAvailabilityOnLoad = newValue;
+        } else {
+            throw Error(`invalid newValue for checkAvailabilityOnLoad`, newValue);
+        }
+    }
+
     /** @type {boolean} */
     #stopUpdatesOnUnload = false;
+    get stopUpdatesOnUnload() {
+        return this.#stopUpdatesOnUnload;
+    }
+    /** @throws {Error} if newValue is not a boolean */
+    set stopUpdatesOnUnload(newValue) {
+        if (typeof newValue == "boolean") {
+            this.#stopUpdatesOnUnload = newValue;
+        } else {
+            throw Error(`invalid newValue for stopUpdatesOnUnload`, newValue);
+        }
+    }
 
     /** HeadphoneMotionManager is a singleton - use HeadphoneMotionManager.shared */
     constructor() {
@@ -237,6 +261,23 @@ class HeadphoneMotionManager extends EventDispatcher {
     get #motionDataTimestamp() {
         return this.motionData?.timestamp || 0;
     }
+    /** @type {HeadphoneMotionSensorLocation|null} */
+    #sensorLocation = null;
+    get sensorLocation() {
+        return this.#sensorLocation;
+    }
+    /** @param {HeadphoneMotionSensorLocation} newValue */
+    #onSensorLocationUpdated(newValue) {
+        if (this.#sensorLocation != newValue) {
+            this.#sensorLocation = newValue;
+            _console.log(`updated sensor location to ${newValue}`);
+            this.dispatchEvent({
+                type: "sensorLocation",
+                message: { sensorLocation: this.sensorLocation },
+            });
+        }
+    }
+
     /**
      * @param {HeadphoneMotionData} newMotionData
      */
@@ -244,6 +285,7 @@ class HeadphoneMotionManager extends EventDispatcher {
         this.#motionData = newMotionData;
         _console.log("received headphone motion data", this.motionData);
         this.dispatchEvent({ type: "motionData", message: { motionData: this.motionData } });
+        this.#onSensorLocationUpdated(newMotionData.sensorLocation);
     }
 
     async checkMotionData() {

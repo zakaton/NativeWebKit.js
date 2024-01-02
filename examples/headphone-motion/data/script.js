@@ -2,6 +2,9 @@ import { HeadphoneMotionManager } from "../../../src/NativeWebKit.js";
 console.log(HeadphoneMotionManager);
 window.HeadphoneMotionManager = HeadphoneMotionManager;
 
+HeadphoneMotionManager.checkAvailabilityOnLoad = true;
+HeadphoneMotionManager.stopUpdatesOnUnload = true;
+
 /** @type {HTMLInputElement} */
 const isAvailableCheckbox = document.getElementById("isAvailable");
 HeadphoneMotionManager.addEventListener("isAvailable", (event) => {
@@ -37,9 +40,4 @@ HeadphoneMotionManager.addEventListener("motionData", (event) => {
     /** @type {import("../../../src/HeadphoneMotionManager.js").HeadphoneMotionData} */
     const motionData = event.message.motionData;
     motionDataElement.textContent = JSON.stringify(motionData, null, 2);
-});
-
-window.addEventListener("load", () => {
-    console.log("checking availability");
-    HeadphoneMotionManager.checkIsAvailable();
 });
