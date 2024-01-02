@@ -77,6 +77,11 @@ toggleMirrorModeButton.addEventListener("click", () => {
     isMirrorModeEnabled = !isMirrorModeEnabled;
     console.log(`updated isMirrorModeEnabled to ${isMirrorModeEnabled}`);
     toggleMirrorModeButton.innerText = isMirrorModeEnabled ? "disable mirror" : "enable mirror";
+
+    let airpodX = Math.abs(leftAirpodEntity.object3D.position.x);
+    airpodX = isMirrorModeEnabled ? -airpodX : airpodX;
+    leftAirpodEntity.object3D.position.x = -airpodX;
+    rightAirpodEntity.object3D.position.x = airpodX;
 });
 
 /** @typedef {import("../../src/three/three.module.min.js").Vector3} Vector3 */
@@ -165,22 +170,38 @@ HeadphoneMotionManager.addEventListener("sensorLocation", (event) => {
     onSensorLocationUpdate(sensorLocation);
 });
 
+/** @type {HTMLElement} */
+const leftAirpodEntity = document.getElementById("leftAirpod");
+/** @type {HTMLElement} */
+const rightAirpodEntity = document.getElementById("rightAirpod");
+
 /**
  * @param {HeadphoneMotionSensorLocation} sensorLocation
  * @throws {Error}
  */
 function onSensorLocationUpdate(sensorLocation) {
-    // FILL
+    var showLeftAirpod = false;
+    var showRightAirpod = false;
+
     switch (sensorLocation) {
         case "default":
             break;
         case "left headphone":
+            showLeftAirpod = true;
             break;
         case "right headphone":
+            showRightAirpod = true;
             break;
         case "unknown":
             break;
         default:
             throw Error("uncaught sensor location", sensorLocation);
+    }
+
+    if (leftAirpodEntity.object3D.visible != showLeftAirpod) {
+        leftAirpodEntity.object3D.visible = showLeftAirpod;
+    }
+    if (rightAirpodEntity.object3D.visible != showRightAirpod) {
+        rightAirpodEntity.object3D.visible = showRightAirpod;
     }
 }

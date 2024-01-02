@@ -50,7 +50,7 @@
             </a-assets>
 
             <a-light type="directional" position="2 2 -2" target="#lightTarget"></a-light>
-            <a-light type="directional" position="2 2 2" target="#lightTarget"></a-light>
+            <a-light type="directional" position="-2 2 2" target="#lightTarget"></a-light>
             <a-entity id="lightTarget"></a-entity>
 
             <a-camera
@@ -74,6 +74,20 @@
             <a-entity id="target">
                 <a-entity id="targetPositionOffset">
                     <a-entity id="targetRotationOffset">
+                        <a-sphere
+                            id="leftAirpod"
+                            color="white"
+                            scale="0.2 0.2 0.2"
+                            position="-1 0.15 0.25"
+                            visible="false"
+                        ></a-sphere>
+                        <a-sphere
+                            id="rightAirpod"
+                            color="white"
+                            scale="0.2 0.2 0.2"
+                            position="1 0.15 0.25"
+                            visible="false"
+                        ></a-sphere>
                         <a-entity id="head" gltf-model="#headAsset" visible="true"></a-entity>
                     </a-entity>
                 </a-entity>
