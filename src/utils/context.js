@@ -27,6 +27,7 @@ const checkIfSafariExtensionIsInstalled = async () => {
 
             window.addEventListener("nativewebkit-is-enabled", eventListener, { once: true });
             setTimeout(() => {
+                _console.log(`"nativewebkit-is-enabled" timeout ran out`);
                 if (!isSafariExtensionInstalled) {
                     resolve(false);
                     window.removeEventListener("nativewebkit-is-enabled", eventListener);

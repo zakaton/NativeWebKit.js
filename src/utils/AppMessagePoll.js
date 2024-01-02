@@ -140,7 +140,7 @@ class AppMessagePoll {
         }
         const isPollingEnabled = await this.#checkIfPollingIsEnabled();
         if (!isPollingEnabled) {
-            _console.error("polling is not enabled");
+            _console.warn("polling is not enabled");
             return;
         }
         _console.log(`starting interval at ${this.#Interval}`);

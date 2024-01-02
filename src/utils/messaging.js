@@ -36,23 +36,30 @@ if (!window.__NATIVEWEBKIT_LISTENER_FLAG__) {
     window.addEventListener("nativewebkit-receive", (event) => {
         /** @type {NKMessage|NKMessage[]} */
         let messages = event.detail;
-        if (!Array.isArray(messages)) {
-            messages = [messages];
+        onAppMessages(messages);
+    });
+}
+
+/**
+ * @param {NKMessage|NKMessage[]} messages
+ */
+function onAppMessages(messages) {
+    if (!Array.isArray(messages)) {
+        messages = [messages];
+    }
+    _console.log("nativewebkit-receive messages", messages);
+    messages.forEach((message) => {
+        const [prefix, type] = message.type.split("-");
+        _console.log(`received "${prefix}" message of type "${type}"`, message);
+        message.type = type;
+        if (!appListeners[prefix] || appListeners[prefix].length == 0) {
+            _console.warn("no callbacks listening for prefix", prefix);
+        } else {
+            appListeners[prefix].forEach((callback) => {
+                _console.log("triggering callback", callback, "for message", message);
+                callback(message);
+            });
         }
-        _console.log("nativewebkit-receive messages", messages);
-        messages.forEach((message) => {
-            const [prefix, type] = message.type.split("-");
-            _console.log(`received "${prefix}" message of type "${type}"`, message);
-            message.type = type;
-            if (!appListeners[prefix] || appListeners[prefix].length == 0) {
-                _console.warn("no callbacks listening for prefix", prefix);
-            } else {
-                appListeners[prefix].forEach((callback) => {
-                    _console.log("triggering callback", callback, "for message", message);
-                    callback(message);
-                });
-            }
-        });
     });
 }
 
@@ -86,7 +93,13 @@ async function sendMessageToApp(message) {
     if (isNativeWebKitEnabled) {
         _console.log("sending message to app...", message);
         if (isInApp) {
-            return webkit.messageHandlers.nativewebkit_reply.postMessage(message);
+            /** @type {NKMessage|NKMessage[]} */
+            const messages = await webkit.messageHandlers.nativewebkit_reply.postMessage(message);
+            _console.log("app response", messages);
+            if (messages) {
+                onAppMessages(messages);
+            }
+            return true;
         } else {
             return new Promise((resolve) => {
                 const id = generateAppMessageId();

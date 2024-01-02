@@ -121,6 +121,9 @@ function onHeadphoneMotionData(motionData) {
             throw Error(`uncaught translation mode ${translationMode}`);
     }
     if (newPosition) {
+        if (isMirrorModeEnabled) {
+            newPosition.z *= -1;
+        }
         targetPositionOffsetEntity.object3D.position.lerp(newPosition, 0.5);
     }
 
