@@ -1,5 +1,5 @@
 import Console from "./Console.js";
-import { isSafariExtensionInstalled } from "./context.js";
+import { checkIfSafariExtensionIsInstalled } from "./context.js";
 import { findGreatestCommonFactor } from "./MathUtils.js";
 import { sendMessageToApp } from "./messaging.js";
 
@@ -8,8 +8,8 @@ const _console = new Console("AppMessagePoll");
 /** @typedef {import("./messaging.js").NKMessage} NKMessage */
 
 class AppMessagePoll {
-    static get #isPollingEnabled() {
-        return isSafariExtensionInstalled();
+    static async #checkIfPollingIsEnabled() {
+        return checkIfSafariExtensionIsInstalled();
     }
 
     /** @type {AppMessagePoll[]} */
@@ -129,7 +129,7 @@ class AppMessagePoll {
 
         polls.forEach((poll) => (poll.#lastTimeCallbackWasCalled = now));
     }
-    static #start() {
+    static async #start() {
         if (this.#IsRunning) {
             _console.log("tried to start AppMessagePoll when it's already running");
             return;
@@ -138,7 +138,8 @@ class AppMessagePoll {
             _console.log("null interval");
             return;
         }
-        if (!this.#isPollingEnabled) {
+        const isPollingEnabled = await this.#checkIfPollingIsEnabled();
+        if (!isPollingEnabled) {
             _console.error("polling is not enabled");
             return;
         }

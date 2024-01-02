@@ -1,5 +1,5 @@
 import Console from "./Console.js";
-import { isNativeWebKitEnabled, isInApp, isSafariExtensionInstalled } from "./context.js";
+import { isInApp, checkIfNativeWebKitIsEnabled } from "./context.js";
 
 const _console = new Console();
 
@@ -82,7 +82,8 @@ function removeAppListener(callback, prefix) {
  */
 async function sendMessageToApp(message) {
     Boolean(window.isNativeWebKitSafariExtensionInstalled);
-    if (isNativeWebKitEnabled()) {
+    const isNativeWebKitEnabled = await checkIfNativeWebKitIsEnabled();
+    if (isNativeWebKitEnabled) {
         _console.log("sending message to app...", message);
         if (isInApp) {
             return webkit.messageHandlers.nativewebkit_reply.postMessage(message);
