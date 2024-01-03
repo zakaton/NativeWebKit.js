@@ -127,3 +127,6 @@ dist
 .pnp.*
 TODO.txt
 .DS_Store
+
+.vscode
+sec

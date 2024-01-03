@@ -49,9 +49,8 @@
                 <a-asset-item id="headAsset" src="../../../assets/monkey.gltf"></a-asset-item>
             </a-assets>
 
-            <a-light type="directional" position="2 2 -2" target="#lightTarget"></a-light>
-            <a-light type="directional" position="-2 2 2" target="#lightTarget"></a-light>
-            <a-entity id="lightTarget"></a-entity>
+            <a-light type="directional" position="2 2 -2" target="#target"></a-light>
+            <a-light type="directional" position="-2 2 2" target="#target"></a-light>
 
             <a-camera
                 id="camera"
@@ -60,7 +59,7 @@
                 orbit-controls="
                     enableZoom: false;
                     autoRotate: false;
-                    target: #orbitTarget;
+                    target: #target;
                     enableDamping: true;
                     dampingFactor: 0.125;
                     rotateSpeed:0.25;
@@ -68,8 +67,6 @@
                     maxDistance:100;
                 "
             ></a-camera>
-
-            <a-entity id="orbitTarget"></a-entity>
 
             <a-entity id="target">
                 <a-entity id="targetPositionOffset">
