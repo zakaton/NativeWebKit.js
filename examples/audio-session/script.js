@@ -68,7 +68,14 @@ const getMicrophone = async () => {
 
     console.log("getting audioStream with deviceId", selectedMicrophoneDeviceId);
     audioStream = await navigator.mediaDevices?.getUserMedia({
-        audio: selectedMicrophoneDeviceId ? { deviceId: selectedMicrophoneDeviceId } : true,
+        audio: selectedMicrophoneDeviceId
+            ? {
+                  deviceId: selectedMicrophoneDeviceId,
+                  //   noiseSuppression: false,
+                  //   echoCancellation: false,
+                  //   autoGainControl: false,
+              }
+            : true,
     });
     audio.srcObject = audioStream;
     console.log("got audioStream", audioStream);
@@ -77,7 +84,6 @@ const getMicrophone = async () => {
 const audio = new Audio();
 audio.muted = true;
 audio.autoplay = true;
-window.audio = audio;
 /** @type {HTMLButtonElement} */
 const listenToMicrophoneButton = document.getElementById("listenToMicrophone");
 listenToMicrophoneButton.addEventListener("click", () => {
@@ -94,4 +100,49 @@ toggleMicrophoneButton.addEventListener("click", async () => {
         await getMicrophone();
     }
     toggleMicrophoneButton.innerText = audioStream ? "disable microphone" : "enable microphone";
+});
+
+const audioContext = new AudioContext();
+const onAudioContextStateChange = () => {
+    console.log("new audioContext state", audioContext.state);
+    if (audioContext.state == "suspended") {
+        document.addEventListener("click", () => audioContext.resume(), { once: true });
+    }
+};
+audioContext.addEventListener("statechange", () => onAudioContextStateChange());
+onAudioContextStateChange();
+
+const oscillator = audioContext.createOscillator();
+oscillator.type = "triangle";
+
+const stereoPanner = audioContext.createStereoPanner();
+window.stereoPanner = stereoPanner;
+stereoPanner.pan.value = -1; // left ear
+oscillator.connect(stereoPanner);
+
+const gainNode = audioContext.createGain();
+gainNode.gain.value = 0;
+stereoPanner.connect(gainNode);
+gainNode.connect(audioContext.destination);
+
+oscillator.start();
+
+/** @type {HTMLButtonElement} */
+const toggleOscillatorButton = document.getElementById("toggleOscillator");
+toggleOscillatorButton.addEventListener("click", async () => {
+    console.log("toggling oscillator");
+    if (gainNode.gain.value > 0) {
+        gainNode.gain.value = 0;
+    } else {
+        gainNode.gain.value = 1;
+    }
+    toggleOscillatorButton.innerText = gainNode.gain.value > 0 ? "disable oscillator" : "enable oscillator";
+});
+
+/** @type {HTMLInputElement} */
+const stereoPannerInput = document.getElementById("stereoPannerInput");
+stereoPannerInput.addEventListener("input", () => {
+    const newPanValue = Number(stereoPannerInput.value);
+    console.log("new pain", newPanValue);
+    stereoPanner.pan.value = newPanValue;
 });
