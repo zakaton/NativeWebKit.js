@@ -64,7 +64,7 @@ const translationSelect = document.getElementById("translation");
 /** @type {TranslationMode} */
 var translationMode = translationSelect.value;
 translationSelect.addEventListener("input", () => {
-    targetEntity.object3D.position.set(0, 0, 0);
+    targetPositionOffsetEntity.object3D.position.set(0, 0, 0);
     translationMode = translationSelect.value;
     console.log("new translation mode", translationMode);
 });
