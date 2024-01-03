@@ -138,11 +138,6 @@ class AppMessagePoll {
             _console.log("null interval");
             return;
         }
-        const isPollingEnabled = await this.#checkIfPollingIsEnabled();
-        if (!isPollingEnabled) {
-            _console.warn("polling is not enabled");
-            return;
-        }
         _console.log(`starting interval at ${this.#Interval}`);
 
         this.#intervalId = window.setInterval(this.#intervalCallback.bind(this), this.#Interval);
@@ -177,7 +172,13 @@ class AppMessagePoll {
     get #isRunning() {
         return AppMessagePoll.#IsRunning && this.#isEnabled;
     }
-    start() {
+    async start() {
+        const isPollingEnabled = await AppMessagePoll.#checkIfPollingIsEnabled();
+        if (!isPollingEnabled) {
+            _console.warn("polling is not enabled");
+            return;
+        }
+
         if (this.#isRunning) {
             _console.log("poll is already running");
             return;
