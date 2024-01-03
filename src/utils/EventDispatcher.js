@@ -1,3 +1,5 @@
+/** @typedef {import("./messaging.js").NKMessage} NKMessage */
+
 /**
  * @typedef EventDispatcherEvent
  * @type {object}
@@ -113,6 +115,19 @@ class EventDispatcher {
                 array[i].call(this, event);
             }
         }
+    }
+
+    /** @type {string} */
+    _prefix = "";
+    /**
+     * @param {NKMessage} message
+     * @returns {NKMessage}
+     */
+    _formatMessage(message) {
+        /** @type {NKMessage} */
+        const formattedMessage = { ...message };
+        formattedMessage.type = `${this._prefix}-${message.type}`;
+        return formattedMessage;
     }
 }
 
