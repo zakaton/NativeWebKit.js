@@ -6,7 +6,7 @@ _NativeWebKit Library to interface with the NativeWebKit App and Safari Web Exte
 [🎧 HeadphoneMotionManager](#-headphonemotionmanager)
 
 ## ⚙️ Setup
-fill
+Copy any of the files in the [/build](https://github.com/zakaton/NativeWebKit.js/tree/main/build) directory into your webpages.
 
 ## 🎧 HeadphoneMotionManager
-fill
+TODO
