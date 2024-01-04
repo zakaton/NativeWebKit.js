@@ -1,5 +1,6 @@
 import terser from "@rollup/plugin-terser";
 import MagicString from "magic-string";
+import replace from "@rollup/plugin-replace";
 
 function header() {
     return {
@@ -19,10 +20,19 @@ function header() {
     };
 }
 
+function replaceEnvironment() {
+    return replace({
+        preventAssignment: true,
+        values: {
+            __NATIVEWEBKIT__ENVIRONMENT__: JSON.stringify("__NATIVEWEBKIT__PROD__"),
+        },
+    });
+}
+
 const builds = [
     {
         input: "src/NativeWebKit.js",
-        plugins: [header()],
+        plugins: [replaceEnvironment(), header()],
         output: [
             {
                 format: "esm",
@@ -32,7 +42,7 @@ const builds = [
     },
     {
         input: "src/NativeWebKit.js",
-        plugins: [header(), terser()],
+        plugins: [replaceEnvironment(), header(), terser()],
         output: [
             {
                 format: "esm",
@@ -42,7 +52,7 @@ const builds = [
     },
     {
         input: "src/NativeWebKit.js",
-        plugins: [header()],
+        plugins: [replaceEnvironment(), header()],
         output: [
             {
                 format: "umd",
@@ -54,7 +64,7 @@ const builds = [
     },
     {
         input: "src/NativeWebKit.js",
-        plugins: [header(), terser()],
+        plugins: [replaceEnvironment(), header(), terser()],
         output: [
             {
                 format: "umd",
@@ -66,7 +76,7 @@ const builds = [
 
     {
         input: "src/polyfill.js",
-        plugins: [header()],
+        plugins: [replaceEnvironment(), header()],
         output: [
             {
                 format: "umd",
@@ -77,7 +87,7 @@ const builds = [
     },
     {
         input: "src/polyfill.js",
-        plugins: [header(), terser()],
+        plugins: [replaceEnvironment(), header(), terser()],
         output: [
             {
                 format: "umd",

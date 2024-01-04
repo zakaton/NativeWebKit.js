@@ -1,5 +1,5 @@
-//import { HeadphoneMotionManager } from "../../../src/NativeWebKit.js";
-import { HeadphoneMotionManager } from "../../../build/nativewebkit.module.min.js";
+import { HeadphoneMotionManager } from "../../../src/NativeWebKit.js";
+//import { HeadphoneMotionManager } from "../../../build/nativewebkit.module.min.js";
 console.log(HeadphoneMotionManager);
 window.HeadphoneMotionManager = HeadphoneMotionManager;
 HeadphoneMotionManager.checkAvailabilityOnLoad = true;

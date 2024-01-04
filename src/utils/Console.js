@@ -1,3 +1,5 @@
+import { isInDev } from "./context.js";
+
 class Console {
     /**
      * @callback LogFunction
@@ -26,15 +28,15 @@ class Console {
     isLoggingEnabled = false;
     /** @type {LogFunction} */
     get log() {
-        return this.isLoggingEnabled ? this.#log : this.#emptyFunction;
+        return isInDev && this.isLoggingEnabled ? this.#log : this.#emptyFunction;
     }
     #log = console.log.bind(console);
 
     /** @type {boolean} */
-    isWarningEnabled = false;
+    isWarningEnabled = true;
     /** @type {LogFunction} */
     get warn() {
-        return this.isWarningEnabled ? this.#warn : this.#emptyFunction;
+        return isInDev && this.isWarningEnabled ? this.#warn : this.#emptyFunction;
     }
     /** @type {LogFunction} */
     #warn = console.warn.bind(console);
@@ -43,7 +45,7 @@ class Console {
     isErrorEnabled = true;
     /** @type {LogFunction} */
     get error() {
-        return this.isErrorEnabled ? this.#error : this.#emptyFunction;
+        return isInDev && this.isErrorEnabled ? this.#error : this.#emptyFunction;
     }
     /** @type {LogFunction} */
     #error = console.error.bind(console);

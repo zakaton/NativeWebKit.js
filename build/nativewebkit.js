@@ -8,132 +8,13 @@
 	(global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global.NativeWebKit = {}));
 })(this, (function (exports) { 'use strict';
 
-	class Console {
-	    /**
-	     * @callback LogFunction
-	     * @param {...any} data
-	     */
-
-	    #emptyFunction = function () {};
-
-	    /** @param {string|undefined} newPrefix */
-	    set prefix(newPrefix) {
-	        const args = [console];
-	        if (newPrefix) {
-	            if (Array.isArray(newPrefix)) {
-	                args.push(...newPrefix);
-	            } else {
-	                args.push(newPrefix);
-	            }
-	        }
-
-	        this.#log = console.log.bind(...args);
-	        this.#warn = console.warn.bind(...args);
-	        this.#error = console.error.bind(...args);
-	    }
-
-	    /** @type {boolean} */
-	    isLoggingEnabled = false;
-	    /** @type {LogFunction} */
-	    get log() {
-	        return this.isLoggingEnabled ? this.#log : this.#emptyFunction;
-	    }
-	    #log = console.log.bind(console);
-
-	    /** @type {boolean} */
-	    isWarningEnabled = false;
-	    /** @type {LogFunction} */
-	    get warn() {
-	        return this.isWarningEnabled ? this.#warn : this.#emptyFunction;
-	    }
-	    /** @type {LogFunction} */
-	    #warn = console.warn.bind(console);
-
-	    /** @type {boolean} */
-	    isErrorEnabled = true;
-	    /** @type {LogFunction} */
-	    get error() {
-	        return this.isErrorEnabled ? this.#error : this.#emptyFunction;
-	    }
-	    /** @type {LogFunction} */
-	    #error = console.error.bind(console);
-
-	    /** @param {boolean} isEnabled */
-	    set isEnabled(isEnabled) {
-	        this.isLoggingEnabled = isEnabled;
-	        this.isWarningEnabled = isEnabled;
-	        this.isErrorEnabled = isEnabled;
-	    }
-
-	    /**
-	     *
-	     * @param {string|undefined} prefix
-	     */
-	    constructor(prefix) {
-	        if (prefix) {
-	            this.prefix = prefix;
-	        }
-	    }
-	}
-
-	const _console$5 = new Console();
-
 	const { userAgent } = navigator;
-
-	const isInSafari = /Safari/i.test(userAgent) && !/Chrome/i.test(userAgent);
 
 	const isInApp = /NativeWebKit/i.test(userAgent);
 
-	var isSafariExtensionInstalled = false;
-	/**
-	 * @returns {Promise<boolean>}
-	 */
-	const checkIfSafariExtensionIsInstalled = async () => {
-	    if (isInSafari) {
-	        if (window.isNativeWebKitSafariExtensionInstalled) {
-	            _console$5.log("window.isNativeWebKitSafariExtensionInstalled is true");
-	            return true;
-	        }
-	        return new Promise((resolve) => {
-	            const eventListener = () => {
-	                _console$5.log(`received "nativewebkit-is-enabled" response from content.js`);
-	                isSafariExtensionInstalled = true;
-	                resolve(true);
-	            };
+	const isSafariExtensionInstalled = Boolean(window.isNativeWebKitSafariExtensionInstalled);
 
-	            window.addEventListener("nativewebkit-is-enabled", eventListener, { once: true });
-	            setTimeout(() => {
-	                if (window.isNativeWebKitSafariExtensionInstalled) {
-	                    _console$5.log("window.isNativeWebKitSafariExtensionInstalled is true after timeout");
-	                    resolve(true);
-	                }
-	                _console$5.log(`"nativewebkit-is-enabled" timeout ran out`);
-	                if (!isSafariExtensionInstalled) {
-	                    resolve(false);
-	                    window.removeEventListener("nativewebkit-is-enabled", eventListener);
-	                }
-	            }, 0);
-
-	            _console$5.log(`sending "nativewebkit-is-enabled" request to content.js`);
-	            window.dispatchEvent(new Event("is-nativewebkit-enabled"));
-	        });
-	    } else {
-	        return false;
-	    }
-	};
-
-	const checkIfNativeWebKitIsEnabled = async () => {
-	    if (isInApp) {
-	        return true;
-	    } else {
-	        if (!isSafariExtensionInstalled) {
-	            _console$5.log("checking if safari extension is installed...");
-	            isSafariExtensionInstalled = await checkIfSafariExtensionIsInstalled();
-	            _console$5.log(`isSafariExtensionInstalled? ${isSafariExtensionInstalled}`);
-	        }
-	        return isSafariExtensionInstalled;
-	    }
-	};
+	const isNativeWebKitEnabled = isInApp || isSafariExtensionInstalled;
 
 	/** @typedef {import("./messaging.js").NKMessage} NKMessage */
 
@@ -270,6 +151,74 @@
 	    }
 	}
 
+	class Console {
+	    /**
+	     * @callback LogFunction
+	     * @param {...any} data
+	     */
+
+	    #emptyFunction = function () {};
+
+	    /** @param {string|undefined} newPrefix */
+	    set prefix(newPrefix) {
+	        const args = [console];
+	        if (newPrefix) {
+	            if (Array.isArray(newPrefix)) {
+	                args.push(...newPrefix);
+	            } else {
+	                args.push(newPrefix);
+	            }
+	        }
+
+	        this.#log = console.log.bind(...args);
+	        this.#warn = console.warn.bind(...args);
+	        this.#error = console.error.bind(...args);
+	    }
+
+	    /** @type {boolean} */
+	    isLoggingEnabled = false;
+	    /** @type {LogFunction} */
+	    get log() {
+	        return this.#emptyFunction;
+	    }
+	    #log = console.log.bind(console);
+
+	    /** @type {boolean} */
+	    isWarningEnabled = false;
+	    /** @type {LogFunction} */
+	    get warn() {
+	        return this.#emptyFunction;
+	    }
+	    /** @type {LogFunction} */
+	    #warn = console.warn.bind(console);
+
+	    /** @type {boolean} */
+	    isErrorEnabled = true;
+	    /** @type {LogFunction} */
+	    get error() {
+	        return this.#emptyFunction;
+	    }
+	    /** @type {LogFunction} */
+	    #error = console.error.bind(console);
+
+	    /** @param {boolean} isEnabled */
+	    set isEnabled(isEnabled) {
+	        this.isLoggingEnabled = isEnabled;
+	        this.isWarningEnabled = isEnabled;
+	        this.isErrorEnabled = isEnabled;
+	    }
+
+	    /**
+	     *
+	     * @param {string|undefined} prefix
+	     */
+	    constructor(prefix) {
+	        if (prefix) {
+	            this.prefix = prefix;
+	        }
+	    }
+	}
+
 	const _console$4 = new Console();
 
 	/** @type {Set.<number>} */
@@ -343,7 +292,6 @@
 	 * @returns {Promise<boolean>} did receive message?
 	 */
 	async function sendMessageToApp(message) {
-	    const isNativeWebKitEnabled = await checkIfNativeWebKitIsEnabled();
 	    if (isNativeWebKitEnabled) {
 	        _console$4.log("sending message to app...", message);
 	        if (isInApp) {
@@ -417,8 +365,8 @@
 	/** @typedef {import("./messaging.js").NKMessage} NKMessage */
 
 	class AppMessagePoll {
-	    static async #checkIfPollingIsEnabled() {
-	        return checkIfSafariExtensionIsInstalled();
+	    static get #isPollingEnabled() {
+	        return isSafariExtensionInstalled;
 	    }
 
 	    /** @type {AppMessagePoll[]} */
@@ -538,7 +486,7 @@
 
 	        polls.forEach((poll) => (poll.#lastTimeCallbackWasCalled = now));
 	    }
-	    static async #start() {
+	    static #start() {
 	        if (this.#IsRunning) {
 	            _console$2.log("tried to start AppMessagePoll when it's already running");
 	            return;
@@ -581,9 +529,8 @@
 	    get #isRunning() {
 	        return AppMessagePoll.#IsRunning && this.#isEnabled;
 	    }
-	    async start() {
-	        const isPollingEnabled = await AppMessagePoll.#checkIfPollingIsEnabled();
-	        if (!isPollingEnabled) {
+	    start() {
+	        if (!AppMessagePoll.#isPollingEnabled) {
 	            _console$2.warn("polling is not enabled");
 	            return;
 	        }
