@@ -24,7 +24,6 @@
     "devDependencies": {
         "@rollup/plugin-replace": "^5.0.5",
         "@rollup/plugin-terser": "^0.4.4",
-        "jsdoc": "^4.0.2",
         "magic-string": "^0.30.5",
         "rollup": "^4.9.1"
     },
