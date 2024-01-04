@@ -8,14 +8,6 @@
 	(global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global.NativeWebKit = {}));
 })(this, (function (exports) { 'use strict';
 
-	const { userAgent } = navigator;
-
-	const isInApp = /NativeWebKit/i.test(userAgent);
-
-	const isSafariExtensionInstalled = Boolean(window.isNativeWebKitSafariExtensionInstalled);
-
-	const isNativeWebKitEnabled = isInApp || isSafariExtensionInstalled;
-
 	/** @typedef {import("./messaging.js").NKMessage} NKMessage */
 
 	/**
@@ -151,6 +143,14 @@
 	    }
 	}
 
+	const { userAgent } = navigator;
+
+	const isInApp = /NativeWebKit/i.test(userAgent);
+
+	const isSafariExtensionInstalled = Boolean(window.isNativeWebKitSafariExtensionInstalled);
+
+	const isNativeWebKitEnabled = isInApp || isSafariExtensionInstalled;
+
 	class Console {
 	    /**
 	     * @callback LogFunction
@@ -184,7 +184,7 @@
 	    #log = console.log.bind(console);
 
 	    /** @type {boolean} */
-	    isWarningEnabled = false;
+	    isWarningEnabled = true;
 	    /** @type {LogFunction} */
 	    get warn() {
 	        return this.#emptyFunction;
@@ -556,8 +556,6 @@
 	        AppMessagePoll.#remove(this);
 	    }
 	}
-
-	window.AppMessagePoll = AppMessagePoll;
 
 	const _console$1 = new Console("AudioSessionManager");
 

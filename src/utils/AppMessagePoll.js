@@ -199,7 +199,4 @@ class AppMessagePoll {
         AppMessagePoll.#remove(this);
     }
 }
-
-window.AppMessagePoll = AppMessagePoll;
-
 export default AppMessagePoll;

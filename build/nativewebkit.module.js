@@ -2,14 +2,6 @@
  * @copyright Zack Qattan 2024
  * @license MIT
  */
-const { userAgent } = navigator;
-
-const isInApp = /NativeWebKit/i.test(userAgent);
-
-const isSafariExtensionInstalled = Boolean(window.isNativeWebKitSafariExtensionInstalled);
-
-const isNativeWebKitEnabled = isInApp || isSafariExtensionInstalled;
-
 /** @typedef {import("./messaging.js").NKMessage} NKMessage */
 
 /**
@@ -145,6 +137,14 @@ class EventDispatcher {
     }
 }
 
+const { userAgent } = navigator;
+
+const isInApp = /NativeWebKit/i.test(userAgent);
+
+const isSafariExtensionInstalled = Boolean(window.isNativeWebKitSafariExtensionInstalled);
+
+const isNativeWebKitEnabled = isInApp || isSafariExtensionInstalled;
+
 class Console {
     /**
      * @callback LogFunction
@@ -178,7 +178,7 @@ class Console {
     #log = console.log.bind(console);
 
     /** @type {boolean} */
-    isWarningEnabled = false;
+    isWarningEnabled = true;
     /** @type {LogFunction} */
     get warn() {
         return this.#emptyFunction;
@@ -550,8 +550,6 @@ class AppMessagePoll {
         AppMessagePoll.#remove(this);
     }
 }
-
-window.AppMessagePoll = AppMessagePoll;
 
 const _console$1 = new Console("AudioSessionManager");
 

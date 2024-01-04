@@ -116,7 +116,6 @@ const oscillator = audioContext.createOscillator();
 oscillator.type = "triangle";
 
 const stereoPanner = audioContext.createStereoPanner();
-window.stereoPanner = stereoPanner;
 stereoPanner.pan.value = -1; // left ear
 oscillator.connect(stereoPanner);
 
