@@ -118,7 +118,9 @@ class EventDispatcher {
     }
 
     /** @type {string} */
-    _prefix = "";
+    get _prefix() {
+        return "";
+    }
     /**
      * @param {NKMessage} message
      * @returns {NKMessage}

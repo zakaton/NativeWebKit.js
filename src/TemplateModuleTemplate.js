@@ -3,50 +3,50 @@ import Console from "./utils/Console.js";
 import { sendMessageToApp, addAppListener } from "./utils/messaging.js";
 import AppMessagePoll from "./utils/AppMessagePoll.js";
 
-const _console = new Console("AudioSessionManager");
+const _console = new Console("Template");
 
-/** @typedef {} ASMessageType */
+/** @typedef {"test"} TMMessageType */
 
-/** @typedef {} ASEventType */
+/** @typedef {"test"} TMEventType */
 
 /** @typedef {import("./utils/messaging.js").NKMessage} NKMessage */
 
 /**
- * @typedef ASMessage
+ * @typedef TMMessage
  * @type {object}
- * @property {ASMessageType} type
+ * @property {TMMessageType} type
  * @property {object} message
  */
 
 /**
- * @typedef ASEvent
+ * @typedef TMEvent
  * @type {object}
- * @property {ASEventType} type
+ * @property {TMEventType} type
  * @property {object} message
  */
 
 /**
- * @typedef {(event: ASEvent) => void} ASEventListener
+ * @typedef {(event: TMEvent) => void} TMEventListener
  */
 
-class AudioSessionManager extends EventDispatcher {
-    /** @type {ASEventType[]} */
+class TemplateModuleManager extends EventDispatcher {
+    /** @type {TMEventType[]} */
     static #EventsTypes = [];
-    /** @type {ASEventType[]} */
+    /** @type {TMEventType[]} */
     get eventTypes() {
-        return AudioSessionManager.#EventsTypes;
+        return TemplateModuleManager.#EventsTypes;
     }
 
-    static #shared = new AudioSessionManager();
+    static #shared = new TemplateModuleManager();
     static get shared() {
         return this.#shared;
     }
 
     get _prefix() {
-        return "as";
+        return "tm";
     }
     /**
-     * @param {ASMessage} message
+     * @param {TMMessage} message
      * @returns {NKMessage}
      */
     _formatMessage(message) {
@@ -54,42 +54,42 @@ class AudioSessionManager extends EventDispatcher {
     }
 
     /**
-     * @param {ASEventType} type
-     * @param {ASEventListener} listener
+     * @param {TMEventType} type
+     * @param {TMEventListener} listener
      * @param {object|undefined} options
      */
     addEventListener(type, listener, options) {
         return super.addEventListener(...arguments);
     }
     /**
-     * @param {ASEventType} type
-     * @param {ASEventListener} listener
+     * @param {TMEventType} type
+     * @param {TMEventListener} listener
      * @returns {boolean}
      */
     removeEventListener(type, listener) {
         return super.removeEventListener(...arguments);
     }
     /**
-     * @param {ASEventType} type
-     * @param {ASEventListener} listener
+     * @param {TMEventType} type
+     * @param {TMEventListener} listener
      * @returns {boolean}
      */
     hasEventListener(type, listener) {
         return super.hasEventListener(...arguments);
     }
     /**
-     * @param {ASEventType} event
+     * @param {TMEventType} event
      */
     dispatchEvent(event) {
         return super.dispatchEvent(...arguments);
     }
 
-    /** AudioSessionManager is a singleton - use AudioSessionManager.shared */
+    /** TemplateModuleManager is a singleton - use TemplateModuleManager.shared */
     constructor() {
         super();
 
         if (this.shared) {
-            throw new Error("AudioSessionManager is a singleton - use AudioSessionManager.shared");
+            throw new Error("TemplateModuleManager is a singleton - use TemplateModuleManager.shared");
         }
 
         addAppListener(this.#onAppMessage.bind(this), this._prefix);
@@ -103,16 +103,19 @@ class AudioSessionManager extends EventDispatcher {
         await sendMessageToApp(this.#testMessage);
     }
     get #testMessage() {
-        return this._formatMessage({ type: "audio" });
+        return this._formatMessage({ type: "test" });
     }
 
     /**
-     * @param {ASMessage} message
+     * @param {TMMessage} message
      */
     #onAppMessage(message) {
         _console.log(`received background message of type ${message.type}`, message);
         const { type } = message;
         switch (type) {
+            case "test":
+                _console.log("receivedt test message", message);
+                break;
             default:
                 _console.error(`uncaught message type ${type}`);
                 break;
@@ -120,4 +123,4 @@ class AudioSessionManager extends EventDispatcher {
     }
 }
 
-export default AudioSessionManager.shared;
+export default TemplateModuleManager.shared;

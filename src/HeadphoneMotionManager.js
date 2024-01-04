@@ -56,7 +56,9 @@ class HeadphoneMotionManager extends EventDispatcher {
         return this.#shared;
     }
 
-    _prefix = "hm";
+    get _prefix() {
+        "hm";
+    }
     /**
      * @param {HMMessage} message
      * @returns {NKMessage}
