@@ -1,7 +1,6 @@
 /**
- * @license
- * Copyright 2023 NativeWebKit.js Zack Qattan
- * SPDX-License-Identifier: MIT
+ * @copyright Zack Qattan 2024
+ * @license MIT
  */
 (function (factory) {
 	typeof define === 'function' && define.amd ? define(factory) :

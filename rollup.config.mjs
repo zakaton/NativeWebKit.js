@@ -7,9 +7,8 @@ function header() {
             code = new MagicString(code);
 
             code.prepend(`/**
- * @license
- * Copyright 2023 NativeWebKit.js Zack Qattan
- * SPDX-License-Identifier: MIT
+ * @copyright Zack Qattan 2024
+ * @license MIT
  */\n`);
 
             return {

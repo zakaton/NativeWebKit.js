@@ -1,4 +1,5 @@
 import { HeadphoneMotionManager } from "../../../src/NativeWebKit.js";
+//import { HeadphoneMotionManager } from "../../../build/nativewebkit.module.js";
 console.log(HeadphoneMotionManager);
 window.HeadphoneMotionManager = HeadphoneMotionManager;
 
