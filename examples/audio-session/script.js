@@ -146,10 +146,3 @@ stereoPannerInput.addEventListener("input", () => {
     console.log("new pain", newPanValue);
     stereoPanner.pan.value = newPanValue;
 });
-
-/** @type {HTMLButtonElement} */
-const sendTestMessageButton = document.getElementById("sendTestMessage");
-sendTestMessageButton.addEventListener("click", async () => {
-    console.log("sending test message");
-    AudioSessionManager.sendTestMessage();
-});

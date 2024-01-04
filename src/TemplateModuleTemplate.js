@@ -31,7 +31,7 @@ const _console = new Console("Template");
 
 class TemplateModuleManager extends EventDispatcher {
     /** @type {TMEventType[]} */
-    static #EventsTypes = [];
+    static #EventsTypes = ["test"];
     /** @type {TMEventType[]} */
     get eventTypes() {
         return TemplateModuleManager.#EventsTypes;

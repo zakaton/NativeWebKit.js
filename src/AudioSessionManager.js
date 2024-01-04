@@ -98,14 +98,6 @@ class AudioSessionManager extends EventDispatcher {
         window.addEventListener("unload", () => {});
     }
 
-    async sendTestMessage() {
-        _console.log("test message...");
-        await sendMessageToApp(this.#testMessage);
-    }
-    get #testMessage() {
-        return this._formatMessage({ type: "audio" });
-    }
-
     /**
      * @param {ASMessage} message
      */
