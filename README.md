@@ -46,7 +46,7 @@ HeadphoneMotionManager.stopUpdatesOnUnload = true;
 
 // listen to "isAvailable" event so you can know if your device supports headphone motion data
 HeadphoneMotionManager.addEventListener("isAvailable", (event) => {
-  console.log("isAvailable", event.message.isAvailable);
+    console.log("isAvailable", event.message.isAvailable);
 });
 
 // start receiving updates - can trigger in response to a user event, or automatically in the "isAvailable" event
@@ -58,13 +58,20 @@ HeadphoneMotionManager.addEventListener("isAvailable", (event) => {
 // listen to "isActive" event so you can know when your device has started/stopped receiving headphone motion data
 // this will trigger after you call HeadphoneMotionManager.startUpdates or HeadphoneMotionManager.stopUpdates, assuming "isActive" changes state
 HeadphoneMotionManager.addEventListener("isActive", (event) => {
-  console.log("isActive", event.message.isActive);
+    console.log("isActive", event.message.isActive);
 });
 
 // the part you care about - triggers when new headphone motion data is available
 HeadphoneMotionManager.addEventListener("motionData", (event) => {
-  const motionData = event.message.motionData;
-  console.log("received headphone motionData", motionData);
-  const {timestamp, sensorLocation, quaternion, euler, userAcceleration, gravity, rotationRate} = motionData;
+    const motionData = event.message.motionData;
+    console.log("received headphone motionData", motionData);
+    const {timestamp, sensorLocation, quaternion, euler, userAcceleration, gravity, rotationRate} = motionData;
+    console.log("timestamp", timestamp); // a number (milliseconds)
+    console.log("sensorLocation", sensorLocation); // "left headphone", "right headphone", "default", or "unknown"
+    console.log("quaternion", quaternion); // an array of 4 numbers - compatible with three.js Quaternions
+    console.log("euler", euler); // an array of 3 numbers - compatible with three.js Eulers
+    console.log("userAcceleration", userAcceleration); // an array of 3 numbers - compatible with three.js Vector3
+    console.log("gravity", gravity); // an array of 3 numbers - compatible with three.js Vector3
+    console.log("rotationRate", rotationRate); // an array of 3 numbers - compatible with three.js Euler
 });
 ```
