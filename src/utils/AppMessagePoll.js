@@ -8,8 +8,9 @@ const _console = new Console("AppMessagePoll");
 /** @typedef {import("./messaging.js").NKMessage} NKMessage */
 
 class AppMessagePoll {
-    static get #isPollingEnabled() {
-        return isSafariExtensionInstalled;
+    #runInApp = false;
+    get #isPollingEnabled() {
+        return isSafariExtensionInstalled || this.#runInApp;
     }
 
     /** @type {AppMessagePoll[]} */
@@ -73,10 +74,12 @@ class AppMessagePoll {
     /**
      * @param {function():NKMessage} generateMessage
      * @param {number} interval (ms)
+     * @param {boolean} runInApp
      */
-    constructor(generateMessage, interval) {
+    constructor(generateMessage, interval, runInApp = false) {
         this.#generateMessage = generateMessage;
         this.#interval = interval;
+        this.#runInApp = runInApp;
         AppMessagePoll.#add(this);
     }
 
@@ -173,11 +176,10 @@ class AppMessagePoll {
         return AppMessagePoll.#IsRunning && this.#isEnabled;
     }
     start() {
-        if (!AppMessagePoll.#isPollingEnabled) {
-            _console.warn("polling is not enabled");
+        if (!this.#isPollingEnabled) {
+            //_console.warn("polling is not enabled");
             return;
         }
-
         if (this.#isRunning) {
             _console.log("poll is already running");
             return;

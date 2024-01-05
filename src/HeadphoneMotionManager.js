@@ -229,7 +229,7 @@ class HeadphoneMotionManager extends EventDispatcher {
     #checkIsActiveMessage() {
         return this._formatMessage({ type: "isActive" });
     }
-    #isActivePoll = new AppMessagePoll(this.#checkIsActiveMessage.bind(this), 50);
+    #isActivePoll = new AppMessagePoll(this.#checkIsActiveMessage.bind(this), 50, true);
 
     async startUpdates() {
         if (!this.isAvailable) {
