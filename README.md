@@ -6,7 +6,7 @@ _Javascript Library that interfaces with the NativeWebKit App and Safari Web Ext
 [🎧 HeadphoneMotionManager](#-headphonemotionmanager)
 
 ## 📦 Setup
-Copy any of the files in the [/build](https://github.com/zakaton/NativeWebKit.js/tree/main/build) and add it to your webpage
+Using any of the build files in the [/build](https://github.com/zakaton/NativeWebKit.js/tree/main/build) directory, you can either add it to your webpage:
 ```html
 <script src="nativewebkit.js"></script>
 <!-- or minified -->
@@ -25,7 +25,7 @@ NativeWebKit.HeadphoneMotionManager.addEventListener("motionData", (event) => {
 or you can import it as a module into your javascript files:
 
 ```javascript
-import { HeadphoneMotionManager } from "nativewebkit.module.js"; // or "nativewebkit.module.in.js"
+import { HeadphoneMotionManager } from "nativewebkit.module.js"; // or "nativewebkit.module.min.js"
 HeadphoneMotionManager.addEventListener("motionData", (event) => {
     const motionData = event.message.motionData;
     console.log("received headphone motionData", motionData);
@@ -52,7 +52,7 @@ HeadphoneMotionManager.addEventListener("isAvailable", (event) => {
 // start receiving updates - can trigger in response to a user event, or automatically in the "isAvailable" event
 // HeadphoneMotionManager.startUpdates();
 
-// stop receiving updates - can trigger in response to a user event, or you can set HeadphoneMotionManager.stopUpdatesOnUnload to false to stop automatically when the webpage leaves
+// stop receiving updates - can trigger in response to a user event, or you can set HeadphoneMotionManager.stopUpdatesOnUnload to false to stop automatically when refreshing/closing/leaving the webpage
 // HeadphoneMotionManager.stopUpdates();
 
 // listen to "isActive" event so you can know when your device has started/stopped receiving headphone motion data
@@ -70,7 +70,7 @@ HeadphoneMotionManager.addEventListener("motionData", (event) => {
     console.log("sensorLocation", sensorLocation); // "left headphone", "right headphone", "default", or "unknown"
     console.log("quaternion", quaternion); // an array of 4 numbers - compatible with three.js Quaternion
     console.log("euler", euler); // an array of 3 numbers - compatible with three.js Euler
-    console.log("userAcceleration", userAcceleration); // an array of 3 numbers - compatible with three.js Vector
+    console.log("userAcceleration", userAcceleration); // an array of 3 numbers - compatible with three.js Vector3
     console.log("gravity", gravity); // an array of 3 numbers - compatible with three.js Vector3
     console.log("rotationRate", rotationRate); // an array of 3 numbers - compatible with three.js Euler
 });
