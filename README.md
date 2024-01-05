@@ -52,7 +52,7 @@ HeadphoneMotionManager.addEventListener("isAvailable", (event) => {
 // start receiving updates - can trigger in response to a user event, or automatically in the "isAvailable" event
 // HeadphoneMotionManager.startUpdates();
 
-// stop receiving updates - can trigger in response to a user event, or you can set HeadphoneMotionManager.stopUpdatesOnUnload to false to stop automatically when the webpage leaves
+// stop receiving updates - can trigger in response to a user event, or you can set HeadphoneMotionManager.stopUpdatesOnUnload to false to stop automatically when refreshing/closing/leaving the webpage
 // HeadphoneMotionManager.stopUpdates();
 
 // listen to "isActive" event so you can know when your device has started/stopped receiving headphone motion data
