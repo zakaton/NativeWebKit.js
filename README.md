@@ -70,7 +70,7 @@ HeadphoneMotionManager.addEventListener("motionData", (event) => {
     console.log("sensorLocation", sensorLocation); // "left headphone", "right headphone", "default", or "unknown"
     console.log("quaternion", quaternion); // an array of 4 numbers - compatible with three.js Quaternion
     console.log("euler", euler); // an array of 3 numbers - compatible with three.js Euler
-    console.log("userAcceleration", userAcceleration); // an array of 3 numbers - compatible with three.js Vector
+    console.log("userAcceleration", userAcceleration); // an array of 3 numbers - compatible with three.js Vector3
     console.log("gravity", gravity); // an array of 3 numbers - compatible with three.js Vector3
     console.log("rotationRate", rotationRate); // an array of 3 numbers - compatible with three.js Euler
 });
