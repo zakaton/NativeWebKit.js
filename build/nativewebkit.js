@@ -143,14 +143,6 @@
 	    }
 	}
 
-	const { userAgent } = navigator;
-
-	const isInApp = /NativeWebKit/i.test(userAgent);
-
-	const isSafariExtensionInstalled = Boolean(window.isNativeWebKitSafariExtensionInstalled);
-
-	const isNativeWebKitEnabled = isInApp || isSafariExtensionInstalled;
-
 	class Console {
 	    /**
 	     * @callback LogFunction
@@ -176,7 +168,7 @@
 	    }
 
 	    /** @type {boolean} */
-	    isLoggingEnabled = false;
+	    isLoggingEnabled = true;
 	    /** @type {LogFunction} */
 	    get log() {
 	        return this.#emptyFunction;
@@ -221,6 +213,48 @@
 
 	const _console$4 = new Console();
 
+	const { userAgent } = navigator;
+
+	const isInApp = /NativeWebKit/i.test(userAgent);
+
+	var isSafariExtensionInstalled = Boolean(window.isNativeWebKitSafariExtensionInstalled);
+
+	const checkIfSafariExtensionIsInstalled = async () => {
+	    if (isSafariExtensionInstalled) {
+	        return true;
+	    } else {
+	        _console$4.log("checking if Safari Extension is installed...");
+	        return new Promise((resolve) => {
+	            const eventListener = () => {
+	                _console$4.log("Safari Extension is installed");
+	                isSafariExtensionInstalled = true;
+	                resolve(true);
+	            };
+	            window.addEventListener("nativewebkit-extension-is-installed", eventListener, { once: true });
+	            window.dispatchEvent(new Event("is-nativewebkit-extension-installed"));
+	            window.setTimeout(() => {
+	                if (!isSafariExtensionInstalled) {
+	                    _console$4.log("Safari Extension is not installed");
+	                    window.removeEventListener(eventListener);
+	                    resolve(false);
+	                }
+	            }, 1);
+	        });
+	    }
+	};
+
+	var isNativeWebKitEnabled = isInApp || isSafariExtensionInstalled;
+	const checkIfNativeWebKitEnabled = async () => {
+	    if (isNativeWebKitEnabled) {
+	        return true;
+	    } else {
+	        isNativeWebKitEnabled = await checkIfSafariExtensionIsInstalled();
+	        return isNativeWebKitEnabled;
+	    }
+	};
+
+	const _console$3 = new Console();
+
 	/** @type {Set.<number>} */
 	const appMessageIds = new Set();
 	/** @returns {number} */
@@ -240,7 +274,7 @@
 	 * @param {string} prefix
 	 */
 	function addAppListener(callback, prefix) {
-	    _console$4.log(`adding callback with prefix "${prefix}"`, callback);
+	    _console$3.log(`adding callback with prefix "${prefix}"`, callback);
 	    if (!appListeners[prefix]) {
 	        appListeners[prefix] = [];
 	    }
@@ -249,7 +283,7 @@
 
 	if (!window.__NATIVEWEBKIT_LISTENER_FLAG__) {
 	    window.__NATIVEWEBKIT_LISTENER_FLAG__ = true;
-	    _console$4.log(`adding "nativewebkit-receive" window listener`);
+	    _console$3.log(`adding "nativewebkit-receive" window listener`);
 
 	    window.addEventListener("nativewebkit-receive", (event) => {
 	        /** @type {NKMessage|NKMessage[]} */
@@ -265,16 +299,16 @@
 	    if (!Array.isArray(messages)) {
 	        messages = [messages];
 	    }
-	    _console$4.log("nativewebkit-receive messages", messages);
+	    _console$3.log("nativewebkit-receive messages", messages);
 	    messages.forEach((message) => {
 	        const [prefix, type] = message.type.split("-");
-	        _console$4.log(`received "${prefix}" message of type "${type}"`, message);
+	        _console$3.log(`received "${prefix}" message of type "${type}"`, message);
 	        message.type = type;
 	        if (!appListeners[prefix] || appListeners[prefix].length == 0) {
-	            _console$4.warn("no callbacks listening for prefix", prefix);
+	            _console$3.warn("no callbacks listening for prefix", prefix);
 	        } else {
 	            appListeners[prefix].forEach((callback) => {
-	                _console$4.log("triggering callback", callback, "for message", message);
+	                _console$3.log("triggering callback", callback, "for message", message);
 	                callback(message);
 	            });
 	        }
@@ -292,12 +326,13 @@
 	 * @returns {Promise<boolean>} did receive message?
 	 */
 	async function sendMessageToApp(message) {
+	    const isNativeWebKitEnabled = await checkIfNativeWebKitEnabled();
 	    if (isNativeWebKitEnabled) {
-	        _console$4.log("sending message to app...", message);
+	        _console$3.log("sending message to app...", message);
 	        if (isInApp) {
 	            /** @type {NKMessage|NKMessage[]} */
 	            const messages = await webkit.messageHandlers.nativewebkit_reply.postMessage(message);
-	            _console$4.log("app response", messages);
+	            _console$3.log("app response", messages);
 	            if (messages) {
 	                onAppMessages(messages);
 	            }
@@ -311,9 +346,9 @@
 	                    (event) => {
 	                        /** @type {boolean} */
 	                        const didReceiveMessage = event.detail;
-	                        _console$4.log(`did receive message for nativewebkit-receive-${id}?`, didReceiveMessage);
+	                        _console$3.log(`did receive message for nativewebkit-receive-${id}?`, didReceiveMessage);
 	                        if (!didReceiveMessage) {
-	                            _console$4.error(`didn't receive message for nativewebkit-receive-${id}`);
+	                            _console$3.error(`didn't receive message for nativewebkit-receive-${id}`);
 	                        }
 	                        resolve(didReceiveMessage);
 	                        appMessageIds.delete(id);
@@ -323,13 +358,13 @@
 	            });
 	        }
 	    } else {
-	        _console$4.warn(
+	        _console$3.warn(
 	            "NativeWebKit.js is not enabled - run in the NativeWebKit app or enable the NativeWebKit Safari Web Extension"
 	        );
 	    }
 	}
 
-	const _console$3 = new Console();
+	const _console$2 = new Console();
 
 	/**
 	 * @param {number} a
@@ -345,7 +380,7 @@
 	 * @returns {number|null}
 	 */
 	function findGreatestCommonFactor(numbers) {
-	    _console$3.log("finding greatestCommonFactor of numbers", numbers);
+	    _console$2.log("finding greatestCommonFactor of numbers", numbers);
 	    numbers = numbers.filter((number) => number > 0);
 
 	    if (numbers.length == 0) {
@@ -353,20 +388,31 @@
 	    }
 
 	    const greatestCommonFactor = numbers.reduce((number, gcf) => greaterCommonFactor(number, gcf));
-	    _console$3.log("greatestCommonFactor", greatestCommonFactor);
+	    _console$2.log("greatestCommonFactor", greatestCommonFactor);
 	    if (greatestCommonFactor == 0) {
 	        return null;
 	    }
 	    return greatestCommonFactor;
 	}
 
-	const _console$2 = new Console("AppMessagePoll");
+	const _console$1 = new Console("AppMessagePoll");
 
 	/** @typedef {import("./messaging.js").NKMessage} NKMessage */
 
 	class AppMessagePoll {
-	    static get #isPollingEnabled() {
-	        return isSafariExtensionInstalled;
+	    #runInApp = false;
+	    async #isPollingEnabled() {
+	        const isNativeWebKitEnabled = await checkIfNativeWebKitEnabled();
+	        if (!isNativeWebKitEnabled) {
+	            return false;
+	        }
+
+	        if (isInApp) {
+	            return this.#runInApp;
+	        } else {
+	            const isSafariExtensionInstalled = await checkIfSafariExtensionIsInstalled();
+	            return isSafariExtensionInstalled;
+	        }
 	    }
 
 	    /** @type {AppMessagePoll[]} */
@@ -377,7 +423,7 @@
 	     * */
 	    static #add(poll) {
 	        if (this.#polls.includes(poll)) {
-	            _console$2.log("poll already included");
+	            _console$1.log("poll already included");
 	            return this.#polls.indexOf(poll);
 	        } else {
 	            return this.#polls.push(poll);
@@ -389,7 +435,7 @@
 	     * */
 	    static #remove(poll) {
 	        if (!this.#polls.includes(poll)) {
-	            _console$2.log("poll wasn't included");
+	            _console$1.log("poll wasn't included");
 	            return false;
 	        } else {
 	            poll.stop();
@@ -413,11 +459,11 @@
 	    }
 	    set interval(newInterval) {
 	        if (newInterval <= 0) {
-	            _console$2.error(`invalid interval ${newInterval}ms`);
+	            _console$1.error(`invalid interval ${newInterval}ms`);
 	            return;
 	        }
 	        if (newInterval == this.#interval) {
-	            _console$2.warn("assigning same interval");
+	            _console$1.warn("assigning same interval");
 	            return;
 	        }
 
@@ -430,10 +476,12 @@
 	    /**
 	     * @param {function():NKMessage} generateMessage
 	     * @param {number} interval (ms)
+	     * @param {boolean} runInApp
 	     */
-	    constructor(generateMessage, interval) {
+	    constructor(generateMessage, interval, runInApp = false) {
 	        this.#generateMessage = generateMessage;
 	        this.#interval = interval;
+	        this.#runInApp = runInApp;
 	        AppMessagePoll.#add(this);
 	    }
 
@@ -456,9 +504,9 @@
 	    static #updateInterval() {
 	        /** @type {number|null} */
 	        var newInterval = findGreatestCommonFactor(this.#intervals);
-	        _console$2.log(`new interval ${newInterval}`);
+	        _console$1.log(`new interval ${newInterval}`);
 	        if (this.#Interval != newInterval) {
-	            _console$2.log(`interval updated from ${this.#Interval} to ${newInterval}`);
+	            _console$1.log(`interval updated from ${this.#Interval} to ${newInterval}`);
 	            this.#Interval = newInterval;
 	            return true;
 	        }
@@ -472,36 +520,36 @@
 	        });
 
 	        const messages = polls.map((poll) => poll.#generateMessage());
-	        _console$2.log("messages", messages);
+	        _console$1.log("messages", messages);
 
 	        if (messages.length > 0) {
 	            const didReceiveMessage = await sendMessageToApp(messages);
-	            _console$2.log("didReceiveMessage?", didReceiveMessage);
+	            _console$1.log("didReceiveMessage?", didReceiveMessage);
 	            if (!didReceiveMessage) {
-	                _console$2.error("app didn't receive message");
+	                _console$1.error("app didn't receive message");
 	            }
 	        } else {
-	            _console$2.log("no messages to send");
+	            _console$1.log("no messages to send");
 	        }
 
 	        polls.forEach((poll) => (poll.#lastTimeCallbackWasCalled = now));
 	    }
 	    static #start() {
 	        if (this.#IsRunning) {
-	            _console$2.log("tried to start AppMessagePoll when it's already running");
+	            _console$1.log("tried to start AppMessagePoll when it's already running");
 	            return;
 	        }
 	        if (this.#Interval == null) {
-	            _console$2.log("null interval");
+	            _console$1.log("null interval");
 	            return;
 	        }
-	        _console$2.log(`starting interval at ${this.#Interval}`);
+	        _console$1.log(`starting interval at ${this.#Interval}`);
 
 	        this.#intervalId = window.setInterval(this.#intervalCallback.bind(this), this.#Interval);
 	    }
 	    static #stop() {
 	        if (!this.#IsRunning) {
-	            _console$2.log("tried to stop AppMessagePoll when it already isn't running");
+	            _console$1.log("tried to stop AppMessagePoll when it already isn't running");
 	            return;
 	        }
 
@@ -516,11 +564,11 @@
 
 	        const didIntervalUpdate = this.#updateInterval();
 	        if (this.#IsRunning || didIntervalUpdate) {
-	            _console$2.log("restarting...");
+	            _console$1.log("restarting...");
 	            this.#stop();
 	            this.#start();
 	        } else {
-	            _console$2.log("no need to restart");
+	            _console$1.log("no need to restart");
 	        }
 	    }
 
@@ -529,14 +577,14 @@
 	    get #isRunning() {
 	        return AppMessagePoll.#IsRunning && this.#isEnabled;
 	    }
-	    start() {
-	        if (!AppMessagePoll.#isPollingEnabled) {
-	            _console$2.warn("polling is not enabled");
+	    async start() {
+	        const isPollingEnabled = await this.#isPollingEnabled();
+	        if (!isPollingEnabled) {
+	            //_console.warn("polling is not enabled");
 	            return;
 	        }
-
 	        if (this.#isRunning) {
-	            _console$2.log("poll is already running");
+	            _console$1.log("poll is already running");
 	            return;
 	        }
 	        this.#isEnabled = true;
@@ -552,121 +600,10 @@
 	    }
 
 	    destroy() {
-	        _console$2.log("destroying poll", this);
+	        _console$1.log("destroying poll", this);
 	        AppMessagePoll.#remove(this);
 	    }
 	}
-
-	const _console$1 = new Console("AudioSessionManager");
-
-	/** @typedef {} ASMessageType */
-
-	/** @typedef {} ASEventType */
-
-	/** @typedef {import("./utils/messaging.js").NKMessage} NKMessage */
-
-	/**
-	 * @typedef ASMessage
-	 * @type {object}
-	 * @property {ASMessageType} type
-	 * @property {object} message
-	 */
-
-	/**
-	 * @typedef ASEvent
-	 * @type {object}
-	 * @property {ASEventType} type
-	 * @property {object} message
-	 */
-
-	/**
-	 * @typedef {(event: ASEvent) => void} ASEventListener
-	 */
-
-	class AudioSessionManager extends EventDispatcher {
-	    /** @type {ASEventType[]} */
-	    static #EventsTypes = [];
-	    /** @type {ASEventType[]} */
-	    get eventTypes() {
-	        return AudioSessionManager.#EventsTypes;
-	    }
-
-	    static #shared = new AudioSessionManager();
-	    static get shared() {
-	        return this.#shared;
-	    }
-
-	    get _prefix() {
-	        return "as";
-	    }
-	    /**
-	     * @param {ASMessage} message
-	     * @returns {NKMessage}
-	     */
-	    _formatMessage(message) {
-	        return super._formatMessage(message);
-	    }
-
-	    /**
-	     * @param {ASEventType} type
-	     * @param {ASEventListener} listener
-	     * @param {object|undefined} options
-	     */
-	    addEventListener(type, listener, options) {
-	        return super.addEventListener(...arguments);
-	    }
-	    /**
-	     * @param {ASEventType} type
-	     * @param {ASEventListener} listener
-	     * @returns {boolean}
-	     */
-	    removeEventListener(type, listener) {
-	        return super.removeEventListener(...arguments);
-	    }
-	    /**
-	     * @param {ASEventType} type
-	     * @param {ASEventListener} listener
-	     * @returns {boolean}
-	     */
-	    hasEventListener(type, listener) {
-	        return super.hasEventListener(...arguments);
-	    }
-	    /**
-	     * @param {ASEventType} event
-	     */
-	    dispatchEvent(event) {
-	        return super.dispatchEvent(...arguments);
-	    }
-
-	    /** AudioSessionManager is a singleton - use AudioSessionManager.shared */
-	    constructor() {
-	        super();
-
-	        if (this.shared) {
-	            throw new Error("AudioSessionManager is a singleton - use AudioSessionManager.shared");
-	        }
-
-	        addAppListener(this.#onAppMessage.bind(this), this._prefix);
-
-	        window.addEventListener("load", () => {});
-	        window.addEventListener("unload", () => {});
-	    }
-
-	    /**
-	     * @param {ASMessage} message
-	     */
-	    #onAppMessage(message) {
-	        _console$1.log(`received background message of type ${message.type}`, message);
-	        const { type } = message;
-	        switch (type) {
-	            default:
-	                _console$1.error(`uncaught message type ${type}`);
-	                break;
-	        }
-	    }
-	}
-
-	var AudioSessionManager$1 = AudioSessionManager.shared;
 
 	/** @typedef {"isAvailable" | "isActive" | "startUpdates" | "stopUpdates" | "getData"} HMMessageType */
 
@@ -894,7 +831,7 @@
 	    #checkIsActiveMessage() {
 	        return this._formatMessage({ type: "isActive" });
 	    }
-	    #isActivePoll = new AppMessagePoll(this.#checkIsActiveMessage.bind(this), 50);
+	    #isActivePoll = new AppMessagePoll(this.#checkIsActiveMessage.bind(this), 50, true);
 
 	    async startUpdates() {
 	        if (!this.isAvailable) {
@@ -988,7 +925,6 @@
 	}
 	var HeadphoneMotionManager$1 = HeadphoneMotionManager.shared;
 
-	exports.AudioSessionManager = AudioSessionManager$1;
 	exports.HeadphoneMotionManager = HeadphoneMotionManager$1;
 
 }));
