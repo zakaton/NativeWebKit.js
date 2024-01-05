@@ -25,7 +25,7 @@ NativeWebKit.HeadphoneMotionManager.addEventListener("motionData", (event) => {
 or you can import it as a module into your javascript files:
 
 ```javascript
-import { HeadphoneMotionManager } from "nativewebkit.module.js"; // or "nativewebkit.module.in.js"
+import { HeadphoneMotionManager } from "nativewebkit.module.js"; // or "nativewebkit.module.min.js"
 HeadphoneMotionManager.addEventListener("motionData", (event) => {
     const motionData = event.message.motionData;
     console.log("received headphone motionData", motionData);
