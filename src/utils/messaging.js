@@ -1,5 +1,5 @@
 import Console from "./Console.js";
-import { isInApp, isNativeWebKitEnabled } from "./context.js";
+import { isInApp, checkIfNativeWebKitEnabled } from "./context.js";
 
 const _console = new Console();
 
@@ -88,6 +88,7 @@ function removeAppListener(callback, prefix) {
  * @returns {Promise<boolean>} did receive message?
  */
 async function sendMessageToApp(message) {
+    const isNativeWebKitEnabled = await checkIfNativeWebKitEnabled();
     if (isNativeWebKitEnabled) {
         _console.log("sending message to app...", message);
         if (isInApp) {

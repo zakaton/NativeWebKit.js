@@ -1,5 +1,5 @@
 import Console from "./Console.js";
-import { isSafariExtensionInstalled } from "./context.js";
+import { checkIfSafariExtensionIsInstalled, isInApp, checkIfNativeWebKitEnabled } from "./context.js";
 import { findGreatestCommonFactor } from "./MathUtils.js";
 import { sendMessageToApp } from "./messaging.js";
 
@@ -9,8 +9,18 @@ const _console = new Console("AppMessagePoll");
 
 class AppMessagePoll {
     #runInApp = false;
-    get #isPollingEnabled() {
-        return isSafariExtensionInstalled || this.#runInApp;
+    async #isPollingEnabled() {
+        const isNativeWebKitEnabled = await checkIfNativeWebKitEnabled();
+        if (!isNativeWebKitEnabled) {
+            return false;
+        }
+
+        if (isInApp) {
+            return this.#runInApp;
+        } else {
+            const isSafariExtensionInstalled = await checkIfSafariExtensionIsInstalled();
+            return isSafariExtensionInstalled;
+        }
     }
 
     /** @type {AppMessagePoll[]} */
@@ -175,8 +185,9 @@ class AppMessagePoll {
     get #isRunning() {
         return AppMessagePoll.#IsRunning && this.#isEnabled;
     }
-    start() {
-        if (!this.#isPollingEnabled) {
+    async start() {
+        const isPollingEnabled = await this.#isPollingEnabled();
+        if (!isPollingEnabled) {
             //_console.warn("polling is not enabled");
             return;
         }

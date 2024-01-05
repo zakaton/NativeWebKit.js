@@ -1,4 +1,4 @@
-import { isInDev } from "./context.js";
+import { isInDev } from "./environment.js";
 
 class Console {
     /**
@@ -25,7 +25,7 @@ class Console {
     }
 
     /** @type {boolean} */
-    isLoggingEnabled = false;
+    isLoggingEnabled = true;
     /** @type {LogFunction} */
     get log() {
         return isInDev && this.isLoggingEnabled ? this.#log : this.#emptyFunction;
