@@ -26,7 +26,7 @@ const checkIfSafariExtensionIsInstalled = async () => {
             window.setTimeout(() => {
                 if (!isSafariExtensionInstalled) {
                     _console.log("Safari Extension is not installed");
-                    window.removeEventListener(eventListener);
+                    window.removeEventListener("nativewebkit-extension-is-installed", eventListener);
                     resolve(false);
                 }
             }, 1);
