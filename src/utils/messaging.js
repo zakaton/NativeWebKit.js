@@ -1,5 +1,5 @@
 import Console from "./Console.js";
-import { isInApp, checkIfNativeWebKitEnabled } from "./context.js";
+import { isInApp, checkIfNativeWebKitEnabled } from "./platformUtils.js";
 
 const _console = new Console();
 
@@ -29,14 +29,35 @@ function addAppListener(callback, prefix) {
     appListeners[prefix].push(callback);
 }
 
-if (!window.__NATIVEWEBKIT_LISTENER_FLAG__) {
-    window.__NATIVEWEBKIT_LISTENER_FLAG__ = true;
+if (!window.__NATIVEWEBKIT_MESSAGING_FLAG__) {
+    window.__NATIVEWEBKIT_MESSAGING_FLAG__ = true;
     _console.log(`adding "nativewebkit-receive" window listener`);
 
     window.addEventListener("nativewebkit-receive", (event) => {
         /** @type {NKMessage|NKMessage[]} */
         let messages = event.detail;
         onAppMessages(messages);
+    });
+
+    window.addEventListener("load", () => {
+        _console.log("triggering window.load events...");
+        const messages = appListeners["window.load"]
+            ?.map((callback) => callback())
+            .flat()
+            .filter(Boolean);
+        if (messages.length > 0) {
+            sendMessageToApp(messages);
+        }
+    });
+    window.addEventListener("unload", () => {
+        _console.log("triggering window.unload events...");
+        const messages = appListeners["window.unload"]
+            ?.map((callback) => callback())
+            .flat()
+            .filter(Boolean);
+        if (messages.length > 0) {
+            sendMessageToApp(messages);
+        }
     });
 }
 
@@ -83,42 +104,80 @@ function removeAppListener(callback, prefix) {
  * @property {string} type
  */
 
+/** @typedef {Promise<boolean>} NKMessagePromise */
+
+/** @type {NKMessage[]} */
+var pendingMessagesToSend = [];
+/** @type {NKMessagePromise|undefined} */
+var pendingMessagesPromise;
+/** @type {PromiseLike<boolean>|undefined} */
+var pendingMessagesPromiseResolve;
+
 /**
  * @param {NKMessage|NKMessage[]} message
- * @returns {Promise<boolean>} did receive message?
+ * @param {boolean} sendImmediately
+ * @returns {NKMessagePromise} did app receive message?
  */
-async function sendMessageToApp(message) {
+async function sendMessageToApp(message, sendImmediately = true) {
     const isNativeWebKitEnabled = await checkIfNativeWebKitEnabled();
     if (isNativeWebKitEnabled) {
-        _console.log("sending message to app...", message);
+        _console.log("requesting to send message", message, "send immediately?", sendImmediately);
+        if (!message && pendingMessagesToSend.length == 0) {
+            _console.warn("no messages received, and no pending messages");
+            return;
+        }
+
+        if (message) {
+            if (pendingMessagesToSend.length == 0) {
+                pendingMessagesPromise = new Promise((resolve) => {
+                    pendingMessagesPromiseResolve = resolve;
+                });
+            }
+
+            pendingMessagesToSend.push(message);
+            pendingMessagesToSend = pendingMessagesToSend.flat();
+        }
+
+        if (pendingMessagesToSend.length == 0) {
+            _console.log("no messages to send");
+            return;
+        }
+
+        if (!sendImmediately) {
+            return pendingMessagesPromise;
+        }
+
+        _console.log("sending messages to app...", pendingMessagesToSend);
         if (isInApp) {
             /** @type {NKMessage|NKMessage[]} */
-            const messages = await webkit.messageHandlers.nativewebkit_reply.postMessage(message);
+            const messages = await webkit.messageHandlers.nativewebkit_reply.postMessage(pendingMessagesToSend);
             _console.log("app response", messages);
             if (messages) {
                 onAppMessages(messages);
             }
-            return true;
+            pendingMessagesPromiseResolve(true);
         } else {
-            return new Promise((resolve) => {
-                const id = generateAppMessageId();
-                window.dispatchEvent(new CustomEvent("nativewebkit-send", { detail: { message, id } }));
-                window.addEventListener(
-                    `nativewebkit-receive-${id}`,
-                    (event) => {
-                        /** @type {boolean} */
-                        const didReceiveMessage = event.detail;
-                        _console.log(`did receive message for nativewebkit-receive-${id}?`, didReceiveMessage);
-                        if (!didReceiveMessage) {
-                            _console.error(`didn't receive message for nativewebkit-receive-${id}`);
-                        }
-                        resolve(didReceiveMessage);
-                        appMessageIds.delete(id);
-                    },
-                    { once: true }
-                );
-            });
+            const id = generateAppMessageId();
+            window.dispatchEvent(
+                new CustomEvent("nativewebkit-send", { detail: { message: pendingMessagesToSend, id } })
+            );
+            window.addEventListener(
+                `nativewebkit-receive-${id}`,
+                (event) => {
+                    /** @type {boolean} */
+                    const didReceiveMessage = event.detail;
+                    _console.log(`did receive message for nativewebkit-receive-${id}?`, didReceiveMessage);
+                    if (!didReceiveMessage) {
+                        _console.error(`didn't receive message for nativewebkit-receive-${id}`);
+                    }
+                    pendingMessagesPromiseResolve(didReceiveMessage);
+                    appMessageIds.delete(id);
+                },
+                { once: true }
+            );
         }
+        pendingMessagesToSend.length = 0;
+        return pendingMessagesPromise;
     } else {
         _console.warn(
             "NativeWebKit.js is not enabled - run in the NativeWebKit app or enable the NativeWebKit Safari Web Extension"

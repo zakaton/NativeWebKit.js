@@ -7,6 +7,12 @@
  */
 
 /**
+ * @typedef EventDispatcherOptions
+ * @type {object}
+ * @property {boolean} once
+ */
+
+/**
  * @typedef {(event: EventDispatcherEvent) => void} EventListener
  */
 
@@ -44,7 +50,7 @@ class EventDispatcher {
     /**
      * @param {string} type
      * @param {EventListener} listener
-     * @param {object|undefined} options
+     * @param {EventDispatcherOptions|undefined} options
      * @throws {Error}
      */
     addEventListener(type, listener, options) {

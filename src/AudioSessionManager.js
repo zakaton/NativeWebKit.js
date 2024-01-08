@@ -9,6 +9,8 @@ const _console = new Console("AudioSessionManager");
 
 /** @typedef {} ASEventType */
 
+/** @typedef {import("./utils/EventDispatcher.js").EventDispatcherOptions} EventDispatcherOptions */
+
 /** @typedef {import("./utils/messaging.js").NKMessage} NKMessage */
 
 /**
@@ -16,6 +18,12 @@ const _console = new Console("AudioSessionManager");
  * @type {object}
  * @property {ASMessageType} type
  * @property {object} message
+ */
+
+/**
+ * @typedef ASAppMessage
+ * @type {object}
+ * @property {ASMessageType} type
  */
 
 /**
@@ -56,7 +64,7 @@ class AudioSessionManager extends EventDispatcher {
     /**
      * @param {ASEventType} type
      * @param {ASEventListener} listener
-     * @param {object|undefined} options
+     * @param {EventDispatcherOptions|undefined} options
      */
     addEventListener(type, listener, options) {
         return super.addEventListener(...arguments);
@@ -92,14 +100,18 @@ class AudioSessionManager extends EventDispatcher {
             throw new Error("AudioSessionManager is a singleton - use AudioSessionManager.shared");
         }
 
+        addAppListener(this.#onWindowLoad.bind(this), "window.load");
         addAppListener(this.#onAppMessage.bind(this), this._prefix);
-
-        window.addEventListener("load", () => {});
-        window.addEventListener("unload", () => {});
+        addAppListener(this.#onBeforeWindowUnload.bind(this), "window.unload");
     }
 
+    /** @returns {NKMessage|NKMessage[]|undefined} */
+    #onWindowLoad() {}
+    /** @returns {NKMessage|NKMessage[]|undefined} */
+    #onBeforeWindowUnload() {}
+
     /**
-     * @param {ASMessage} message
+     * @param {ASAppMessage} message
      */
     #onAppMessage(message) {
         _console.log(`received background message of type ${message.type}`, message);

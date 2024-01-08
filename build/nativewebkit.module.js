@@ -11,6 +11,12 @@
  */
 
 /**
+ * @typedef EventDispatcherOptions
+ * @type {object}
+ * @property {boolean} once
+ */
+
+/**
  * @typedef {(event: EventDispatcherEvent) => void} EventListener
  */
 
@@ -48,7 +54,7 @@ class EventDispatcher {
     /**
      * @param {string} type
      * @param {EventListener} listener
-     * @param {object|undefined} options
+     * @param {EventDispatcherOptions|undefined} options
      * @throws {Error}
      */
     addEventListener(type, listener, options) {
@@ -205,22 +211,25 @@ class Console {
     }
 }
 
-const _console$4 = new Console();
+const _console$5 = new Console();
 
 const { userAgent } = navigator;
+
+const isInSafari = /Safari/i.test(userAgent) && !/Chrome/i.test(userAgent);
 
 const isInApp = /NativeWebKit/i.test(userAgent);
 
 var isSafariExtensionInstalled = Boolean(window.isNativeWebKitSafariExtensionInstalled);
 
 const checkIfSafariExtensionIsInstalled = async () => {
+    isSafariExtensionInstalled = isSafariExtensionInstalled || Boolean(window.isNativeWebKitSafariExtensionInstalled);
     if (isSafariExtensionInstalled) {
         return true;
     } else {
-        _console$4.log("checking if Safari Extension is installed...");
+        _console$5.log("checking if Safari Extension is installed...");
         return new Promise((resolve) => {
             const eventListener = () => {
-                _console$4.log("Safari Extension is installed");
+                _console$5.log("Safari Extension is installed");
                 isSafariExtensionInstalled = true;
                 resolve(true);
             };
@@ -228,7 +237,7 @@ const checkIfSafariExtensionIsInstalled = async () => {
             window.dispatchEvent(new Event("is-nativewebkit-extension-installed"));
             window.setTimeout(() => {
                 if (!isSafariExtensionInstalled) {
-                    _console$4.log("Safari Extension is not installed");
+                    _console$5.log("Safari Extension is not installed");
                     window.removeEventListener("nativewebkit-extension-is-installed", eventListener);
                     resolve(false);
                 }
@@ -239,6 +248,7 @@ const checkIfSafariExtensionIsInstalled = async () => {
 
 var isNativeWebKitEnabled = isInApp || isSafariExtensionInstalled;
 const checkIfNativeWebKitEnabled = async () => {
+    isNativeWebKitEnabled = isInApp || isSafariExtensionInstalled;
     if (isNativeWebKitEnabled) {
         return true;
     } else {
@@ -247,7 +257,24 @@ const checkIfNativeWebKitEnabled = async () => {
     }
 };
 
-const _console$3 = new Console();
+const is_iOS = /iPad|iPhone|iPod/.test(userAgent);
+
+const isMac = /Macintosh/.test(userAgent);
+
+const openInApp = () => {
+    if (isInSafari) {
+        /** @type {HTMLAnchorElement} */
+        const a = document.createElement("a");
+        const href = `nativewebkit://${location.href}`;
+        _console$5.log("attempting to open current link in App...", location.href, href);
+        a.href = href;
+        a.click();
+    } else {
+        _console$5.warn("unable to open link in app - not in safari");
+    }
+};
+
+const _console$4 = new Console();
 
 /** @type {Set.<number>} */
 const appMessageIds = new Set();
@@ -268,21 +295,42 @@ const appListeners = {};
  * @param {string} prefix
  */
 function addAppListener(callback, prefix) {
-    _console$3.log(`adding callback with prefix "${prefix}"`, callback);
+    _console$4.log(`adding callback with prefix "${prefix}"`, callback);
     if (!appListeners[prefix]) {
         appListeners[prefix] = [];
     }
     appListeners[prefix].push(callback);
 }
 
-if (!window.__NATIVEWEBKIT_LISTENER_FLAG__) {
-    window.__NATIVEWEBKIT_LISTENER_FLAG__ = true;
-    _console$3.log(`adding "nativewebkit-receive" window listener`);
+if (!window.__NATIVEWEBKIT_MESSAGING_FLAG__) {
+    window.__NATIVEWEBKIT_MESSAGING_FLAG__ = true;
+    _console$4.log(`adding "nativewebkit-receive" window listener`);
 
     window.addEventListener("nativewebkit-receive", (event) => {
         /** @type {NKMessage|NKMessage[]} */
         let messages = event.detail;
         onAppMessages(messages);
+    });
+
+    window.addEventListener("load", () => {
+        _console$4.log("triggering window.load events...");
+        const messages = appListeners["window.load"]
+            ?.map((callback) => callback())
+            .flat()
+            .filter(Boolean);
+        if (messages.length > 0) {
+            sendMessageToApp(messages);
+        }
+    });
+    window.addEventListener("unload", () => {
+        _console$4.log("triggering window.unload events...");
+        const messages = appListeners["window.unload"]
+            ?.map((callback) => callback())
+            .flat()
+            .filter(Boolean);
+        if (messages.length > 0) {
+            sendMessageToApp(messages);
+        }
     });
 }
 
@@ -293,16 +341,16 @@ function onAppMessages(messages) {
     if (!Array.isArray(messages)) {
         messages = [messages];
     }
-    _console$3.log("nativewebkit-receive messages", messages);
+    _console$4.log("nativewebkit-receive messages", messages);
     messages.forEach((message) => {
         const [prefix, type] = message.type.split("-");
-        _console$3.log(`received "${prefix}" message of type "${type}"`, message);
+        _console$4.log(`received "${prefix}" message of type "${type}"`, message);
         message.type = type;
         if (!appListeners[prefix] || appListeners[prefix].length == 0) {
-            _console$3.warn("no callbacks listening for prefix", prefix);
+            _console$4.warn("no callbacks listening for prefix", prefix);
         } else {
             appListeners[prefix].forEach((callback) => {
-                _console$3.log("triggering callback", callback, "for message", message);
+                _console$4.log("triggering callback", callback, "for message", message);
                 callback(message);
             });
         }
@@ -315,50 +363,88 @@ function onAppMessages(messages) {
  * @property {string} type
  */
 
+/** @typedef {Promise<boolean>} NKMessagePromise */
+
+/** @type {NKMessage[]} */
+var pendingMessagesToSend = [];
+/** @type {NKMessagePromise|undefined} */
+var pendingMessagesPromise;
+/** @type {PromiseLike<boolean>|undefined} */
+var pendingMessagesPromiseResolve;
+
 /**
  * @param {NKMessage|NKMessage[]} message
- * @returns {Promise<boolean>} did receive message?
+ * @param {boolean} sendImmediately
+ * @returns {NKMessagePromise} did app receive message?
  */
-async function sendMessageToApp(message) {
+async function sendMessageToApp(message, sendImmediately = true) {
     const isNativeWebKitEnabled = await checkIfNativeWebKitEnabled();
     if (isNativeWebKitEnabled) {
-        _console$3.log("sending message to app...", message);
+        _console$4.log("requesting to send message", message, "send immediately?", sendImmediately);
+        if (!message && pendingMessagesToSend.length == 0) {
+            _console$4.warn("no messages received, and no pending messages");
+            return;
+        }
+
+        if (message) {
+            if (pendingMessagesToSend.length == 0) {
+                pendingMessagesPromise = new Promise((resolve) => {
+                    pendingMessagesPromiseResolve = resolve;
+                });
+            }
+
+            pendingMessagesToSend.push(message);
+            pendingMessagesToSend = pendingMessagesToSend.flat();
+        }
+
+        if (pendingMessagesToSend.length == 0) {
+            _console$4.log("no messages to send");
+            return;
+        }
+
+        if (!sendImmediately) {
+            return pendingMessagesPromise;
+        }
+
+        _console$4.log("sending messages to app...", pendingMessagesToSend);
         if (isInApp) {
             /** @type {NKMessage|NKMessage[]} */
-            const messages = await webkit.messageHandlers.nativewebkit_reply.postMessage(message);
-            _console$3.log("app response", messages);
+            const messages = await webkit.messageHandlers.nativewebkit_reply.postMessage(pendingMessagesToSend);
+            _console$4.log("app response", messages);
             if (messages) {
                 onAppMessages(messages);
             }
-            return true;
+            pendingMessagesPromiseResolve(true);
         } else {
-            return new Promise((resolve) => {
-                const id = generateAppMessageId();
-                window.dispatchEvent(new CustomEvent("nativewebkit-send", { detail: { message, id } }));
-                window.addEventListener(
-                    `nativewebkit-receive-${id}`,
-                    (event) => {
-                        /** @type {boolean} */
-                        const didReceiveMessage = event.detail;
-                        _console$3.log(`did receive message for nativewebkit-receive-${id}?`, didReceiveMessage);
-                        if (!didReceiveMessage) {
-                            _console$3.error(`didn't receive message for nativewebkit-receive-${id}`);
-                        }
-                        resolve(didReceiveMessage);
-                        appMessageIds.delete(id);
-                    },
-                    { once: true }
-                );
-            });
+            const id = generateAppMessageId();
+            window.dispatchEvent(
+                new CustomEvent("nativewebkit-send", { detail: { message: pendingMessagesToSend, id } })
+            );
+            window.addEventListener(
+                `nativewebkit-receive-${id}`,
+                (event) => {
+                    /** @type {boolean} */
+                    const didReceiveMessage = event.detail;
+                    _console$4.log(`did receive message for nativewebkit-receive-${id}?`, didReceiveMessage);
+                    if (!didReceiveMessage) {
+                        _console$4.error(`didn't receive message for nativewebkit-receive-${id}`);
+                    }
+                    pendingMessagesPromiseResolve(didReceiveMessage);
+                    appMessageIds.delete(id);
+                },
+                { once: true }
+            );
         }
+        pendingMessagesToSend.length = 0;
+        return pendingMessagesPromise;
     } else {
-        _console$3.warn(
+        _console$4.warn(
             "NativeWebKit.js is not enabled - run in the NativeWebKit app or enable the NativeWebKit Safari Web Extension"
         );
     }
 }
 
-const _console$2 = new Console();
+const _console$3 = new Console();
 
 /**
  * @param {number} a
@@ -374,7 +460,7 @@ function greaterCommonFactor(a, b) {
  * @returns {number|null}
  */
 function findGreatestCommonFactor(numbers) {
-    _console$2.log("finding greatestCommonFactor of numbers", numbers);
+    _console$3.log("finding greatestCommonFactor of numbers", numbers);
     numbers = numbers.filter((number) => number > 0);
 
     if (numbers.length == 0) {
@@ -382,14 +468,14 @@ function findGreatestCommonFactor(numbers) {
     }
 
     const greatestCommonFactor = numbers.reduce((number, gcf) => greaterCommonFactor(number, gcf));
-    _console$2.log("greatestCommonFactor", greatestCommonFactor);
+    _console$3.log("greatestCommonFactor", greatestCommonFactor);
     if (greatestCommonFactor == 0) {
         return null;
     }
     return greatestCommonFactor;
 }
 
-const _console$1 = new Console("AppMessagePoll");
+const _console$2 = new Console("AppMessagePoll");
 
 /** @typedef {import("./messaging.js").NKMessage} NKMessage */
 
@@ -417,7 +503,7 @@ class AppMessagePoll {
      * */
     static #add(poll) {
         if (this.#polls.includes(poll)) {
-            _console$1.log("poll already included");
+            _console$2.log("poll already included");
             return this.#polls.indexOf(poll);
         } else {
             return this.#polls.push(poll);
@@ -429,7 +515,7 @@ class AppMessagePoll {
      * */
     static #remove(poll) {
         if (!this.#polls.includes(poll)) {
-            _console$1.log("poll wasn't included");
+            _console$2.log("poll wasn't included");
             return false;
         } else {
             poll.stop();
@@ -453,11 +539,11 @@ class AppMessagePoll {
     }
     set interval(newInterval) {
         if (newInterval <= 0) {
-            _console$1.error(`invalid interval ${newInterval}ms`);
+            _console$2.error(`invalid interval ${newInterval}ms`);
             return;
         }
         if (newInterval == this.#interval) {
-            _console$1.warn("assigning same interval");
+            _console$2.warn("assigning same interval");
             return;
         }
 
@@ -498,9 +584,9 @@ class AppMessagePoll {
     static #updateInterval() {
         /** @type {number|null} */
         var newInterval = findGreatestCommonFactor(this.#intervals);
-        _console$1.log(`new interval ${newInterval}`);
+        _console$2.log(`new interval ${newInterval}`);
         if (this.#Interval != newInterval) {
-            _console$1.log(`interval updated from ${this.#Interval} to ${newInterval}`);
+            _console$2.log(`interval updated from ${this.#Interval} to ${newInterval}`);
             this.#Interval = newInterval;
             return true;
         }
@@ -514,36 +600,36 @@ class AppMessagePoll {
         });
 
         const messages = polls.map((poll) => poll.#generateMessage());
-        _console$1.log("messages", messages);
+        _console$2.log("messages", messages);
 
         if (messages.length > 0) {
             const didReceiveMessage = await sendMessageToApp(messages);
-            _console$1.log("didReceiveMessage?", didReceiveMessage);
+            _console$2.log("didReceiveMessage?", didReceiveMessage);
             if (!didReceiveMessage) {
-                _console$1.error("app didn't receive message");
+                _console$2.error("app didn't receive message");
             }
         } else {
-            _console$1.log("no messages to send");
+            _console$2.log("no messages to send");
         }
 
         polls.forEach((poll) => (poll.#lastTimeCallbackWasCalled = now));
     }
     static #start() {
         if (this.#IsRunning) {
-            _console$1.log("tried to start AppMessagePoll when it's already running");
+            _console$2.log("tried to start AppMessagePoll when it's already running");
             return;
         }
         if (this.#Interval == null) {
-            _console$1.log("null interval");
+            _console$2.log("null interval");
             return;
         }
-        _console$1.log(`starting interval at ${this.#Interval}`);
+        _console$2.log(`starting interval at ${this.#Interval}`);
 
         this.#intervalId = window.setInterval(this.#intervalCallback.bind(this), this.#Interval);
     }
     static #stop() {
         if (!this.#IsRunning) {
-            _console$1.log("tried to stop AppMessagePoll when it already isn't running");
+            _console$2.log("tried to stop AppMessagePoll when it already isn't running");
             return;
         }
 
@@ -558,11 +644,11 @@ class AppMessagePoll {
 
         const didIntervalUpdate = this.#updateInterval();
         if (this.#IsRunning || didIntervalUpdate) {
-            _console$1.log("restarting...");
+            _console$2.log("restarting...");
             this.#stop();
             this.#start();
         } else {
-            _console$1.log("no need to restart");
+            _console$2.log("no need to restart");
         }
     }
 
@@ -578,7 +664,7 @@ class AppMessagePoll {
             return;
         }
         if (this.#isRunning) {
-            _console$1.log("poll is already running");
+            _console$2.log("poll is already running");
             return;
         }
         this.#isEnabled = true;
@@ -594,7 +680,7 @@ class AppMessagePoll {
     }
 
     destroy() {
-        _console$1.log("destroying poll", this);
+        _console$2.log("destroying poll", this);
         AppMessagePoll.#remove(this);
     }
 }
@@ -605,11 +691,19 @@ class AppMessagePoll {
 
 /** @typedef {import("./utils/messaging.js").NKMessage} NKMessage */
 
+/** @typedef {import("./utils/EventDispatcher.js").EventDispatcherOptions} EventDispatcherOptions */
+
 /**
  * @typedef HMMessage
  * @type {object}
  * @property {HMMessageType} type
  * @property {object} message
+ */
+
+/**
+ * @typedef HMAppMessage
+ * @type {object}
+ * @property {HMMessageType} type
  */
 
 /** @typedef {"default" | "left headphone" | "right headphone" | "unknown"} HeadphoneMotionSensorLocation */
@@ -637,7 +731,7 @@ class AppMessagePoll {
  * @property {[number]} rotationRate
  */
 
-const _console = new Console("HeadphoneMotionManager");
+const _console$1 = new Console("HeadphoneMotionManager");
 
 class HeadphoneMotionManager extends EventDispatcher {
     /** @type {HMEventType[]} */
@@ -666,7 +760,7 @@ class HeadphoneMotionManager extends EventDispatcher {
     /**
      * @param {HMEventType} type
      * @param {HMEventListener} listener
-     * @param {object|undefined} options
+     * @param {EventDispatcherOptions|undefined} options
      */
     addEventListener(type, listener, options) {
         return super.addEventListener(...arguments);
@@ -688,7 +782,7 @@ class HeadphoneMotionManager extends EventDispatcher {
         return super.hasEventListener(...arguments);
     }
     /**
-     * @param {HMEventType} event
+     * @param {HMEvent} event
      */
     dispatchEvent(event) {
         return super.dispatchEvent(...arguments);
@@ -702,18 +796,22 @@ class HeadphoneMotionManager extends EventDispatcher {
             throw new Error("HeadphoneMotionManager is a singleton - use HeadphoneMotionManager.shared");
         }
 
+        addAppListener(this.#getWindowLoadMessages.bind(this), "window.load");
         addAppListener(this.#onAppMessage.bind(this), this._prefix);
+        addAppListener(this.#getWindowUnloadMessages.bind(this), "window.unload");
+    }
 
-        window.addEventListener("load", () => {
-            if (this.#checkAvailabilityOnLoad) {
-                this.checkIsAvailable();
-            }
-        });
-        window.addEventListener("unload", () => {
-            if (this.#isActive && this.#stopUpdatesOnUnload) {
-                this.stopUpdates();
-            }
-        });
+    /** @returns {NKMessage|NKMessage[]|undefined} */
+    #getWindowLoadMessages() {
+        if (this.#checkAvailabilityOnLoad) {
+            return this.#checkIsAvailableMessage;
+        }
+    }
+    /** @returns {NKMessage|NKMessage[]|undefined} */
+    #getWindowUnloadMessages() {
+        if (this.#isActive && this.#stopUpdatesOnUnload) {
+            return this.#stopUpdatesMessage;
+        }
     }
 
     /** @type {boolean} */
@@ -731,7 +829,7 @@ class HeadphoneMotionManager extends EventDispatcher {
     }
 
     /** @type {boolean} */
-    #stopUpdatesOnUnload = false;
+    #stopUpdatesOnUnload = true;
     get stopUpdatesOnUnload() {
         return this.#stopUpdatesOnUnload;
     }
@@ -745,10 +843,10 @@ class HeadphoneMotionManager extends EventDispatcher {
     }
 
     /**
-     * @param {HMMessage} message
+     * @param {HMAppMessage} message
      */
     #onAppMessage(message) {
-        _console.log(`received background message of type ${message.type}`, message);
+        _console$1.log(`received background message of type ${message.type}`, message);
         const { type } = message;
         switch (type) {
             case "isAvailable":
@@ -761,7 +859,7 @@ class HeadphoneMotionManager extends EventDispatcher {
                 this.#onMotionData(message.motionData);
                 break;
             default:
-                _console.error(`uncaught message type ${type}`);
+                _console$1.error(`uncaught message type ${type}`);
                 break;
         }
     }
@@ -775,7 +873,7 @@ class HeadphoneMotionManager extends EventDispatcher {
     #onIsAvailableUpdated(newValue) {
         if (this.#isAvailable != newValue) {
             this.#isAvailable = newValue;
-            _console.log(`updated isAvailable to ${newValue}`);
+            _console$1.log(`updated isAvailable to ${newValue}`);
             this.dispatchEvent({
                 type: "isAvailable",
                 message: { isAvailable: this.isAvailable },
@@ -786,8 +884,8 @@ class HeadphoneMotionManager extends EventDispatcher {
         }
     }
     async checkIsAvailable() {
-        _console.log("checking isAvailable...");
-        await sendMessageToApp(this.#checkIsAvailableMessage);
+        _console$1.log("checking isAvailable...");
+        return sendMessageToApp(this.#checkIsAvailableMessage);
     }
     get #checkIsAvailableMessage() {
         return this._formatMessage({ type: "isAvailable" });
@@ -802,7 +900,7 @@ class HeadphoneMotionManager extends EventDispatcher {
     #onIsActiveUpdated(newIsActive) {
         if (this.#isActive != newIsActive) {
             this.#isActive = newIsActive;
-            _console.log(`updated isActive to ${this.isActive}`);
+            _console$1.log(`updated isActive to ${this.isActive}`);
             this.dispatchEvent({
                 type: "isActive",
                 message: { isActive: this.isActive },
@@ -810,17 +908,17 @@ class HeadphoneMotionManager extends EventDispatcher {
 
             this.#isActivePoll.stop();
             if (this.#isActive) {
-                _console.log("starting motion data poll");
+                _console$1.log("starting motion data poll");
                 this.#motionDataPoll.start();
             } else {
-                _console.log("stopping motion data poll");
+                _console$1.log("stopping motion data poll");
                 this.#motionDataPoll.stop();
             }
         }
     }
     async checkIsActive() {
-        _console.log("checking isActive");
-        await sendMessageToApp(this.#checkIsActiveMessage());
+        _console$1.log("checking isActive");
+        return sendMessageToApp(this.#checkIsActiveMessage());
     }
     #checkIsActiveMessage() {
         return this._formatMessage({ type: "isActive" });
@@ -829,46 +927,46 @@ class HeadphoneMotionManager extends EventDispatcher {
 
     async startUpdates() {
         if (!this.isAvailable) {
-            _console.warn("not available");
+            _console$1.warn("not available");
             return;
         }
         if (this.isActive) {
-            _console.warn("already active");
+            _console$1.warn("already active");
             return;
         }
-        _console.log("starting motion updates");
+        _console$1.log("starting motion updates");
         this.#isActivePoll.start();
-        await sendMessageToApp(this.#startHeadphoneMotionUpdatesMessage);
+        return sendMessageToApp(this.#startUpdatesMessage);
     }
-    get #startHeadphoneMotionUpdatesMessage() {
+    get #startUpdatesMessage() {
         return this._formatMessage({ type: "startUpdates" });
     }
     async stopUpdates() {
         if (!this.isAvailable) {
-            _console.warn("not available");
+            _console$1.warn("not available");
             return;
         }
         if (!this.isActive) {
-            _console.warn("already inactive");
+            _console$1.warn("already inactive");
             return;
         }
-        _console.log("stopping motion updates");
+        _console$1.log("stopping motion updates");
         this.#isActivePoll.start();
-        await sendMessageToApp(this.#stopHeadphoneMotionUpdatesMessage);
+        return sendMessageToApp(this.#stopUpdatesMessage);
     }
-    get #stopHeadphoneMotionUpdatesMessage() {
+    get #stopUpdatesMessage() {
         return this._formatMessage({ type: "stopUpdates" });
     }
 
     async toggleMotionUpdates() {
         if (!this.isAvailable) {
-            _console.log("not available");
+            _console$1.log("not available");
             return;
         }
         if (this.isActive) {
-            await this.stopUpdates();
+            return this.stopUpdates();
         } else {
-            await this.startUpdates();
+            return this.startUpdates();
         }
     }
 
@@ -890,7 +988,7 @@ class HeadphoneMotionManager extends EventDispatcher {
     #onSensorLocationUpdated(newValue) {
         if (this.#sensorLocation != newValue) {
             this.#sensorLocation = newValue;
-            _console.log(`updated sensor location to ${newValue}`);
+            _console$1.log(`updated sensor location to ${newValue}`);
             this.dispatchEvent({
                 type: "sensorLocation",
                 message: { sensorLocation: this.sensorLocation },
@@ -903,14 +1001,14 @@ class HeadphoneMotionManager extends EventDispatcher {
      */
     #onMotionData(newMotionData) {
         this.#motionData = newMotionData;
-        _console.log("received headphone motion data", this.motionData);
+        _console$1.log("received headphone motion data", this.motionData);
         this.dispatchEvent({ type: "motionData", message: { motionData: this.motionData } });
         this.#onSensorLocationUpdated(newMotionData.sensorLocation);
     }
 
     async checkMotionData() {
-        _console.log("checkMotionData");
-        await sendMessageToApp(this.#checkMotionDataMessage);
+        _console$1.log("checkMotionData");
+        return sendMessageToApp(this.#checkMotionDataMessage);
     }
     #checkMotionDataMessage() {
         return this._formatMessage({ type: "getData", timestamp: this.#motionDataTimestamp });
@@ -919,4 +1017,443 @@ class HeadphoneMotionManager extends EventDispatcher {
 }
 var HeadphoneMotionManager$1 = HeadphoneMotionManager.shared;
 
-export { HeadphoneMotionManager$1 as HeadphoneMotionManager };
+/**
+ * @param {object} a
+ * @param {object} b
+ * @returns {boolean}
+ */
+function areObjectsEqual(a, b) {
+    if (typeof a != "object" || typeof b != "object") {
+        return false;
+    }
+
+    const aKeys = Object.keys(a);
+    const bKeys = Object.keys(b);
+
+    if (aKeys.length != bKeys.length) {
+        return false;
+    }
+
+    const areEqual = aKeys.every((aKey) => {
+        if (aKey in b) {
+            return a[aKey] == b[aKey];
+        } else {
+            return false;
+        }
+    });
+    return areEqual;
+}
+
+const _console = new Console("ARSession");
+
+/** @typedef {"worldTrackingSupport" | "faceTrackingSupport" | "run" | "pause" | "isRunning" | "frame"} ARSMessageType */
+
+/** @typedef {"worldTrackingSupport" | "faceTrackingSupport" | "isRunning" | "frame" | "camera"} ARSEventType */
+
+/** @typedef {import("./utils/messaging.js").NKMessage} NKMessage */
+
+/** @typedef {import("./utils/EventDispatcher.js").EventDispatcherOptions} EventDispatcherOptions */
+
+/** @typedef {import("./utils/messaging.js").NKWindowLoadCallback} NKWindowLoadCallback */
+
+/**
+ * @typedef ARSMessage
+ * @type {object}
+ * @property {ARSMessageType} type
+ * @property {object} message
+ */
+
+/**
+ * @typedef ARSAppMessage
+ * @type {object}
+ * @property {ARSMessageType} type
+ */
+
+/**
+ * @typedef ARSWorldTrackingSupport
+ * @type {object}
+ * @property {boolean} isSupported
+ * @property {boolean} supportsUserFaceTracking
+ */
+
+/**
+ * @typedef ARSFaceTrackingSupport
+ * @type {object}
+ * @property {boolean} isSupported
+ * @property {boolean} supportsWorldTracking
+ */
+
+/**
+ * @typedef ARSEvent
+ * @type {object}
+ * @property {ARSEventType} type
+ * @property {object} message
+ */
+
+/**
+ * @typedef {(event: ARSEvent) => void} ARSEventListener
+ */
+
+/**
+ * @typedef ARSFrame
+ * @type {object}
+ * @property {ARSCamera} camera
+ */
+
+/**
+ * @typedef ARSCamera
+ * @type {object}
+ * @property {number[]} position
+ * @property {number[]} quaternion
+ * @property {number[]} position
+ * @property {number[]} eulerAngles
+ */
+
+class ARSessionManager extends EventDispatcher {
+    /** @type {ARSEventType[]} */
+    static #EventsTypes = ["worldTrackingSupport", "faceTrackingSupport", "isRunning", "frame", "camera"];
+    /** @type {ARSEventType[]} */
+    get eventTypes() {
+        return ARSessionManager.#EventsTypes;
+    }
+
+    static #shared = new ARSessionManager();
+    static get shared() {
+        return this.#shared;
+    }
+
+    get _prefix() {
+        return "ars";
+    }
+    /**
+     * @param {ARSMessage} message
+     * @returns {NKMessage}
+     */
+    _formatMessage(message) {
+        return super._formatMessage(message);
+    }
+
+    /**
+     * @param {ARSEventType} type
+     * @param {ARSEventListener} listener
+     * @param {EventDispatcherOptions|undefined} options
+     */
+    addEventListener(type, listener, options) {
+        return super.addEventListener(...arguments);
+    }
+    /**
+     * @param {ARSEventType} type
+     * @param {ARSEventListener} listener
+     * @returns {boolean}
+     */
+    removeEventListener(type, listener) {
+        return super.removeEventListener(...arguments);
+    }
+    /**
+     * @param {ARSEventType} type
+     * @param {ARSEventListener} listener
+     * @returns {boolean}
+     */
+    hasEventListener(type, listener) {
+        return super.hasEventListener(...arguments);
+    }
+    /**
+     * @param {ARSEvent} event
+     */
+    dispatchEvent(event) {
+        return super.dispatchEvent(...arguments);
+    }
+
+    /** ARSessionManager is a singleton - use ARSessionManager.shared */
+    constructor() {
+        super();
+
+        if (this.shared) {
+            throw new Error("ARSessionManager is a singleton - use ARSessionManager.shared");
+        }
+
+        addAppListener(this.#getWindowLoadMessages.bind(this), "window.load");
+        addAppListener(this.#onAppMessage.bind(this), this._prefix);
+        addAppListener(this.#getWindowUnloadMessages.bind(this), "window.unload");
+    }
+
+    get isSupported() {
+        return is_iOS && isInApp;
+    }
+    #warnNotSupported() {
+        if (isMac) {
+            _console.warn("AR Session is not supported on Mac");
+        } else {
+            _console.warn("AR Session not supported in iOS Safari");
+        }
+    }
+
+    /** @returns {NKMessage|NKMessage[]|undefined} */
+    #getWindowLoadMessages() {
+        if (!this.isSupported) {
+            return;
+        }
+
+        const messages = [];
+        if (this.checkFaceTrackingSupportOnLoad) {
+            messages.push(this.#checkFaceTrackingSupportMessage);
+        }
+        if (this.checkWorldTrackingSupportOnLoad) {
+            messages.push(this.#checkWorldTrackingSupportMessage);
+        }
+        if (this.checkIsRunningOnLoad) {
+            messages.push(this.#checkIsRunningMessage);
+        }
+        return messages;
+    }
+    /** @returns {NKMessage|NKMessage[]|undefined} */
+    #getWindowUnloadMessages() {
+        if (!this.isSupported) {
+            return;
+        }
+
+        const messages = [];
+        if (this.pauseOnUnload && this.isRunning) {
+            messages.push(this.#pauseMessage);
+        }
+        return messages;
+    }
+
+    /** @type {ARSWorldTrackingSupport} */
+    #worldTrackingSupport = {
+        isSupported: false,
+        supportsUserFaceTracking: false,
+    };
+    get worldTrackingSupport() {
+        return this.#worldTrackingSupport;
+    }
+    /** @param {ARSWorldTrackingSupport} newValue */
+    #onWorldTrackingSupportUpdated(newValue) {
+        if (!areObjectsEqual(this.#worldTrackingSupport, newValue)) {
+            this.#worldTrackingSupport = newValue;
+            _console.log("updated worldTrackingSupport", newValue);
+            this.dispatchEvent({
+                type: "worldTrackingSupport",
+                message: { worldTrackingSupport: this.worldTrackingSupport },
+            });
+        }
+    }
+
+    /** @type {boolean} */
+    #checkWorldTrackingSupportOnLoad = false;
+    get checkWorldTrackingSupportOnLoad() {
+        return this.#checkWorldTrackingSupportOnLoad;
+    }
+    /** @throws {Error} if newValue is not a boolean */
+    set checkWorldTrackingSupportOnLoad(newValue) {
+        if (typeof newValue == "boolean") {
+            this.#checkWorldTrackingSupportOnLoad = newValue;
+        } else {
+            throw Error(`invalid newValue for checkWorldTrackingSupportOnLoad`, newValue);
+        }
+    }
+
+    async checkWorldTrackingSupport() {
+        if (!this.isSupported) {
+            this.#warnNotSupported();
+            return;
+        }
+
+        _console.log("checking world tracking support...");
+        return sendMessageToApp(this.#checkWorldTrackingSupportMessage);
+    }
+    get #checkWorldTrackingSupportMessage() {
+        return this._formatMessage({ type: "worldTrackingSupport" });
+    }
+
+    /** @type {ARSFaceTrackingSupport} */
+    #faceTrackingSupport = {
+        isSupported: false,
+        supportsWorldTracking: false,
+    };
+    get faceTrackingSupport() {
+        return this.#faceTrackingSupport;
+    }
+    /** @param {ARSFaceTrackingSupport} newValue */
+    #onFaceTrackingSupportUpdated(newValue) {
+        if (!areObjectsEqual(this.#faceTrackingSupport, newValue)) {
+            this.#faceTrackingSupport = newValue;
+            _console.log("updated faceTrackingSupport", newValue);
+            this.dispatchEvent({
+                type: "faceTrackingSupport",
+                message: { faceTrackingSupport: this.faceTrackingSupport },
+            });
+        }
+    }
+
+    /** @type {boolean} */
+    #checkFaceTrackingSupportOnLoad = false;
+    get checkFaceTrackingSupportOnLoad() {
+        return this.#checkFaceTrackingSupportOnLoad;
+    }
+    /** @throws {Error} if newValue is not a boolean */
+    set checkFaceTrackingSupportOnLoad(newValue) {
+        if (typeof newValue == "boolean") {
+            this.#checkFaceTrackingSupportOnLoad = newValue;
+        } else {
+            throw Error(`invalid newValue for checkFaceTrackingSupportOnLoad`, newValue);
+        }
+    }
+
+    async checkFaceTrackingSupport() {
+        if (!this.isSupported) {
+            this.#warnNotSupported();
+            return;
+        }
+
+        _console.log("checking face tracking support...");
+        return sendMessageToApp(this.#checkFaceTrackingSupportMessage);
+    }
+    get #checkFaceTrackingSupportMessage() {
+        return this._formatMessage({ type: "faceTrackingSupport" });
+    }
+
+    /** @type {boolean} */
+    #isRunning = false;
+    get isRunning() {
+        return this.#isRunning;
+    }
+    /** @param {boolean} newValue */
+    #onIsRunningUpdated(newValue) {
+        if (this.#isRunning != newValue) {
+            this.#isRunning = newValue;
+            _console.log(`updated isRunning to ${newValue}`);
+            this.dispatchEvent({
+                type: "isRunning",
+                message: { isRunning: this.isRunning },
+            });
+        }
+    }
+    async checkIsRunning() {
+        if (!this.isSupported) {
+            this.#warnNotSupported();
+            return;
+        }
+
+        _console.log("checking isRunning...");
+        return sendMessageToApp(this.#checkIsRunningMessage);
+    }
+    get #checkIsRunningMessage() {
+        return this._formatMessage({ type: "isRunning" });
+    }
+
+    /** @type {boolean} */
+    #checkIsRunningOnLoad = false;
+    get checkIsRunningOnLoad() {
+        return this.#checkIsRunningOnLoad;
+    }
+    /** @throws {Error} if newValue is not a boolean */
+    set checkIsRunningOnLoad(newValue) {
+        if (typeof newValue == "boolean") {
+            this.#checkIsRunningOnLoad = newValue;
+        } else {
+            throw Error(`invalid newValue for checkIsRunningOnLoad`, newValue);
+        }
+    }
+
+    /** @type {boolean} */
+    #pauseOnUnload = true;
+    get pauseOnUnload() {
+        return this.#pauseOnUnload;
+    }
+    /** @throws {Error} if newValue is not a boolean */
+    set pauseOnUnload(newValue) {
+        if (typeof newValue == "boolean") {
+            this.#pauseOnUnload = newValue;
+        } else {
+            throw Error(`invalid newValue for pauseOnUnload`, newValue);
+        }
+    }
+
+    async run() {
+        _console.log("run...");
+        return sendMessageToApp(this.#runMessage);
+    }
+    get #runMessage() {
+        return this._formatMessage({ type: "run" });
+    }
+
+    async pause() {
+        _console.log("pause...");
+        return sendMessageToApp(this.#pauseMessage);
+    }
+    get #pauseMessage() {
+        return this._formatMessage({ type: "pause" });
+    }
+
+    /** @type {ARSFrame|null} */
+    #frame = null;
+    get frame() {
+        return this.#frame;
+    }
+    /** @type {ARSCamera|null} */
+    #camera;
+    get camera() {
+        return this.#camera;
+    }
+
+    /** @param {ARSFrame} frame */
+    #onFrame(frame) {
+        this.#frame = frame;
+        _console.log("received frame", this.frame);
+        this.dispatchEvent({ type: "frame", message: { frame: this.frame } });
+        this.#onCamera(frame.camera);
+    }
+
+    /** @param {ARSCamera} camera */
+    #onCamera(camera) {
+        this.#camera = camera;
+        _console.log("received camera", this.camera);
+        this.dispatchEvent({ type: "camera", message: { camera: this.camera } });
+    }
+
+    /**
+     * @param {ARSAppMessage} message
+     */
+    #onAppMessage(message) {
+        _console.log(`received background message of type ${message.type}`, message);
+        const { type } = message;
+        switch (type) {
+            case "faceTrackingSupport":
+                _console.log("received faceTrackingSupport message", message);
+                this.#onFaceTrackingSupportUpdated(message.faceTrackingSupport);
+                break;
+            case "worldTrackingSupport":
+                _console.log("received worldTrackingSupport message", message);
+                this.#onWorldTrackingSupportUpdated(message.worldTrackingSupport);
+                break;
+            case "isRunning":
+                _console.log("received isRunning message", message);
+                this.#onIsRunningUpdated(message.isRunning);
+                break;
+            case "frame":
+                _console.log("received frame message", message);
+                this.#onFrame(message.frame);
+                break;
+            default:
+                _console.error(`uncaught message type ${type}`);
+                break;
+        }
+    }
+}
+
+var ARSessionManager$1 = ARSessionManager.shared;
+
+var utils = /*#__PURE__*/Object.freeze({
+    __proto__: null,
+    areObjectsEqual: areObjectsEqual,
+    checkIfNativeWebKitEnabled: checkIfNativeWebKitEnabled,
+    checkIfSafariExtensionIsInstalled: checkIfSafariExtensionIsInstalled,
+    isInApp: isInApp,
+    isInSafari: isInSafari,
+    isMac: isMac,
+    is_iOS: is_iOS,
+    openInApp: openInApp
+});
+
+export { ARSessionManager$1 as ARSessionManager, HeadphoneMotionManager$1 as HeadphoneMotionManager, utils };

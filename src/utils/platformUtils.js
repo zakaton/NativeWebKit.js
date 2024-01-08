@@ -11,6 +11,7 @@ const isInApp = /NativeWebKit/i.test(userAgent);
 var isSafariExtensionInstalled = Boolean(window.isNativeWebKitSafariExtensionInstalled);
 
 const checkIfSafariExtensionIsInstalled = async () => {
+    isSafariExtensionInstalled = isSafariExtensionInstalled || Boolean(window.isNativeWebKitSafariExtensionInstalled);
     if (isSafariExtensionInstalled) {
         return true;
     } else {
@@ -36,6 +37,7 @@ const checkIfSafariExtensionIsInstalled = async () => {
 
 var isNativeWebKitEnabled = isInApp || isSafariExtensionInstalled;
 const checkIfNativeWebKitEnabled = async () => {
+    isNativeWebKitEnabled = isInApp || isSafariExtensionInstalled;
     if (isNativeWebKitEnabled) {
         return true;
     } else {
@@ -48,4 +50,17 @@ const is_iOS = /iPad|iPhone|iPod/.test(userAgent);
 
 const isMac = /Macintosh/.test(userAgent);
 
-export { isInApp, isInSafari, checkIfSafariExtensionIsInstalled, checkIfNativeWebKitEnabled, is_iOS, isMac };
+const openInApp = () => {
+    if (isInSafari) {
+        /** @type {HTMLAnchorElement} */
+        const a = document.createElement("a");
+        const href = `nativewebkit://${location.href}`;
+        _console.log("attempting to open current link in App...", location.href, href);
+        a.href = href;
+        a.click();
+    } else {
+        _console.warn("unable to open link in app - not in safari");
+    }
+};
+
+export { isInApp, isInSafari, checkIfSafariExtensionIsInstalled, checkIfNativeWebKitEnabled, is_iOS, isMac, openInApp };

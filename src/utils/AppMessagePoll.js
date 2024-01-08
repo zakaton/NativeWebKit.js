@@ -1,5 +1,5 @@
 import Console from "./Console.js";
-import { checkIfSafariExtensionIsInstalled, isInApp, checkIfNativeWebKitEnabled } from "./context.js";
+import { checkIfSafariExtensionIsInstalled, isInApp, checkIfNativeWebKitEnabled } from "./platformUtils.js";
 import { findGreatestCommonFactor } from "./MathUtils.js";
 import { sendMessageToApp } from "./messaging.js";
 

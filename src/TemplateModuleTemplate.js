@@ -9,6 +9,8 @@ const _console = new Console("Template");
 
 /** @typedef {"test"} TMEventType */
 
+/** @typedef {import("./utils/EventDispatcher.js").EventDispatcherOptions} EventDispatcherOptions */
+
 /** @typedef {import("./utils/messaging.js").NKMessage} NKMessage */
 
 /**
@@ -16,6 +18,12 @@ const _console = new Console("Template");
  * @type {object}
  * @property {TMMessageType} type
  * @property {object} message
+ */
+
+/**
+ * @typedef TMAppMessage
+ * @type {object}
+ * @property {TMMessageType} type
  */
 
 /**
@@ -56,7 +64,7 @@ class TemplateModuleManager extends EventDispatcher {
     /**
      * @param {TMEventType} type
      * @param {TMEventListener} listener
-     * @param {object|undefined} options
+     * @param {EventDispatcherOptions|undefined} options
      */
     addEventListener(type, listener, options) {
         return super.addEventListener(...arguments);
@@ -78,7 +86,7 @@ class TemplateModuleManager extends EventDispatcher {
         return super.hasEventListener(...arguments);
     }
     /**
-     * @param {TMEventType} event
+     * @param {TMEvent} event
      */
     dispatchEvent(event) {
         return super.dispatchEvent(...arguments);
@@ -92,29 +100,33 @@ class TemplateModuleManager extends EventDispatcher {
             throw new Error("TemplateModuleManager is a singleton - use TemplateModuleManager.shared");
         }
 
+        addAppListener(this.#getWindowLoadMessages.bind(this), "window.load");
         addAppListener(this.#onAppMessage.bind(this), this._prefix);
-
-        window.addEventListener("load", () => {});
-        window.addEventListener("unload", () => {});
+        addAppListener(this.#getWindowUnloadMessages.bind(this), "window.unload");
     }
+
+    /** @returns {NKMessage|NKMessage[]|undefined} */
+    #getWindowLoadMessages() {}
+    /** @returns {NKMessage|NKMessage[]|undefined} */
+    #getWindowUnloadMessages() {}
 
     async sendTestMessage() {
         _console.log("test message...");
-        await sendMessageToApp(this.#testMessage);
+        return sendMessageToApp(this.#testMessage);
     }
     get #testMessage() {
         return this._formatMessage({ type: "test" });
     }
 
     /**
-     * @param {TMMessage} message
+     * @param {TMAppMessage} message
      */
     #onAppMessage(message) {
         _console.log(`received background message of type ${message.type}`, message);
         const { type } = message;
         switch (type) {
             case "test":
-                _console.log("receivedt test message", message);
+                _console.log("received test message", message);
                 break;
             default:
                 _console.error(`uncaught message type ${type}`);

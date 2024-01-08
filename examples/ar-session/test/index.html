@@ -1,0 +1,36 @@
+<html>
+    <head>
+        <title>Test | AR Session | NativeWebKit.js</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script type="module" src="./script.js"></script>
+    </head>
+    <style>
+        label {
+            display: block;
+        }
+    </style>
+    <body>
+        <h1>Test | AR Session | NativeWebKit.js</h1>
+
+        <label>is supported? <input id="isSupported" type="checkbox" disabled /></label>
+        <br />
+        <label>is world tracking supported? <input id="isWorldTrackingSupported" type="checkbox" disabled /></label>
+        <label
+            >with user face-tracking? <input id="isWorldTrackingSupportedWithUserFaceTracking" type="checkbox" disabled
+        /></label>
+        <br />
+        <label>is face tracking supported? <input id="isFaceTrackingSupported" type="checkbox" disabled /></label>
+        <label
+            >with world face-tracking? <input id="isFaceTrackingSupportedWithWorldTracking" type="checkbox" disabled
+        /></label>
+        <br />
+        <button id="run" disabled>run</button>
+        <button id="pause" disabled>pause</button>
+
+        <h3>Camera</h3>
+
+        <label><b>position:</b> <span id="cameraPosition"></span></label>
+        <label><b>quaternion:</b> <span id="cameraQuaternion"></span></label>
+        <label><b>euler angles:</b> <span id="cameraEulerAngles"></span></label>
+    </body>
+</html>
