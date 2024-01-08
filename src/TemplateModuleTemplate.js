@@ -64,7 +64,7 @@ class TemplateModuleManager extends EventDispatcher {
     /**
      * @param {TMEventType} type
      * @param {TMEventListener} listener
-     * @param {EventDispatcherOptions|undefined} options
+     * @param {EventDispatcherOptions?} options
      */
     addEventListener(type, listener, options) {
         return super.addEventListener(...arguments);
@@ -105,9 +105,9 @@ class TemplateModuleManager extends EventDispatcher {
         addAppListener(this.#getWindowUnloadMessages.bind(this), "window.unload");
     }
 
-    /** @returns {NKMessage|NKMessage[]|undefined} */
+    /** @returns {NKMessage|NKMessage[]?} */
     #getWindowLoadMessages() {}
-    /** @returns {NKMessage|NKMessage[]|undefined} */
+    /** @returns {NKMessage|NKMessage[]?} */
     #getWindowUnloadMessages() {}
 
     async sendTestMessage() {

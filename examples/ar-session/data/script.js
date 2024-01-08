@@ -62,19 +62,10 @@ ARSessionManager.addEventListener("isRunning", (event) => {
     pauseButton.disabled = !isRunning;
 });
 
-/** @type {HTMLSpanElement} */
-const cameraPositionSpan = document.getElementById("cameraPosition");
-/** @type {HTMLSpanElement} */
-const cameraQuaternionSpan = document.getElementById("cameraQuaternion");
-/** @type {HTMLSpanElement} */
-const cameraEulerAnglesSpan = document.getElementById("cameraEulerAngles");
-
-ARSessionManager.addEventListener("camera", (event) => {
-    /** @type {import("../../../src/ARSessionManager.js").ARSCamera} */
-    const camera = event.message.camera;
-    console.log("camera", camera);
-
-    cameraPositionSpan.innerText = camera.position.map((value) => value.toFixed(3));
-    cameraQuaternionSpan.innerText = camera.quaternion.map((value) => value.toFixed(3));
-    cameraEulerAnglesSpan.innerText = camera.eulerAngles.map((value) => value.toFixed(3));
+/** @type {HTMLPreElement} */
+const frameElement = document.getElementById("frame");
+ARSessionManager.addEventListener("frame", (event) => {
+    /** @type {import("../../../src/ARSessionManager.js").ARSFrame} */
+    const frame = event.message.frame;
+    frameElement.textContent = JSON.stringify(frame, null, 2);
 });

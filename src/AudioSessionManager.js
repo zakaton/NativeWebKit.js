@@ -64,7 +64,7 @@ class AudioSessionManager extends EventDispatcher {
     /**
      * @param {ASEventType} type
      * @param {ASEventListener} listener
-     * @param {EventDispatcherOptions|undefined} options
+     * @param {EventDispatcherOptions?} options
      */
     addEventListener(type, listener, options) {
         return super.addEventListener(...arguments);
@@ -105,9 +105,9 @@ class AudioSessionManager extends EventDispatcher {
         addAppListener(this.#onBeforeWindowUnload.bind(this), "window.unload");
     }
 
-    /** @returns {NKMessage|NKMessage[]|undefined} */
+    /** @returns {NKMessage|NKMessage[]?} */
     #onWindowLoad() {}
-    /** @returns {NKMessage|NKMessage[]|undefined} */
+    /** @returns {NKMessage|NKMessage[]?} */
     #onBeforeWindowUnload() {}
 
     /**

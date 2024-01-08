@@ -108,9 +108,9 @@ function removeAppListener(callback, prefix) {
 
 /** @type {NKMessage[]} */
 var pendingMessagesToSend = [];
-/** @type {NKMessagePromise|undefined} */
+/** @type {NKMessagePromise?} */
 var pendingMessagesPromise;
-/** @type {PromiseLike<boolean>|undefined} */
+/** @type {PromiseLike<boolean>?} */
 var pendingMessagesPromiseResolve;
 
 /**

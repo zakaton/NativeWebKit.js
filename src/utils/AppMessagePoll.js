@@ -93,13 +93,13 @@ class AppMessagePoll {
         AppMessagePoll.#add(this);
     }
 
-    /** @type {number|null} */
+    /** @type {number?} */
     static #intervalId = null;
     static get #IsRunning() {
         return this.#intervalId != null;
     }
 
-    /** @type {number|null} (ms) */
+    /** @type {number?} (ms) */
     static #Interval = null;
     static get #enabledPolls() {
         return this.#polls.filter((poll) => poll.#isEnabled);
@@ -110,7 +110,7 @@ class AppMessagePoll {
 
     /** @returns {boolean} did interval update */
     static #updateInterval() {
-        /** @type {number|null} */
+        /** @type {number?} */
         var newInterval = findGreatestCommonFactor(this.#intervals);
         _console.log(`new interval ${newInterval}`);
         if (this.#Interval != newInterval) {

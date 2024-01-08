@@ -9,7 +9,7 @@ const _console = new Console("ARSession");
 
 /** @typedef {"worldTrackingSupport" | "faceTrackingSupport" | "run" | "pause" | "isRunning" | "frame"} ARSMessageType */
 
-/** @typedef {"worldTrackingSupport" | "faceTrackingSupport" | "isRunning" | "frame" | "camera"} ARSEventType */
+/** @typedef {"worldTrackingSupport" | "faceTrackingSupport" | "isRunning" | "frame" | "camera" | "faceAnchors" | "faceAnchor"} ARSEventType */
 
 /** @typedef {import("./utils/messaging.js").NKMessage} NKMessage */
 
@@ -59,6 +59,7 @@ const _console = new Console("ARSession");
  * @typedef ARSFrame
  * @type {object}
  * @property {ARSCamera} camera
+ * @property {ARSFaceAnchor[]?} faceAnchors
  */
 
 /**
@@ -70,9 +71,35 @@ const _console = new Console("ARSession");
  * @property {number[]} eulerAngles
  */
 
+/**
+ * @typedef ARSFaceAnchor
+ * @type {object}
+ * @property {string} identifier
+ * @property {number[]} lookAtPoint
+ * @property {number[]} position
+ * @property {number[]} quaternion
+ * @property {ARSFaceAnchorEye} leftEye
+ * @property {ARSFaceAnchorEye} rightEye
+ */
+
+/**
+ * @typedef ARSFaceAnchorEye
+ * @type {object}
+ * @property {number[]} quaternion
+ * @property {number[]} position
+ */
+
 class ARSessionManager extends EventDispatcher {
     /** @type {ARSEventType[]} */
-    static #EventsTypes = ["worldTrackingSupport", "faceTrackingSupport", "isRunning", "frame", "camera"];
+    static #EventsTypes = [
+        "worldTrackingSupport",
+        "faceTrackingSupport",
+        "isRunning",
+        "frame",
+        "camera",
+        "faceAnchors",
+        "faceAnchor",
+    ];
     /** @type {ARSEventType[]} */
     get eventTypes() {
         return ARSessionManager.#EventsTypes;
@@ -97,7 +124,7 @@ class ARSessionManager extends EventDispatcher {
     /**
      * @param {ARSEventType} type
      * @param {ARSEventListener} listener
-     * @param {EventDispatcherOptions|undefined} options
+     * @param {EventDispatcherOptions?} options
      */
     addEventListener(type, listener, options) {
         return super.addEventListener(...arguments);
@@ -149,7 +176,7 @@ class ARSessionManager extends EventDispatcher {
         }
     }
 
-    /** @returns {NKMessage|NKMessage[]|undefined} */
+    /** @returns {NKMessage|NKMessage[]?} */
     #getWindowLoadMessages() {
         if (!this.isSupported) {
             return;
@@ -167,7 +194,7 @@ class ARSessionManager extends EventDispatcher {
         }
         return messages;
     }
-    /** @returns {NKMessage|NKMessage[]|undefined} */
+    /** @returns {NKMessage|NKMessage[]?} */
     #getWindowUnloadMessages() {
         if (!this.isSupported) {
             return;
@@ -347,15 +374,20 @@ class ARSessionManager extends EventDispatcher {
         return this._formatMessage({ type: "pause" });
     }
 
-    /** @type {ARSFrame|null} */
+    /** @type {ARSFrame?} */
     #frame = null;
     get frame() {
         return this.#frame;
     }
-    /** @type {ARSCamera|null} */
+    /** @type {ARSCamera?} */
     #camera;
     get camera() {
         return this.#camera;
+    }
+    /** @type {ARSFaceAnchor[]?} */
+    #faceAnchors;
+    get faceAnchors() {
+        return this.#faceAnchors;
     }
 
     /** @param {ARSFrame} frame */
@@ -364,6 +396,9 @@ class ARSessionManager extends EventDispatcher {
         _console.log("received frame", this.frame);
         this.dispatchEvent({ type: "frame", message: { frame: this.frame } });
         this.#onCamera(frame.camera);
+        if (frame.faceAnchors) {
+            this.#onFaceAnchors(frame.faceAnchors);
+        }
     }
 
     /** @param {ARSCamera} camera */
@@ -371,6 +406,13 @@ class ARSessionManager extends EventDispatcher {
         this.#camera = camera;
         _console.log("received camera", this.camera);
         this.dispatchEvent({ type: "camera", message: { camera: this.camera } });
+    }
+
+    /** @param {ARSFaceAnchor[]} faceAnchors */
+    #onFaceAnchors(faceAnchors) {
+        this.#faceAnchors = faceAnchors;
+        _console.log("received faceAnchors", this.faceAnchors);
+        this.dispatchEvent({ type: "faceAnchors", message: { camera: this.camera } });
     }
 
     /**

@@ -8,7 +8,7 @@ class Console {
 
     #emptyFunction = function () {};
 
-    /** @param {string|undefined} newPrefix */
+    /** @param {string?} newPrefix */
     set prefix(newPrefix) {
         const args = [console];
         if (newPrefix) {
@@ -59,7 +59,7 @@ class Console {
 
     /**
      *
-     * @param {string|undefined} prefix
+     * @param {string?} prefix
      */
     constructor(prefix) {
         if (prefix) {

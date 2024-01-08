@@ -106,7 +106,7 @@ const targetRotationOffsetEntity = document.getElementById("targetRotationOffset
 
 /** @param {HeadphoneMotionData} motionData */
 function onHeadphoneMotionData(motionData) {
-    /** @type {Vector3|undefined} */
+    /** @type {Vector3?} */
     var newPosition;
     switch (translationMode) {
         case "no translation":
@@ -127,7 +127,7 @@ function onHeadphoneMotionData(motionData) {
         targetPositionOffsetEntity.object3D.position.lerp(newPosition, 0.5);
     }
 
-    /** @type {Euler|undefined} */
+    /** @type {Euler?} */
     var newEuler;
     switch (orientationMode) {
         case "no orientation":

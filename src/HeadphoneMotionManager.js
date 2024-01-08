@@ -78,7 +78,7 @@ class HeadphoneMotionManager extends EventDispatcher {
     /**
      * @param {HMEventType} type
      * @param {HMEventListener} listener
-     * @param {EventDispatcherOptions|undefined} options
+     * @param {EventDispatcherOptions?} options
      */
     addEventListener(type, listener, options) {
         return super.addEventListener(...arguments);
@@ -119,13 +119,13 @@ class HeadphoneMotionManager extends EventDispatcher {
         addAppListener(this.#getWindowUnloadMessages.bind(this), "window.unload");
     }
 
-    /** @returns {NKMessage|NKMessage[]|undefined} */
+    /** @returns {NKMessage|NKMessage[]?} */
     #getWindowLoadMessages() {
         if (this.#checkAvailabilityOnLoad) {
             return this.#checkIsAvailableMessage;
         }
     }
-    /** @returns {NKMessage|NKMessage[]|undefined} */
+    /** @returns {NKMessage|NKMessage[]?} */
     #getWindowUnloadMessages() {
         if (this.#isActive && this.#stopUpdatesOnUnload) {
             return this.#stopUpdatesMessage;
@@ -182,7 +182,7 @@ class HeadphoneMotionManager extends EventDispatcher {
         }
     }
 
-    /** @type {boolean|null} */
+    /** @type {boolean?} */
     #isAvailable = null;
     get isAvailable() {
         return Boolean(this.#isAvailable);
@@ -209,7 +209,7 @@ class HeadphoneMotionManager extends EventDispatcher {
         return this._formatMessage({ type: "isAvailable" });
     }
 
-    /** @type {boolean|null} */
+    /** @type {boolean?} */
     #isActive = null;
     get isActive() {
         return Boolean(this.#isActive);
@@ -297,7 +297,7 @@ class HeadphoneMotionManager extends EventDispatcher {
     get #motionDataTimestamp() {
         return this.motionData?.timestamp || 0;
     }
-    /** @type {HeadphoneMotionSensorLocation|null} */
+    /** @type {HeadphoneMotionSensorLocation?} */
     #sensorLocation = null;
     get sensorLocation() {
         return this.#sensorLocation;

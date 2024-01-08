@@ -44,13 +44,13 @@ class EventDispatcher {
         }
     }
 
-    /** @type {Object.<string, [function]|undefined>|undefined} */
+    /** @type {Object.<string, [function]?>?} */
     #listeners;
 
     /**
      * @param {string} type
      * @param {EventListener} listener
-     * @param {EventDispatcherOptions|undefined} options
+     * @param {EventDispatcherOptions?} options
      * @throws {Error}
      */
     addEventListener(type, listener, options) {

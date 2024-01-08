@@ -13,7 +13,7 @@ function greaterCommonFactor(a, b) {
 
 /**
  * @param {number[]} numbers
- * @returns {number|null}
+ * @returns {number?}
  */
 function findGreatestCommonFactor(numbers) {
     _console.log("finding greatestCommonFactor of numbers", numbers);
