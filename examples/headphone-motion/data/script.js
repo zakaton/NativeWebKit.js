@@ -1,4 +1,5 @@
 import { HeadphoneMotionManager } from "../../../src/NativeWebKit.js";
+import { sortObjectKeysAlphabetically } from "../../../src/utils/objectUtils.js";
 //import { HeadphoneMotionManager } from "../../../build/nativewebkit.module.js";
 console.log(HeadphoneMotionManager);
 window.HeadphoneMotionManager = HeadphoneMotionManager;
@@ -40,5 +41,6 @@ const motionDataElement = document.getElementById("motionData");
 HeadphoneMotionManager.addEventListener("motionData", (event) => {
     /** @type {import("../../../src/HeadphoneMotionManager.js").HeadphoneMotionData} */
     const motionData = event.message.motionData;
-    motionDataElement.textContent = JSON.stringify(motionData, null, 2);
+    const sortedMotionData = sortObjectKeysAlphabetically(motionData);
+    motionDataElement.textContent = JSON.stringify(sortedMotionData, null, 2);
 });

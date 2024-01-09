@@ -129,8 +129,7 @@ class TemplateModuleManager extends EventDispatcher {
                 _console.log("received test message", message);
                 break;
             default:
-                _console.error(`uncaught message type ${type}`);
-                break;
+                throw Error(`uncaught message type ${type}`);
         }
     }
 }

@@ -177,8 +177,7 @@ class HeadphoneMotionManager extends EventDispatcher {
                 this.#onMotionData(message.motionData);
                 break;
             default:
-                _console.error(`uncaught message type ${type}`);
-                break;
+                throw Error(`uncaught message type ${type}`);
         }
     }
 
@@ -197,11 +196,11 @@ class HeadphoneMotionManager extends EventDispatcher {
                 message: { isAvailable: this.isAvailable },
             });
             if (this.#isAvailable) {
-                this.checkIsActive();
+                this.#checkIsActive();
             }
         }
     }
-    async checkIsAvailable() {
+    async #checkIsAvailable() {
         _console.log("checking isAvailable...");
         return sendMessageToApp(this.#checkIsAvailableMessage);
     }
@@ -234,7 +233,7 @@ class HeadphoneMotionManager extends EventDispatcher {
             }
         }
     }
-    async checkIsActive() {
+    async #checkIsActive() {
         _console.log("checking isActive");
         return sendMessageToApp(this.#checkIsActiveMessage());
     }
@@ -324,7 +323,7 @@ class HeadphoneMotionManager extends EventDispatcher {
         this.#onSensorLocationUpdated(newMotionData.sensorLocation);
     }
 
-    async checkMotionData() {
+    async #checkMotionData() {
         _console.log("checkMotionData");
         return sendMessageToApp(this.#checkMotionDataMessage);
     }

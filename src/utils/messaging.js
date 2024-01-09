@@ -68,6 +68,12 @@ function onAppMessages(messages) {
     if (!Array.isArray(messages)) {
         messages = [messages];
     }
+    messages = messages.flatMap((message) => {
+        if (message.type == "messages") {
+            return message.messages;
+        }
+        return message;
+    });
     _console.log("nativewebkit-receive messages", messages);
     messages.forEach((message) => {
         const [prefix, type] = message.type.split("-");

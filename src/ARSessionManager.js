@@ -1,15 +1,14 @@
 import EventDispatcher from "./utils/EventDispatcher.js";
 import Console from "./utils/Console.js";
 import { sendMessageToApp, addAppListener } from "./utils/messaging.js";
-import AppMessagePoll from "./utils/AppMessagePoll.js";
 import { areObjectsEqual } from "./utils/objectUtils.js";
-import { isInApp, isInSafari, isMac, is_iOS } from "./utils/platformUtils.js";
+import { isInApp, isMac, is_iOS } from "./utils/platformUtils.js";
 
 const _console = new Console("ARSession");
 
-/** @typedef {"worldTrackingSupport" | "faceTrackingSupport" | "run" | "pause" | "isRunning" | "frame"} ARSMessageType */
+/** @typedef {"worldTrackingSupport" | "faceTrackingSupport" | "run" | "pause" | "status" | "frame" | "debugOptions" | "cameraMode" | "configuration"} ARSMessageType */
 
-/** @typedef {"worldTrackingSupport" | "faceTrackingSupport" | "isRunning" | "frame" | "camera" | "faceAnchors" | "faceAnchor"} ARSEventType */
+/** @typedef {"worldTrackingSupport" | "faceTrackingSupport" | "isRunning" | "frame" | "camera" | "faceAnchors" | "faceAnchor" | "debugOptions" | "cameraMode" | "configuration"} ARSEventType */
 
 /** @typedef {import("./utils/messaging.js").NKMessage} NKMessage */
 
@@ -55,6 +54,28 @@ const _console = new Console("ARSession");
  * @typedef {(event: ARSEvent) => void} ARSEventListener
  */
 
+/** @typedef {"worldTracking"|"faceTracking"} ARSConfigurationType */
+/**
+ * @typedef ARSConfiguration
+ * @type {object}
+ * @property {ARSConfigurationType} type
+ */
+
+/**
+ * @typedef _ARSWorldTrackingConfiguration
+ * @type {object}
+ * @property {bool} userFaceTrackingEnabled
+ */
+/** @typedef {ARSConfiguration & _ARSWorldTrackingConfiguration} ARSWorldTrackingConfiguration */
+
+/**
+ * @typedef _ARSFaceTrackingConfiguration
+ * @type {object}
+ * @property {bool} isWorldTrackingEnabled
+ * @property {bool} maximumNumberOfTrackedFaces
+ */
+/** @typedef {ARSConfiguration & _ARSFaceTrackingConfiguration} ARSFaceTrackingConfiguration */
+
 /**
  * @typedef ARSFrame
  * @type {object}
@@ -65,6 +86,7 @@ const _console = new Console("ARSession");
 /**
  * @typedef ARSCamera
  * @type {object}
+ * @property {number} focalLength
  * @property {number[]} position
  * @property {number[]} quaternion
  * @property {number[]} position
@@ -80,6 +102,7 @@ const _console = new Console("ARSession");
  * @property {number[]} quaternion
  * @property {ARSFaceAnchorEye} leftEye
  * @property {ARSFaceAnchorEye} rightEye
+ * @property {ARSFaceAnchorBlendShapes} blendShapes
  */
 
 /**
@@ -88,6 +111,82 @@ const _console = new Console("ARSession");
  * @property {number[]} quaternion
  * @property {number[]} position
  */
+
+/** @typedef {"none" | "showAnchorGeometry" | "showAnchorOrigins" | "showFeaturePoints" | "showPhysics" | "showSceneUnderstanding" | "showStatistics" | "showWorldOrigin"} ARSDebugOption */
+
+/**
+ * @typedef ARSDebugOptions
+ * @type {object}
+ * @property {boolean} none
+ * @property {boolean} showAnchorGeometry
+ * @property {boolean} showAnchorOrigins
+ * @property {boolean} showFeaturePoints
+ * @property {boolean} showPhysics
+ * @property {boolean} showSceneUnderstanding
+ * @property {boolean} showStatistics
+ * @property {boolean} showWorldOrigin
+ */
+
+/** @typedef {"browDownLeft" | "browDownRight" | "browInnerUp" | "browOuterUpLeft" | "browOuterUpRight" | "cheekPuff" | "cheekSquintLeft" | "cheekSquintRight" | "eyeBlinkLeft" | "eyeBlinkRight" | "eyeLookDownLeft" | "eyeLookDownRight" | "eyeLookInLeft" | "eyeLookInRight" | "eyeLookOutLeft" | "eyeLookOutRight" | "eyeLookUpLeft" | "eyeLookUpRight" | "eyeSquintLeft" | "eyeSquintRight" | "eyeWideLeft" | "eyeWideRight" | "jawForward" | "jawLeft" | "jawOpen" | "jawRight" | "mouthClose" | "mouthDimpleLeft" | "mouthDimpleRight" | "mouthFrownLeft" | "mouthFrownRight" | "mouthFunnel" | "mouthLeft" | "mouthLowerDownLeft" | "mouthLowerDownRight" | "mouthPressLeft" | "mouthPressRight" | "mouthPucker" | "mouthRight" | "mouthRollLower" | "mouthRollUpper" | "mouthShrugLower" | "mouthShrugUpper" | "mouthSmileLeft" | "mouthSmileRight" | "mouthStretchLeft" | "mouthStretchRight" | "mouthUpperUpLeft" | "mouthUpperUpRight" | "noseSneerLeft" | "noseSneerRight" | "tongueOut"} ARSFaceAnchorBlendShapeLocation */
+
+/**
+ * @typedef ARSFaceAnchorBlendShapes
+ * @type {object}
+ * @property {number} browDownLeft The coefficient describing downward movement of the outer portion of the left eyebrow.
+ * @property {number} browDownRight The coefficient describing downward movement of the outer portion of the right eyebrow.
+ * @property {number} browInnerUp The coefficient describing upward movement of the inner portion of both eyebrows.
+ * @property {number} browOuterUpLeft The coefficient describing upward movement of the outer portion of the left eyebrow.
+ * @property {number} browOuterUpRight The coefficient describing upward movement of the outer portion of the right eyebrow.
+ * @property {number} cheekPuff The coefficient describing outward movement of both cheeks.
+ * @property {number} cheekSquintLeft The coefficient describing upward movement of the cheek around and below the left eye.
+ * @property {number} cheekSquintRight The coefficient describing upward movement of the cheek around and below the right eye.
+ * @property {number} eyeBlinkLeft The coefficient describing closure of the eyelids over the left eye.
+ * @property {number} eyeBlinkRight The coefficient describing closure of the eyelids over the right eye.
+ * @property {number} eyeLookDownLeft The coefficient describing movement of the left eyelids consistent with a downward gaze.
+ * @property {number} eyeLookDownRight The coefficient describing movement of the right eyelids consistent with a downward gaze.
+ * @property {number} eyeLookInLeft The coefficient describing movement of the left eyelids consistent with a rightward gaze.
+ * @property {number} eyeLookInRight The coefficient describing movement of the right eyelids consistent with a leftward gaze.
+ * @property {number} eyeLookOutLeft The coefficient describing movement of the left eyelids consistent with a leftward gaze.
+ * @property {number} eyeLookOutRight The coefficient describing movement of the right eyelids consistent with a rightward gaze.
+ * @property {number} eyeLookUpLeft The coefficient describing movement of the left eyelids consistent with an upward gaze.
+ * @property {number} eyeLookUpRight The coefficient describing movement of the right eyelids consistent with an upward gaze.
+ * @property {number} eyeSquintLeft The coefficient describing contraction of the face around the left eye.
+ * @property {number} eyeSquintRight The coefficient describing contraction of the face around the right eye.
+ * @property {number} eyeWideLeft The coefficient describing a widening of the eyelids around the left eye.
+ * @property {number} eyeWideRight The coefficient describing a widening of the eyelids around the right eye.
+ * @property {number} jawForward The coefficient describing forward movement of the lower jaw.
+ * @property {number} jawLeft The coefficient describing leftward movement of the lower jaw.
+ * @property {number} jawOpen The coefficient describing an opening of the lower jaw.
+ * @property {number} jawRight The coefficient describing rightward movement of the lower jaw.
+ * @property {number} mouthClose The coefficient describing closure of the lips independent of jaw position.
+ * @property {number} mouthDimpleLeft The coefficient describing backward movement of the left corner of the mouth.
+ * @property {number} mouthDimpleRight The coefficient describing backward movement of the right corner of the mouth.
+ * @property {number} mouthFrownLeft The coefficient describing downward movement of the left corner of the mouth.
+ * @property {number} mouthFrownRight The coefficient describing downward movement of the right corner of the mouth.
+ * @property {number} mouthFunnel The coefficient describing contraction of both lips into an open shape.
+ * @property {number} mouthLeft The coefficient describing leftward movement of both lips together.
+ * @property {number} mouthLowerDownLeft The coefficient describing downward movement of the lower lip on the left side.
+ * @property {number} mouthLowerDownRight The coefficient describing downward movement of the lower lip on the right side.
+ * @property {number} mouthPressLeft The coefficient describing upward compression of the lower lip on the left side.
+ * @property {number} mouthPressRight The coefficient describing upward compression of the lower lip on the right side.
+ * @property {number} mouthPucker The coefficient describing contraction and compression of both closed lips.
+ * @property {number} mouthRight The coefficient describing rightward movement of both lips together.
+ * @property {number} mouthRollLower The coefficient describing movement of the lower lip toward the inside of the mouth.
+ * @property {number} mouthRollUpper The coefficient describing movement of the upper lip toward the inside of the mouth.
+ * @property {number} mouthShrugLower The coefficient describing outward movement of the lower lip.
+ * @property {number} mouthShrugUpper The coefficient describing outward movement of the upper lip.
+ * @property {number} mouthSmileLeft The coefficient describing upward movement of the left corner of the mouth.
+ * @property {number} mouthSmileRight The coefficient describing upward movement of the right corner of the mouth.
+ * @property {number} mouthStretchLeft The coefficient describing leftward movement of the left corner of the mouth.
+ * @property {number} mouthStretchRight The coefficient describing rightward movement of the left corner of the mouth.
+ * @property {number} mouthUpperUpLeft The coefficient describing upward movement of the upper lip on the left side.
+ * @property {number} mouthUpperUpRight The coefficient describing upward movement of the upper lip on the right side.
+ * @property {number} noseSneerLeft The coefficient describing a raising of the left side of the nose around the nostril.
+ * @property {number} noseSneerRight The coefficient describing a raising of the right side of the nose around the nostril.
+ * @property {number} tongueOut The coefficient describing extension of the tongue.
+ */
+
+/** @typedef {"ar" | "nonAR"} ARSCameraMode */
 
 class ARSessionManager extends EventDispatcher {
     /** @type {ARSEventType[]} */
@@ -99,6 +198,9 @@ class ARSessionManager extends EventDispatcher {
         "camera",
         "faceAnchors",
         "faceAnchor",
+        "debugOptions",
+        "cameraMode",
+        "configuration",
     ];
     /** @type {ARSEventType[]} */
     get eventTypes() {
@@ -192,6 +294,13 @@ class ARSessionManager extends EventDispatcher {
         if (this.checkIsRunningOnLoad) {
             messages.push(this.#checkIsRunningMessage);
         }
+        if (this.checkDebugOptionsOnLoad) {
+            messages.push(this.#checkDebugOptionsMessage);
+        }
+        if (this.checkCameraModeOnLoad) {
+            messages.push(this.#checkCameraModeMessage);
+        }
+
         return messages;
     }
     /** @returns {NKMessage|NKMessage[]?} */
@@ -241,7 +350,7 @@ class ARSessionManager extends EventDispatcher {
         }
     }
 
-    async checkWorldTrackingSupport() {
+    async #checkWorldTrackingSupport() {
         if (!this.isSupported) {
             this.#warnNotSupported();
             return;
@@ -288,7 +397,7 @@ class ARSessionManager extends EventDispatcher {
         }
     }
 
-    async checkFaceTrackingSupport() {
+    async #checkFaceTrackingSupport() {
         if (!this.isSupported) {
             this.#warnNotSupported();
             return;
@@ -315,9 +424,12 @@ class ARSessionManager extends EventDispatcher {
                 type: "isRunning",
                 message: { isRunning: this.isRunning },
             });
+            if (this.isRunning) {
+                this.#checkConfiguration();
+            }
         }
     }
-    async checkIsRunning() {
+    async #checkIsRunning() {
         if (!this.isSupported) {
             this.#warnNotSupported();
             return;
@@ -358,12 +470,23 @@ class ARSessionManager extends EventDispatcher {
         }
     }
 
-    async run() {
-        _console.log("run...");
-        return sendMessageToApp(this.#runMessage);
+    /** @param {ARSConfiguration} configuration */
+    async run(configuration) {
+        if (!configuration) {
+            throw Error(`configuration required to run ARSession`);
+        }
+        if (!configuration.type) {
+            throw Error(`"type" property required in configuration`);
+        }
+        if (!this.allConfigurationTypes.includes(configuration.type)) {
+            throw Error(`invalid configuration type "${configuration.type}"`);
+        }
+
+        _console.log("runing with configuraton", configuration);
+        return sendMessageToApp(this.#runMessage(configuration));
     }
-    get #runMessage() {
-        return this._formatMessage({ type: "run" });
+    #runMessage(configuration) {
+        return this._formatMessage({ type: "run", configuration });
     }
 
     async pause() {
@@ -374,18 +497,58 @@ class ARSessionManager extends EventDispatcher {
         return this._formatMessage({ type: "pause" });
     }
 
+    /** @type {ARSConfigurationType[]} */
+    #allConfigurationTypes = ["worldTracking", "faceTracking"];
+    get allConfigurationTypes() {
+        return this.#allConfigurationTypes;
+    }
+
+    /** @type {ARSConfiguration?} */
+    #configuration = null;
+    get configuration() {
+        return this.#configuration;
+    }
+
+    async #checkConfiguration() {
+        if (!this.isSupported) {
+            this.#warnNotSupported();
+            return;
+        }
+
+        if (!this.isRunning) {
+            _console.warn("can't check configuration when session is not running");
+            return;
+        }
+
+        _console.log("checking configuration...");
+        return sendMessageToApp(this.#checkConfigurationMessage);
+    }
+    get #checkConfigurationMessage() {
+        return this._formatMessage({ type: "configuration" });
+    }
+
+    /** @param {ARSConfiguration} newConfiguration  */
+    #onConfigurationUpdated(newConfiguration) {
+        this.#configuration = newConfiguration;
+        _console.log("updated configuration", this.configuration);
+        this.dispatchEvent({
+            type: "configuration",
+            message: { configuration: this.configuration },
+        });
+    }
+
     /** @type {ARSFrame?} */
     #frame = null;
     get frame() {
         return this.#frame;
     }
     /** @type {ARSCamera?} */
-    #camera;
+    #camera = null;
     get camera() {
         return this.#camera;
     }
     /** @type {ARSFaceAnchor[]?} */
-    #faceAnchors;
+    #faceAnchors = null;
     get faceAnchors() {
         return this.#faceAnchors;
     }
@@ -415,6 +578,169 @@ class ARSessionManager extends EventDispatcher {
         this.dispatchEvent({ type: "faceAnchors", message: { camera: this.camera } });
     }
 
+    /** @type {ARSDebugOption[]} */
+    #allDebugOptions = [
+        "none",
+        "showAnchorGeometry",
+        "showAnchorOrigins",
+        "showFeaturePoints",
+        "showPhysics",
+        "showSceneUnderstanding",
+        "showStatistics",
+        "showWorldOrigin",
+    ];
+    get allDebugOptions() {
+        return this.#allDebugOptions;
+    }
+
+    /** @type {ARSDebugOptions?} */
+    #debugOptions = null;
+    get debugOptions() {
+        return this.#debugOptions;
+    }
+    /** @param {ARSDebugOptions} newDebugOptions */
+    #onDebugOptionsUpdated(newDebugOptions) {
+        this.#debugOptions = newDebugOptions;
+        _console.log("received debugOptions", this.debugOptions);
+        this.dispatchEvent({ type: "debugOptions", message: { debugOptions: this.debugOptions } });
+    }
+
+    async #checkDebugOptions() {
+        if (!this.isSupported) {
+            this.#warnNotSupported();
+            return;
+        }
+
+        _console.log("checking debugOptions...");
+        return sendMessageToApp(this.#checkDebugOptionsMessage);
+    }
+    get #checkDebugOptionsMessage() {
+        return this._formatMessage({ type: "debugOptions" });
+    }
+
+    /**
+     * @param {ARSDebugOptions} debugOptions
+     * @throws if debugOptions is not an object or has an invalid key
+     */
+    async setDebugOptions(debugOptions) {
+        if (!this.isSupported) {
+            this.#warnNotSupported();
+            return;
+        }
+
+        if (typeof debugOptions != "object") {
+            throw Error("debugOptions must be an object", debugOptions);
+        }
+
+        const invalidKey = Object.keys(debugOptions).find(
+            (debugOption) => !this.#allDebugOptions.includes(debugOption)
+        );
+        if (invalidKey) {
+            throw Error(`invalid debugOptions key ${invalidKey}`);
+        }
+
+        _console.log("setting debugOptions...", debugOptions);
+        return sendMessageToApp(this.#setDebugOptionsMessage(debugOptions));
+    }
+
+    /** @param {ARSDebugOptions} debugOptions */
+    #setDebugOptionsMessage(debugOptions) {
+        return this._formatMessage({ type: "debugOptions", debugOptions });
+    }
+
+    /** @type {boolean} */
+    #checkDebugOptionsOnLoad = false;
+    get checkDebugOptionsOnLoad() {
+        return this.#checkDebugOptionsOnLoad;
+    }
+    /** @throws {Error} if newValue is not a boolean */
+    set checkDebugOptionsOnLoad(newValue) {
+        if (typeof newValue == "boolean") {
+            this.#checkDebugOptionsOnLoad = newValue;
+        } else {
+            throw Error(`invalid newValue for checkDebugOptionsOnLoad`, newValue);
+        }
+    }
+
+    /** @type {ARSCameraMode[]} */
+    #allCameraModes = ["ar", "nonAR"];
+    get allCameraModes() {
+        return this.#allCameraModes;
+    }
+
+    /** @type {ARSCameraMode?} */
+    #cameraMode = null;
+    get cameraMode() {
+        return this.#cameraMode;
+    }
+
+    async #checkCameraMode() {
+        if (!this.isSupported) {
+            this.#warnNotSupported();
+            return;
+        }
+
+        _console.log("checking cameraMode...");
+        return sendMessageToApp(this.#checkCameraModeMessage);
+    }
+    get #checkCameraModeMessage() {
+        return this._formatMessage({ type: "cameraMode" });
+    }
+
+    /** @param {ARSCameraMode} cameraMode */
+    #setCameraModeMessage(cameraMode) {
+        return this._formatMessage({ type: "cameraMode", cameraMode });
+    }
+
+    /**
+     * @param {ARSCameraMode} newCameraMode
+     * @throws error if newCameraMode is not valid
+     */
+    async setCameraMode(newCameraMode) {
+        if (!this.isSupported) {
+            this.#warnNotSupported();
+            return;
+        }
+
+        const isValidCameraMode = this.#allCameraModes.includes(newCameraMode);
+        if (!isValidCameraMode) {
+            throw Error(`invalid cameraMode "${newCameraMode}"`);
+        }
+
+        if (newCameraMode == this.#cameraMode) {
+            _console.log(`cameraMode is already set to "${this.#cameraMode}"`);
+            return;
+        }
+
+        _console.log("setting cameraMode...", newCameraMode);
+        return sendMessageToApp(this.#setCameraModeMessage(newCameraMode));
+    }
+
+    /** @type {boolean} */
+    #checkCameraModeOnLoad = false;
+    get checkCameraModeOnLoad() {
+        return this.#checkCameraModeOnLoad;
+    }
+    /** @throws {Error} if newValue is not a boolean */
+    set checkCameraModeOnLoad(newValue) {
+        if (typeof newValue == "boolean") {
+            this.#checkCameraModeOnLoad = newValue;
+        } else {
+            throw Error(`invalid newValue for checkCameraModeOnLoad`, newValue);
+        }
+    }
+
+    /** @param {ARSCameraMode} newCameraMode */
+    #onCameraModeUpdated(newCameraMode) {
+        if (this.#cameraMode == newCameraMode) {
+            return;
+        }
+
+        this.#cameraMode = newCameraMode;
+        _console.log(`updated cameraMode to ${this.cameraMode}`);
+        this.dispatchEvent({ type: "cameraMode", message: { cameraMode: this.cameraMode } });
+    }
+
     /**
      * @param {ARSAppMessage} message
      */
@@ -434,13 +760,24 @@ class ARSessionManager extends EventDispatcher {
                 _console.log("received isRunning message", message);
                 this.#onIsRunningUpdated(message.isRunning);
                 break;
+            case "configuration":
+                _console.log("received configuration message", message);
+                this.#onConfigurationUpdated(message.configuration);
+                break;
+            case "debugOptions":
+                _console.log("received debugOptions message", message);
+                this.#onDebugOptionsUpdated(message.debugOptions);
+                break;
+            case "cameraMode":
+                _console.log("received cameraMode message", message);
+                this.#onCameraModeUpdated(message.cameraMode);
+                break;
             case "frame":
                 _console.log("received frame message", message);
                 this.#onFrame(message.frame);
                 break;
             default:
-                _console.error(`uncaught message type ${type}`);
-                break;
+                throw Error(`uncaught message type ${type}`);
         }
     }
 }

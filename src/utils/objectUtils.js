@@ -25,4 +25,23 @@ function areObjectsEqual(a, b) {
     return areEqual;
 }
 
-export { areObjectsEqual };
+/**
+ *
+ * @param {object} object
+ * @param {boolean} recursive
+ * @returns {object} sorted object
+ */
+function sortObjectKeysAlphabetically(object, recursive = true) {
+    const sortedKeys = Object.keys(object).sort();
+    const sortedObject = {};
+    sortedKeys.forEach((key) => {
+        let value = object[key];
+        if (typeof value == "object" && recursive) {
+            value = sortObjectKeysAlphabetically(value, recursive);
+        }
+        sortedObject[key] = value;
+    });
+    return sortedObject;
+}
+
+export { areObjectsEqual, sortObjectKeysAlphabetically };

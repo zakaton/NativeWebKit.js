@@ -20,19 +20,40 @@
         <h1>Data | AR Session | NativeWebKit.js</h1>
 
         <label>is supported? <input id="isSupported" type="checkbox" disabled /></label>
-        <br />
-        <label>is world tracking supported? <input id="isWorldTrackingSupported" type="checkbox" disabled /></label>
-        <label
-            >with user face-tracking? <input id="isWorldTrackingSupportedWithUserFaceTracking" type="checkbox" disabled
-        /></label>
-        <br />
-        <label>is face tracking supported? <input id="isFaceTrackingSupported" type="checkbox" disabled /></label>
-        <label
-            >with world face-tracking? <input id="isFaceTrackingSupportedWithWorldTracking" type="checkbox" disabled
-        /></label>
-        <br />
+
         <button id="run" disabled>run</button>
         <button id="pause" disabled>pause</button>
+        <br />
+        <label>
+            camera mode:
+            <select id="cameraMode" disabled>
+                <optgroup label="camera mode"></optgroup>
+            </select>
+        </label>
+
+        <p><b>Tracking Support</b></p>
+
+        <label>is world tracking supported? <input id="isWorldTrackingSupported" type="checkbox" disabled /></label>
+        <label>
+            with user face-tracking?
+            <input id="isWorldTrackingSupportedWithUserFaceTracking" type="checkbox" disabled />
+        </label>
+        <br />
+        <label>is face tracking supported? <input id="isFaceTrackingSupported" type="checkbox" disabled /></label>
+        <label>
+            with world face-tracking? <input id="isFaceTrackingSupportedWithWorldTracking" type="checkbox" disabled />
+        </label>
+
+        <p><b>Configuration</b></p>
+        <label>
+            configuration type
+            <select id="configurationType">
+                <optgroup label="configuration type"></optgroup>
+            </select>
+        </label>
+
+        <p><b>Debug Options</b></p>
+        <div id="debugOptions"></div>
 
         <pre id="frame"></pre>
     </body>

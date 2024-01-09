@@ -118,8 +118,7 @@ class AudioSessionManager extends EventDispatcher {
         const { type } = message;
         switch (type) {
             default:
-                _console.error(`uncaught message type ${type}`);
-                break;
+                throw Error(`uncaught message type ${type}`);
         }
     }
 }
