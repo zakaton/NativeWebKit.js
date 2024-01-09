@@ -1,5 +1,5 @@
-import { ARSessionManager, utils } from "../../../src/NativeWebKit.js";
 import { sortObjectKeysAlphabetically } from "../../../src/utils/objectUtils.js";
+import { ARSessionManager, utils } from "../../../src/NativeWebKit.js";
 //import { ARSessionManager } from "../../../build/nativewebkit.module.js";
 console.log(ARSessionManager);
 window.utils = utils;
@@ -11,6 +11,7 @@ ARSessionManager.checkIsRunningOnLoad = true;
 ARSessionManager.pauseOnUnload = false;
 ARSessionManager.checkDebugOptionsOnLoad = true;
 ARSessionManager.checkCameraModeOnLoad = true;
+ARSessionManager.checkShowCameraOnLoad = true;
 
 /** @type {HTMLInputElement} */
 const isSupportedCheckbox = document.getElementById("isSupported");
@@ -41,6 +42,12 @@ ARSessionManager.addEventListener("faceTrackingSupport", (event) => {
     isFaceTrackingSupportedCheckbox.checked = faceTrackingSupport.isSupported;
     isFaceTrackingSupportedWithWorldTrackingCheckbox.checked = faceTrackingSupport.supportsWorldTracking;
 });
+
+/** @typedef {import("../../../src/ARSessionManager.js").ARSConfigurationType} ARSConfigurationType */
+/** @typedef {import("../../../src/ARSessionManager.js").ARSConfiguration} ARSConfiguration */
+
+/** @type {ARSConfiguration} */
+var configuration = { type: ARSessionManager.allConfigurationTypes[0] };
 
 /** @type {HTMLButtonElement} */
 const runButton = document.getElementById("run");
@@ -132,12 +139,6 @@ ARSessionManager.addEventListener("cameraMode", (event) => {
     cameraModeSelect.value = cameraMode;
 });
 
-/** @typedef {import("../../../src/ARSessionManager.js").ARSConfigurationType} ARSConfigurationType */
-/** @typedef {import("../../../src/ARSessionManager.js").ARSConfiguration} ARSConfiguration */
-
-/** @type {ARSConfiguration} */
-var configuration = { type: ARSessionManager.allConfigurationTypes[0] };
-
 /** @type {HTMLSelectElement} */
 const configurationTypeSelect = document.getElementById("configurationType");
 const configurationTypeOptgroup = configurationTypeSelect.querySelector("optgroup");
@@ -146,7 +147,7 @@ configurationTypeSelect.addEventListener("input", () => {
     const configurationType = configurationTypeSelect.value;
     configuration = { type: configurationType };
     console.log("updated configurationType", configurationType);
-    onConfigurationUpdate();
+    onConfigurationInput();
     updateConfigurationElements();
 });
 configurationTypeSelect.disabled = !ARSessionManager.isSupported;
@@ -183,7 +184,7 @@ document.querySelectorAll("[data-configuration-type]").forEach((configurationDiv
                 `updated ${configurationKey} to ${configuration[configurationKey]} for ${configurationType} configuration`,
                 configuration
             );
-            onConfigurationUpdate();
+            onConfigurationInput();
         });
     });
     configurationInputsMap.set(configurationType, configurationInputs);
@@ -196,8 +197,22 @@ function updateConfigurationElements() {
 }
 updateConfigurationElements();
 
-function onConfigurationUpdate() {
+function onConfigurationInput() {
     if (ARSessionManager.isRunning) {
         ARSessionManager.run(configuration);
     }
 }
+
+/** @type {HTMLInputElement} */
+const showCameraCheckbox = document.getElementById("showCamera");
+showCameraCheckbox.addEventListener("input", () => {
+    const newShowCamera = showCameraCheckbox.checked;
+    ARSessionManager.setShowCamera(newShowCamera);
+});
+ARSessionManager.addEventListener("showCamera", (event) => {
+    /** @type {boolean} */
+    const showCamera = event.message.showCamera;
+    console.log("showCamera", showCamera);
+    showCameraCheckbox.checked = showCamera;
+});
+showCameraCheckbox.disabled = !ARSessionManager.isSupported;

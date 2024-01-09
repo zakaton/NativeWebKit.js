@@ -1,0 +1,79 @@
+<html>
+    <head>
+        <title>Face Tracking | AR Session | NativeWebKit.js</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script src="../../src/aframe/aframe-v1.5.0.min.js"></script>
+
+        <!-- required to get aframe-orbit-controls-component to work -->
+        <script>
+            THREE.Quaternion.prototype.inverse = THREE.Quaternion.prototype.invert;
+            THREE.Math = THREE.MathUtils;
+        </script>
+        <!-- https://github.com/tizzle/aframe-orbit-controls-component -->
+        <script src="../../src/aframe/aframe-orbit-controls-component.min.js"></script>
+
+        <script type="module" src="./script.js"></script>
+    </head>
+    <style>
+        a-scene {
+            width: 350px;
+            height: 350px;
+            margin: auto;
+            border-radius: 40px;
+            overflow: hidden;
+            border: solid black;
+        }
+
+        #controls {
+            margin: auto;
+            width: fit-content;
+            display: flex;
+            flex-direction: column;
+        }
+        #controls > div {
+            display: flex;
+            flex-direction: row;
+            gap: 0.5rem;
+            justify-content: space-evenly;
+        }
+
+        label {
+            display: block;
+        }
+    </style>
+    <body>
+        <div>
+            <small><a href="/">home</a></small>
+        </div>
+
+        <h1>Face Tracking | AR Session | NativeWebKit.js</h1>
+
+        <a-scene
+            embedded
+            xr-mode-ui="enabled: false;"
+            device-orientation-permission-ui="enabled: false"
+            renderer="colorManagement: true; antialias: false;"
+        >
+            <a-assets>
+                <a-asset-item id="headAsset" src="../../../assets/avatar.glb"></a-asset-item>
+            </a-assets>
+
+            <a-camera
+                id="camera"
+                look-controls="enabled: false;"
+                wasd-controls="enabled: false;"
+                position="0 0.59 0.6"
+            ></a-camera>
+
+            <a-entity id="target">
+                <a-entity id="targetPositionOffset">
+                    <a-entity id="targetRotationOffset">
+                        <a-entity id="head" gltf-model="#headAsset" visible="true"></a-entity>
+                    </a-entity>
+                </a-entity>
+            </a-entity>
+        </a-scene>
+
+        <div id="controls">controls</div>
+    </body>
+</html>

@@ -6,9 +6,9 @@ import { isInApp, isMac, is_iOS } from "./utils/platformUtils.js";
 
 const _console = new Console("ARSession");
 
-/** @typedef {"worldTrackingSupport" | "faceTrackingSupport" | "run" | "pause" | "status" | "frame" | "debugOptions" | "cameraMode" | "configuration"} ARSMessageType */
+/** @typedef {"worldTrackingSupport" | "faceTrackingSupport" | "run" | "pause" | "status" | "frame" | "debugOptions" | "cameraMode" | "configuration" | "showCamera"} ARSMessageType */
 
-/** @typedef {"worldTrackingSupport" | "faceTrackingSupport" | "isRunning" | "frame" | "camera" | "faceAnchors" | "faceAnchor" | "debugOptions" | "cameraMode" | "configuration"} ARSEventType */
+/** @typedef {"worldTrackingSupport" | "faceTrackingSupport" | "isRunning" | "frame" | "camera" | "faceAnchors" | "faceAnchor" | "debugOptions" | "cameraMode" | "configuration" | "showCamera"} ARSEventType */
 
 /** @typedef {import("./utils/messaging.js").NKMessage} NKMessage */
 
@@ -203,6 +203,7 @@ class ARSessionManager extends EventDispatcher {
         "debugOptions",
         "cameraMode",
         "configuration",
+        "showCamera",
     ];
     /** @type {ARSEventType[]} */
     get eventTypes() {
@@ -301,6 +302,9 @@ class ARSessionManager extends EventDispatcher {
         }
         if (this.checkCameraModeOnLoad) {
             messages.push(this.#checkCameraModeMessage);
+        }
+        if (this.checkShowCameraOnLoad) {
+            messages.push(this.#checkShowCameraMessage);
         }
 
         return messages;
@@ -805,6 +809,71 @@ class ARSessionManager extends EventDispatcher {
         this.dispatchEvent({ type: "cameraMode", message: { cameraMode: this.cameraMode } });
     }
 
+    /** @type {boolean} */
+    #showCamera = null;
+    get showCamera() {
+        return this.#showCamera;
+    }
+
+    async #checkShowCamera() {
+        if (!this.isSupported) {
+            this.#warnNotSupported();
+            return;
+        }
+
+        _console.log("checking showCamera...");
+        return sendMessageToApp(this.#checkShowCameraMessage);
+    }
+
+    /** @param {boolean} newShowCamera */
+    #onShowCameraUpdated(newShowCamera) {
+        if (this.#showCamera == newShowCamera) {
+            return;
+        }
+
+        this.#showCamera = newShowCamera;
+        _console.log(`updated showCamera to ${this.showCamera}`);
+        this.dispatchEvent({ type: "showCamera", message: { showCamera: this.showCamera } });
+    }
+
+    /** @type {boolean} */
+    #checkShowCameraOnLoad = false;
+    get checkShowCameraOnLoad() {
+        return this.#checkShowCameraOnLoad;
+    }
+    /** @throws {Error} if newValue is not a boolean */
+    set checkShowCameraOnLoad(newValue) {
+        if (typeof newValue == "boolean") {
+            this.#checkShowCameraOnLoad = newValue;
+        } else {
+            throw Error(`invalid newValue for checkShowCameraOnLoad`, newValue);
+        }
+    }
+
+    /** @param {boolean} newShowCamera */
+    async setShowCamera(newShowCamera) {
+        if (!this.isSupported) {
+            this.#warnNotSupported();
+            return;
+        }
+        if (newShowCamera == this.#showCamera) {
+            _console.log(`showCamera is already set to "${this.#showCamera}"`);
+            return;
+        }
+
+        _console.log("setting showCamera...", newShowCamera);
+        return sendMessageToApp(this.#setShowCameraMessage(newShowCamera));
+    }
+
+    get #checkShowCameraMessage() {
+        return this._formatMessage({ type: "showCamera" });
+    }
+
+    /** @param {boolean} showCamera */
+    #setShowCameraMessage(showCamera) {
+        return this._formatMessage({ type: "showCamera", showCamera });
+    }
+
     /**
      * @param {ARSAppMessage} message
      */
@@ -839,6 +908,10 @@ class ARSessionManager extends EventDispatcher {
             case "frame":
                 _console.log("received frame message", message);
                 this.#onFrame(message.frame);
+                break;
+            case "showCamera":
+                _console.log("received showCamera message", message);
+                this.#onShowCameraUpdated(message.showCamera);
                 break;
             default:
                 throw Error(`uncaught message type ${type}`);
