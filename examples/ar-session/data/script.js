@@ -144,11 +144,10 @@ const configurationTypeOptgroup = configurationTypeSelect.querySelector("optgrou
 configurationTypeSelect.addEventListener("input", () => {
     /** @type {ARSConfigurationType} */
     const configurationType = configurationTypeSelect.value;
-    configuration.type = configurationType;
+    configuration = { type: configurationType };
     console.log("updated configurationType", configurationType);
-    if (ARSessionManager.isRunning) {
-        ARSessionManager.run(configuration);
-    }
+    onConfigurationUpdate();
+    updateConfigurationElements();
 });
 configurationTypeSelect.disabled = !ARSessionManager.isSupported;
 
@@ -158,6 +157,47 @@ ARSessionManager.allConfigurationTypes.forEach((configurationType) => {
 
 ARSessionManager.addEventListener("configuration", (event) => {
     /** @type {ARSConfiguration} */
-    const configuration = event.message.configuration;
+    configuration = event.message.configuration;
     configurationTypeSelect.value = configuration.type;
 });
+
+/** @type {Map.<ARSConfigurationType, HTMLDivElement} */
+const configurationDivsMap = new Map();
+/** @type {Map.<ARSConfigurationType, HTMLInputElement[]} */
+const configurationInputsMap = new Map();
+document.querySelectorAll("[data-configuration-type]").forEach((configurationDiv) => {
+    /** @type {ARSConfigurationType} */
+    const configurationType = configurationDiv.dataset.configurationType;
+    configurationDivsMap.set(configurationType, configurationDiv);
+    /** @type {HTMLInputElement[]} */
+    const configurationInputs = Array.from(configurationDiv.querySelectorAll("[data-configuration]"));
+    configurationInputs.forEach((configurationInput) => {
+        const configurationKey = configurationInput.dataset.configuration;
+        configurationInput.addEventListener("input", () => {
+            var value = configurationInput.value;
+            if (configurationInput.type == "checkbox") {
+                value = configurationInput.checked;
+            }
+            configuration[configurationKey] = value;
+            console.log(
+                `updated ${configurationKey} to ${configuration[configurationKey]} for ${configurationType} configuration`,
+                configuration
+            );
+            onConfigurationUpdate();
+        });
+    });
+    configurationInputsMap.set(configurationType, configurationInputs);
+});
+
+function updateConfigurationElements() {
+    configurationDivsMap.forEach((configurationDiv, configurationType) => {
+        configurationDiv.hidden = configuration.type != configurationType;
+    });
+}
+updateConfigurationElements();
+
+function onConfigurationUpdate() {
+    if (ARSessionManager.isRunning) {
+        ARSessionManager.run(configuration);
+    }
+}

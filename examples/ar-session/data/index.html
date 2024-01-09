@@ -52,6 +52,31 @@
             </select>
         </label>
 
+        <div data-configuration-type="worldTracking">
+            <label>
+                face tracking?
+                <input type="checkbox" data-configuration="userFaceTrackingEnabled" />
+            </label>
+        </div>
+
+        <div data-configuration-type="faceTracking">
+            <label>
+                world tracking?
+                <input type="checkbox" data-configuration="isWorldTrackingEnabled" />
+            </label>
+            <label>
+                max number of tracked faces?
+                <input
+                    type="number"
+                    min="1"
+                    max="3"
+                    step="1"
+                    value="1"
+                    data-face-tracking-configuration="maximumNumberOfTrackedFaces"
+                />
+            </label>
+        </div>
+
         <p><b>Debug Options</b></p>
         <div id="debugOptions"></div>
 

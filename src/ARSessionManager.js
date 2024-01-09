@@ -61,6 +61,7 @@ const _console = new Console("ARSession");
  * @property {ARSConfigurationType} type
  */
 
+/** @typedef {"userFaceTrackingEnabled"} ARSWorldTrackingConfigurationKey */
 /**
  * @typedef _ARSWorldTrackingConfiguration
  * @type {object}
@@ -68,6 +69,7 @@ const _console = new Console("ARSession");
  */
 /** @typedef {ARSConfiguration & _ARSWorldTrackingConfiguration} ARSWorldTrackingConfiguration */
 
+/** @typedef {"isWorldTrackingEnabled" | "maximumNumberOfTrackedFaces"} ARSFaceTrackingConfigurationKey */
 /**
  * @typedef _ARSFaceTrackingConfiguration
  * @type {object}
@@ -470,8 +472,12 @@ class ARSessionManager extends EventDispatcher {
         }
     }
 
-    /** @param {ARSConfiguration} configuration */
-    async run(configuration) {
+    /**
+     * @param {ARSConfiguration} configuration
+     * @throws {Error} if invalid
+     */
+    #assertConfigurationIsValid(configuration) {
+        _console.log("assertConfigurationIsValid", configuration);
         if (!configuration) {
             throw Error(`configuration required to run ARSession`);
         }
@@ -482,7 +488,60 @@ class ARSessionManager extends EventDispatcher {
             throw Error(`invalid configuration type "${configuration.type}"`);
         }
 
-        _console.log("runing with configuraton", configuration);
+        switch (configuration.type) {
+            case "worldTracking":
+                const invalidWorldTrackingConfigurationKey = Object.keys(configuration).find(
+                    (key) => key !== "type" && !this.#worldTrackingConfigurationKeys.includes(key)
+                );
+                if (invalidWorldTrackingConfigurationKey) {
+                    throw Error(`invalid worldTracking configuration key "${invalidWorldTrackingConfigurationKey}"`);
+                }
+                /** @type {ARSWorldTrackingConfiguration} */
+                const worldTrackingConfiguration = configuration;
+                if (!this.worldTrackingSupport.isSupported) {
+                    throw Error("your device doesn't support world tracking");
+                }
+                if (
+                    worldTrackingConfiguration.userFaceTrackingEnabled &&
+                    !this.worldTrackingSupport.supportsUserFaceTracking
+                ) {
+                    throw Error("your device doesn't support user face tracking with world tracking");
+                }
+                break;
+            case "faceTracking":
+                const invalidFaceTrackingConfigurationKey = Object.keys(configuration).find(
+                    (key) => key !== "type" && !this.#faceTrackingConfigurationKeys.includes(key)
+                );
+                if (invalidFaceTrackingConfigurationKey) {
+                    throw Error(`invalid faceTracking configuration key "${invalidFaceTrackingConfigurationKey}"`);
+                }
+                /** @type {ARSFaceTrackingConfiguration} */
+                const faceTrackingConfiguration = configuration;
+                if (!this.faceTrackingSupport.isSupported) {
+                    throw Error("your device doesn't support face tracking");
+                }
+                if (
+                    faceTrackingConfiguration.isWorldTrackingEnabled &&
+                    !this.faceTrackingSupport.supportsWorldTracking
+                ) {
+                    throw Error("your device doesn't support user world tracking with face tracking");
+                }
+                break;
+            default:
+                throw Error(`uncaught configuration type "${configuration.type}"`);
+        }
+    }
+
+    /** @param {ARSConfiguration} configuration */
+    async run(configuration) {
+        if (!this.isSupported) {
+            this.#warnNotSupported();
+            return;
+        }
+
+        this.#assertConfigurationIsValid(configuration);
+
+        _console.log("running with configuraton", configuration);
         return sendMessageToApp(this.#runMessage(configuration));
     }
     #runMessage(configuration) {
@@ -502,6 +561,11 @@ class ARSessionManager extends EventDispatcher {
     get allConfigurationTypes() {
         return this.#allConfigurationTypes;
     }
+
+    /** @type {ARSWorldTrackingConfigurationKey[]} */
+    #worldTrackingConfigurationKeys = ["userFaceTrackingEnabled"];
+    /** @type {ARSFaceTrackingConfigurationKey[]} */
+    #faceTrackingConfigurationKeys = ["isWorldTrackingEnabled", "maximumNumberOfTrackedFaces"];
 
     /** @type {ARSConfiguration?} */
     #configuration = null;
