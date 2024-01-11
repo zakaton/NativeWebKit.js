@@ -1,8 +1,17 @@
 <html>
     <head>
-        <title>Face Tracking | AR Session | NativeWebKit.js</title>
+        <title>World Tracking | AR Session | NativeWebKit.js</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script src="../../src/aframe/aframe-v1.5.0.min.js"></script>
+
+        <!-- required to get aframe-orbit-controls-component to work -->
+        <script>
+            THREE.Quaternion.prototype.inverse = THREE.Quaternion.prototype.invert;
+            THREE.Math = THREE.MathUtils;
+        </script>
+        <!-- https://github.com/tizzle/aframe-orbit-controls-component -->
+        <script src="../../src/aframe/aframe-orbit-controls-component.min.js"></script>
+
         <script type="module" src="./script.js"></script>
     </head>
     <style>
@@ -55,19 +64,19 @@
                 <small><a href="/">home</a></small>
             </div>
         </div>
+
         <div id="controlsOverlay" class="overlay">
             <div id="controls">
                 <div>
                     <label>is supported? <input id="isSupported" type="checkbox" disabled /></label>
                     <label>
-                        is face tracking supported? <input id="isFaceTrackingSupported" type="checkbox" disabled />
+                        is world tracking supported? <input id="isWorldTrackingSupported" type="checkbox" disabled />
                     </label>
                 </div>
                 <div>
                     <button id="run" disabled>run</button>
                     <button id="pause" disabled>pause</button>
                     <button id="toggleDebug" disabled>show debug</button>
-                    <button id="toggleShowCamera" disabled>show camera</button>
                 </div>
             </div>
         </div>
@@ -76,11 +85,9 @@
             embedded
             xr-mode-ui="enabled: false;"
             device-orientation-permission-ui="enabled: false"
-            renderer="colorManagement: true; physicallyCorrectLights: true; toneMapping: reinhard;"
+            renderer="physicallyCorrectLights: true; toneMapping: reinhard;"
         >
-            <a-assets>
-                <a-asset-item id="avatarAsset" src="../../../assets/avatar.glb"></a-asset-item>
-            </a-assets>
+            <a-camera id="camera" look-controls="enabled: false;" wasd-controls="enabled: false;"></a-camera>
 
             <a-entity id="ambientLight" light="color: #BBB; type: ambient"></a-entity>
             <a-entity
@@ -89,18 +96,11 @@
                 position="-0.5 1 1"
             ></a-entity>
 
-            <a-camera
-                id="camera"
-                look-controls="enabled: false;"
-                wasd-controls="enabled: false;"
-                position="0 0 0"
-            ></a-camera>
-
-            <a-entity id="avatarPosition" position="0 0 -0.5">
-                <a-entity id="avatarRotation">
-                    <a-entity id="avatar" gltf-model="#avatarAsset" position="0 -0.59 0"></a-entity>
-                </a-entity>
-            </a-entity>
+            <a-box position="-1 0.5 -3" rotation="0 45 0" color="#4CC3D9"></a-box>
+            <a-sphere position="0 1.25 -5" radius="1.25" color="#EF2D5E"></a-sphere>
+            <a-cylinder position="1 0.75 -3" radius="0.5" height="1.5" color="#FFC65D"></a-cylinder>
+            <a-plane position="0 0 -4" rotation="-90 0 0" width="4" height="4" color="#7BC8A4"></a-plane>
+            <a-sky color="#ECECEC"></a-sky>
         </a-scene>
     </body>
 </html>

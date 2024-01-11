@@ -110,9 +110,7 @@ class HeadphoneMotionManager extends EventDispatcher {
     constructor() {
         super();
 
-        if (this.shared) {
-            throw new Error("HeadphoneMotionManager is a singleton - use HeadphoneMotionManager.shared");
-        }
+        console.assert(!this.shared, "HeadphoneMotionManager is a singleton - use HeadphoneMotionManager.shared");
 
         addAppListener(this.#getWindowLoadMessages.bind(this), "window.load");
         addAppListener(this.#onAppMessage.bind(this), this._prefix);
@@ -139,11 +137,8 @@ class HeadphoneMotionManager extends EventDispatcher {
     }
     /** @throws {Error} if newValue is not a boolean */
     set checkAvailabilityOnLoad(newValue) {
-        if (typeof newValue == "boolean") {
-            this.#checkAvailabilityOnLoad = newValue;
-        } else {
-            throw Error(`invalid newValue for checkAvailabilityOnLoad`, newValue);
-        }
+        console.assert(typeof newValue == "boolean", "invalid newValue for checkAvailabilityOnLoad", newValue);
+        this.#checkAvailabilityOnLoad = newValue;
     }
 
     /** @type {boolean} */
@@ -153,11 +148,8 @@ class HeadphoneMotionManager extends EventDispatcher {
     }
     /** @throws {Error} if newValue is not a boolean */
     set stopUpdatesOnUnload(newValue) {
-        if (typeof newValue == "boolean") {
-            this.#stopUpdatesOnUnload = newValue;
-        } else {
-            throw Error(`invalid newValue for stopUpdatesOnUnload`, newValue);
-        }
+        console.assert(typeof newValue == "boolean", "invalid newValue for stopUpdatesOnUnload", newValue);
+        this.#stopUpdatesOnUnload = newValue;
     }
 
     /**

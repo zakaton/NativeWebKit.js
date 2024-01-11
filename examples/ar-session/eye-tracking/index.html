@@ -3,6 +3,15 @@
         <title>Face Tracking | AR Session | NativeWebKit.js</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script src="../../src/aframe/aframe-v1.5.0.min.js"></script>
+
+        <!-- required to get aframe-orbit-controls-component to work -->
+        <script>
+            THREE.Quaternion.prototype.inverse = THREE.Quaternion.prototype.invert;
+            THREE.Math = THREE.MathUtils;
+        </script>
+        <!-- https://github.com/tizzle/aframe-orbit-controls-component -->
+        <script src="../../src/aframe/aframe-orbit-controls-component.min.js"></script>
+
         <script type="module" src="./script.js"></script>
     </head>
     <style>
@@ -78,9 +87,7 @@
             device-orientation-permission-ui="enabled: false"
             renderer="colorManagement: true; physicallyCorrectLights: true; toneMapping: reinhard;"
         >
-            <a-assets>
-                <a-asset-item id="avatarAsset" src="../../../assets/avatar.glb"></a-asset-item>
-            </a-assets>
+            <a-assets> </a-assets>
 
             <a-entity id="ambientLight" light="color: #BBB; type: ambient"></a-entity>
             <a-entity
@@ -96,9 +103,22 @@
                 position="0 0 0"
             ></a-camera>
 
-            <a-entity id="avatarPosition" position="0 0 -0.5">
-                <a-entity id="avatarRotation">
-                    <a-entity id="avatar" gltf-model="#avatarAsset" position="0 -0.59 0"></a-entity>
+            <a-entity id="face" position="0 0 -0.4">
+                <a-sphere radius="0.04" color="green"></a-sphere>
+
+                <a-entity id="leftEye" position="-0.03 0.04 00.02">
+                    <a-sphere radius="0.01" color="white">
+                        <a-sphere radius="0.005" color="black" position="0 0 0.01"></a-sphere>
+                    </a-sphere>
+                </a-entity>
+                <a-entity id="rightEye" position="0.03 0.04 0.02">
+                    <a-sphere radius="0.01" color="white">
+                        <a-sphere radius="0.005" color="black" position="0 0 0.01"></a-sphere>
+                    </a-sphere>
+                </a-entity>
+
+                <a-entity id="lookAtPoint">
+                    <a-sphere color="red" radius="0.005"></a-sphere>
                 </a-entity>
             </a-entity>
         </a-scene>

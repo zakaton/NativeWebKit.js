@@ -92,39 +92,18 @@ ARSessionManager.addEventListener("showCamera", (event) => {
     toggleShowCameraButton.innerText = showCamera ? "hide camera" : "show camera";
 });
 
-/**@typedef {import("../../../src/ARSessionManager.js").ARSFaceAnchorBlendShapeLocation} ARSFaceAnchorBlendShapeLocation */
-
-/** @type {Object.<string, number>} */
-var morphTargetDictionary;
-/** @type {number[]} */
-var morphTargetInfluences;
-const avatarEntity = document.getElementById("avatar");
-avatarEntity.addEventListener("model-loaded", () => {
-    ({ morphTargetInfluences, morphTargetDictionary } =
-        avatarEntity.components["gltf-model"].model.children[0].children[1]);
-    console.log("morphTargetDictionary", morphTargetDictionary);
-    console.log("morphTargetInfluences", morphTargetInfluences);
-});
-
-/**
- * @param {ARSFaceAnchorBlendShapeLocation} blendShapeLocation
- * @param {number} newValue
- */
-function setBlendShape(blendShapeLocation, newValue) {
-    console.assert(blendShapeLocation in morphTargetDictionary, `blendshape "${blendShapeLocation}" not found`);
-    const blendShapeInfluenceIndex = morphTargetDictionary[blendShapeLocation];
-    morphTargetInfluences[blendShapeInfluenceIndex] = newValue;
-}
-
-/** @typedef {import("../../../src/ARSessionManager.js").ARSFaceAnchor} ARSFaceAnchor */
-
-const avatarPositionEntity = document.getElementById("avatarPosition");
-const avatarRotationEntity = document.getElementById("avatarRotation");
+const leftEyeEntity = document.getElementById("leftEye");
+const rightEyeEntity = document.getElementById("rightEye");
+const faceEntity = document.getElementById("face");
+const lookAtPointEntity = document.getElementById("lookAtPoint");
 
 /** @typedef {import("../../src/three/three.module.min.js").Vector3} Vector3 */
 /** @typedef {import("../../src/three/three.module.min.js").Quaternion} Quaternion */
 /** @typedef {import("../../src/three/three.module.min.js").Euler} Euler */
 
+var eyeBlinkThreshold = 0.5;
+
+/** @typedef {import("../../../src/ARSessionManager.js").ARSFaceAnchor} ARSFaceAnchor */
 ARSessionManager.addEventListener("faceAnchors", (event) => {
     /** @type {ARSFaceAnchor[]} */
     const faceAnchors = event.message.faceAnchors;
@@ -135,11 +114,38 @@ ARSessionManager.addEventListener("faceAnchors", (event) => {
         /** @type {Quaternion} */
         const newQuaternion = new THREE.Quaternion(...faceAnchor.quaternion);
 
-        avatarPositionEntity.object3D.position.lerp(newPosition, 0.5);
-        avatarRotationEntity.object3D.quaternion.slerp(newQuaternion, 0.5);
-        Object.entries(faceAnchor.blendShapes).forEach(([blendShapeLocation, value]) => {
-            setBlendShape(blendShapeLocation, value);
-        });
+        faceEntity.object3D.position.lerp(newPosition, 0.5);
+        faceEntity.object3D.quaternion.slerp(newQuaternion, 0.5);
+
+        /** @type {Vector3} */
+        const newLeftEyePosition = new THREE.Vector3(...faceAnchor.leftEye.position);
+        /** @type {Quaternion} */
+        const newLeftEyeQuaternion = new THREE.Quaternion(...faceAnchor.leftEye.quaternion);
+        leftEyeEntity.object3D.position.lerp(newLeftEyePosition, 0.5);
+        leftEyeEntity.object3D.quaternion.slerp(newLeftEyeQuaternion, 0.5);
+
+        /** @type {Vector3} */
+        const newRightEyePosition = new THREE.Vector3(...faceAnchor.rightEye.position);
+        /** @type {Quaternion} */
+        const newRightEyeQuaternion = new THREE.Quaternion(...faceAnchor.rightEye.quaternion);
+        rightEyeEntity.object3D.position.lerp(newRightEyePosition, 0.5);
+        rightEyeEntity.object3D.quaternion.slerp(newRightEyeQuaternion, 0.5);
+
+        /** @type {Vector3} */
+        const newLookAtPointPosition = new THREE.Vector3(...faceAnchor.lookAtPoint);
+        newLookAtPointPosition.multiplyScalar(0.3);
+        lookAtPointEntity.object3D.position.lerp(newLookAtPointPosition, 0.5);
+
+        const isLeftEyeClosed = faceAnchor.blendShapes.eyeBlinkLeft > eyeBlinkThreshold;
+        const showLeftEye = !isLeftEyeClosed;
+        if (leftEyeEntity.object3D.visible != showLeftEye) {
+            leftEyeEntity.object3D.visible = showLeftEye;
+        }
+        const isRightEyeClosed = faceAnchor.blendShapes.eyeBlinkRight > eyeBlinkThreshold;
+        const showRightEye = !isRightEyeClosed;
+        if (rightEyeEntity.object3D.visible != showRightEye) {
+            rightEyeEntity.object3D.visible = showRightEye;
+        }
     }
 });
 

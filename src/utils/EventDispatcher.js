@@ -39,9 +39,7 @@ class EventDispatcher {
      * @throws {Error}
      */
     #assertValidEventType(type) {
-        if (!this.#isValidEventType(type)) {
-            throw Error(`invalid event type "${type}"`);
-        }
+        console.assert(this.#isValidEventType(type), `invalid event type "${type}"`);
     }
 
     /** @type {Object.<string, [function]?>?} */

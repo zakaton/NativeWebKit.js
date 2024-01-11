@@ -96,13 +96,21 @@ class TemplateModuleManager extends EventDispatcher {
     constructor() {
         super();
 
-        if (this.shared) {
-            throw new Error("TemplateModuleManager is a singleton - use TemplateModuleManager.shared");
-        }
+        console.assert(!this.shared, "TemplateModuleManager is a singleton - use TemplateModuleManager.shared");
 
         addAppListener(this.#getWindowLoadMessages.bind(this), "window.load");
         addAppListener(this.#onAppMessage.bind(this), this._prefix);
         addAppListener(this.#getWindowUnloadMessages.bind(this), "window.unload");
+    }
+
+    get isSupported() {
+        return true;
+    }
+    /** @throws {Error} if not supported */
+    #assertIsSupported() {
+        if (!this.isSupported) {
+            throw Error("not supported");
+        }
     }
 
     /** @returns {NKMessage|NKMessage[]?} */

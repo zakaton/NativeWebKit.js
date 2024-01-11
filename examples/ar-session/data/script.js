@@ -160,6 +160,7 @@ ARSessionManager.addEventListener("configuration", (event) => {
     /** @type {ARSConfiguration} */
     configuration = event.message.configuration;
     configurationTypeSelect.value = configuration.type;
+    updateConfigurationElements();
 });
 
 /** @type {Map.<ARSConfigurationType, HTMLDivElement} */

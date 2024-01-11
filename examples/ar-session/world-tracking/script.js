@@ -5,9 +5,12 @@ console.log(ARSessionManager);
 
 ARSessionManager.checkWorldTrackingSupportOnLoad = true;
 ARSessionManager.checkIsRunningOnLoad = true;
-ARSessionManager.pauseOnUnload = false;
+ARSessionManager.pauseOnUnload = true;
 ARSessionManager.checkDebugOptionsOnLoad = true;
 ARSessionManager.checkCameraModeOnLoad = true;
+ARSessionManager.checkShowCameraOnLoad = true;
+
+const scene = document.querySelector("a-scene");
 
 /** @type {HTMLInputElement} */
 const isSupportedCheckbox = document.getElementById("isSupported");
@@ -56,10 +59,69 @@ ARSessionManager.addEventListener("isRunning", (event) => {
 });
 
 const aframeCamera = document.getElementById("camera");
+var latestFocalLength;
 ARSessionManager.addEventListener("camera", (event) => {
     /** @type {import("../../../src/ARSessionManager.js").ARSCamera} */
     const camera = event.message.camera;
     console.log("camera data", camera);
     aframeCamera.object3D.position.set(...camera.position);
     aframeCamera.object3D.quaternion.set(...camera.quaternion);
+    const threeCamera = aframeCamera?.components?.camera?.camera;
+    if (threeCamera) {
+        if (latestFocalLength != camera.focalLength) {
+            threeCamera.setFocalLength(camera.focalLength);
+            latestFocalLength = camera.focalLength;
+        }
+    }
+
+    scene.renderer.toneMappingExposure = camera.exposureOffset;
+});
+
+const sky = document.querySelector("a-sky");
+ARSessionManager.addEventListener("showCamera", (event) => {
+    /** @type {boolean} */
+    const showCamera = event.message.showCamera;
+    console.log("showCamera", showCamera);
+    const newVisible = !showCamera;
+    if (newVisible != sky.object3D.visible) {
+        sky.object3D.visible = newVisible;
+    }
+});
+
+/** @typedef {import("../../../src/ARSessionManager.js").ARSDebugOptions} ARSDebugOptions */
+
+var isDebugEnabled = false;
+
+/** @type {HTMLButtonElement} */
+const toggleDebugButton = document.getElementById("toggleDebug");
+toggleDebugButton.addEventListener("click", () => {
+    const newIsDebugEnabled = !isDebugEnabled;
+    ARSessionManager.setDebugOptions({
+        showWorldOrigin: newIsDebugEnabled,
+        showSceneUnderstanding: newIsDebugEnabled,
+        showFeaturePoints: newIsDebugEnabled,
+    });
+});
+toggleDebugButton.disabled = !ARSessionManager.isSupported;
+
+ARSessionManager.addEventListener("debugOptions", (event) => {
+    /** @type {ARSDebugOptions} */
+    const debugOptions = event.message.debugOptions;
+    console.log("debugOptions", debugOptions);
+    isDebugEnabled = debugOptions.showSceneUnderstanding;
+    toggleDebugButton.innerText = isDebugEnabled ? "hide debug" : "show debug";
+});
+
+/** @typedef {import("../../../src/ARSessionManager.js").ARSLightEstimate} ARSLightEstimate */
+
+const ambientLight = document.getElementById("ambientLight");
+const directionalLight = document.getElementById("directionalLight");
+
+ARSessionManager.addEventListener("lightEstimate", (event) => {
+    /** @type {ARSLightEstimate} */
+    const lightEstimate = event.message.lightEstimate;
+    ambientLight.components.light.light.intensity = lightEstimate.ambientIntensity / 1000;
+    const lightColor = utils.colorTemperatureToRGB(lightEstimate.ambientColorTemperature);
+    ambientLight.components.light.light.color.setRGB(...lightColor);
+    directionalLight.components.light.light.color.setRGB(...lightColor);
 });

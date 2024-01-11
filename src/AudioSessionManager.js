@@ -96,9 +96,7 @@ class AudioSessionManager extends EventDispatcher {
     constructor() {
         super();
 
-        if (this.shared) {
-            throw new Error("AudioSessionManager is a singleton - use AudioSessionManager.shared");
-        }
+        console.assert(!this.shared, "AudioSessionManager is a singleton - use AudioSessionManager.shared");
 
         addAppListener(this.#onWindowLoad.bind(this), "window.load");
         addAppListener(this.#onAppMessage.bind(this), this._prefix);

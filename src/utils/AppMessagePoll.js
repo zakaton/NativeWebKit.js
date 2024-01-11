@@ -66,9 +66,7 @@ class AppMessagePoll {
         return this.#interval;
     }
     set interval(newInterval) {
-        if (newInterval <= 0) {
-            throw Error(`invalid interval ${newInterval}ms`);
-        }
+        console.assert(newInterval > 0, `invalid interval ${newInterval}ms`);
         if (newInterval == this.#interval) {
             _console.warn("assigning same interval");
             return;
