@@ -102,8 +102,6 @@ ARSessionManager.addEventListener("showCamera", (event) => {
 /** @typedef {import("../../src/three/three.module.min.js").Box2} Box2 */
 
 /** @type {Matrix4} */
-const cameraMatrix = new THREE.Matrix4();
-const cameraMatrixInverse = new THREE.Matrix4();
 const aframeCamera = document.getElementById("camera");
 var threeCamera;
 aframeCamera.addEventListener("loaded", () => {
@@ -116,20 +114,16 @@ ARSessionManager.addEventListener("camera", (event) => {
     const camera = event.message.camera;
 
     aframeCamera.object3D.position.set(...camera.position);
-    cameraMatrix.setPosition(...camera.position);
 
     if (ARSessionManager.cameraMode == "ar") {
         const quaternion = new THREE.Quaternion(...camera.quaternion);
         aframeCamera.object3D.quaternion.copy(quaternion);
-        cameraMatrix.makeRotationFromQuaternion(quaternion);
     } else {
         /** @type {Euler} */
         const euler = new THREE.Euler(...camera.eulerAngles);
         euler.z += Math.PI / 2;
         aframeCamera.object3D.rotation.copy(euler);
-        cameraMatrix.makeRotationFromEuler(euler);
     }
-    cameraMatrixInverse.copy(cameraMatrix).invert();
 
     if (threeCamera) {
         if (latestFocalLength != camera.focalLength) {
@@ -141,39 +135,7 @@ ARSessionManager.addEventListener("camera", (event) => {
     scene.renderer.toneMappingExposure = camera.exposureOffset;
 });
 
-const leftEyeEntity = document.getElementById("leftEye");
-const rightEyeEntity = document.getElementById("rightEye");
-const faceEntity = document.getElementById("face");
-const lookAtPointEntity = document.getElementById("lookAtPoint");
 var eyeBlinkThreshold = 0.5;
-/** @type {Matrix4} */
-const faceMatrix = new THREE.Matrix4();
-/** @type {Matrix4} */
-const faceMatrixInverse = new THREE.Matrix4();
-
-const eyeTrackingCursor = document.getElementById("eyeTrackingCursor");
-/** @type {Vector2} */
-const eyeTrackingPoint = new THREE.Vector2();
-/** @type {Box2} */
-const eyeTrackingRange = new THREE.Box2();
-
-/** @type {HTMLButtonElement} */
-const resetEyeCalibrationButton = document.getElementById("resetEyeCalibration");
-resetEyeCalibrationButton.addEventListener("click", () => {
-    eyeTrackingRange.makeEmpty();
-});
-resetEyeCalibrationButton.disabled = !ARSessionManager.isSupported;
-
-var calibratingEyeTrackingRange = false;
-/** @type {HTMLButtonElement} */
-const toggleEyeCalibrationButton = document.getElementById("toggleEyeCalibration");
-toggleEyeCalibrationButton.addEventListener("click", () => {
-    calibratingEyeTrackingRange = !calibratingEyeTrackingRange;
-    toggleEyeCalibrationButton.innerText = calibratingEyeTrackingRange
-        ? "stop calibrating eye-tracking"
-        : "calibrate eye-tracking";
-});
-toggleEyeCalibrationButton.disabled = !ARSessionManager.isSupported;
 
 /** @typedef {import("../../../src/ARSessionManager.js").ARSFaceAnchor} ARSFaceAnchor */
 ARSessionManager.addEventListener("faceAnchors", (event) => {
@@ -181,74 +143,9 @@ ARSessionManager.addEventListener("faceAnchors", (event) => {
     const faceAnchors = event.message.faceAnchors;
     const faceAnchor = faceAnchors[0];
     if (faceAnchor) {
-        /** @type {Vector3} */
-        const newPosition = new THREE.Vector3(...faceAnchor.position);
-        /** @type {Quaternion} */
-        const newQuaternion = new THREE.Quaternion(...faceAnchor.quaternion);
-
-        faceMatrix.makeRotationFromQuaternion(newQuaternion);
-        faceMatrix.setPosition(newPosition);
-        faceMatrixInverse.copy(faceMatrix).invert();
-
-        faceEntity.object3D.position.lerp(newPosition, 0.5);
-        faceEntity.object3D.quaternion.slerp(newQuaternion, 0.5);
-
-        /** @type {Vector3} */
-        const newLeftEyePosition = new THREE.Vector3(...faceAnchor.leftEye.position);
-        /** @type {Quaternion} */
-        const newLeftEyeQuaternion = new THREE.Quaternion(...faceAnchor.leftEye.quaternion);
-        leftEyeEntity.object3D.position.lerp(newLeftEyePosition, 0.5);
-        leftEyeEntity.object3D.quaternion.slerp(newLeftEyeQuaternion, 0.5);
-
-        /** @type {Vector3} */
-        const newRightEyePosition = new THREE.Vector3(...faceAnchor.rightEye.position);
-        /** @type {Quaternion} */
-        const newRightEyeQuaternion = new THREE.Quaternion(...faceAnchor.rightEye.quaternion);
-        rightEyeEntity.object3D.position.lerp(newRightEyePosition, 0.5);
-        rightEyeEntity.object3D.quaternion.slerp(newRightEyeQuaternion, 0.5);
-
-        /** @type {Vector3} */
-        const lookAtPoint = new THREE.Vector3(...faceAnchor.lookAtPoint);
-        const newLookAtPointEntityPosition = lookAtPoint.clone().normalize().multiplyScalar(0.3);
-        lookAtPointEntity.object3D.position.lerp(newLookAtPointEntityPosition, 0.5);
-
         const isLeftEyeClosed = faceAnchor.blendShapes.eyeBlinkLeft > eyeBlinkThreshold;
-        const showLeftEye = !isLeftEyeClosed;
-        if (leftEyeEntity.object3D.visible != showLeftEye) {
-            leftEyeEntity.object3D.visible = showLeftEye;
-        }
-
         const isRightEyeClosed = faceAnchor.blendShapes.eyeBlinkRight > eyeBlinkThreshold;
-        const showRightEye = !isRightEyeClosed;
-        if (rightEyeEntity.object3D.visible != showRightEye) {
-            rightEyeEntity.object3D.visible = showRightEye;
-        }
 
-        const lookAtPointInWorld = lookAtPoint.clone().applyMatrix4(faceMatrix);
-        const lookAtPointEntityInWorld = new THREE.Vector3();
-        lookAtPointEntity.object3D.getWorldPosition(lookAtPointEntityInWorld);
-        const lookAtPointInCamera = lookAtPointInWorld.clone().applyMatrix4(cameraMatrixInverse);
-        /** @type {Vector2} */
-        const lookAtPointInCameraPoint = new THREE.Vector2(lookAtPointInCamera.x, lookAtPointInCamera.y);
-        if (calibratingEyeTrackingRange && !isLeftEyeClosed && !isRightEyeClosed) {
-            eyeTrackingRange.expandByPoint(lookAtPointInCameraPoint);
-        }
-        eyeTrackingRange.getParameter(lookAtPointInCameraPoint, eyeTrackingPoint);
-
-        eyeTrackingCursor.style.left = `${eyeTrackingPoint.x * 100}%`;
-        eyeTrackingCursor.style.top = `${(1 - eyeTrackingPoint.y) * 100}%`;
-
-        faceSpan.innerText = JSON.stringify(newPosition.toArray().map((v) => v.toFixed(6)));
-        lookAtPointSpan.innerText = JSON.stringify(lookAtPoint.toArray().map((v) => v.toFixed(6)));
-        lookAtPointEntitySpan.innerText = JSON.stringify(lookAtPointEntityInWorld.toArray().map((v) => v.toFixed(6)));
-        lookAtPointInWorldSpan.innerText = JSON.stringify(lookAtPointInWorld.toArray().map((v) => v.toFixed(6)));
-        lookAtPointInCameraSpan.innerText = JSON.stringify(lookAtPointInCamera.toArray().map((v) => v.toFixed(6)));
-        eyeTrackingPointSpan.innerText = JSON.stringify(eyeTrackingPoint.toArray().map((v) => v.toFixed(6)));
+        // FILL -
     }
 });
-const faceSpan = document.getElementById("faceSpan");
-const lookAtPointSpan = document.getElementById("lookAtPointSpan");
-const lookAtPointInCameraSpan = document.getElementById("lookAtPointInCameraSpan");
-const lookAtPointInWorldSpan = document.getElementById("lookAtPointInWorldSpan");
-const lookAtPointEntitySpan = document.getElementById("lookAtPointEntitySpan");
-const eyeTrackingPointSpan = document.getElementById("eyeTrackingPointSpan");

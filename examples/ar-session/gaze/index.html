@@ -1,6 +1,6 @@
 <html>
     <head>
-        <title>World Tracking | AR Session | NativeWebKit.js</title>
+        <title>Gaze | AR Session | NativeWebKit.js</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="shortcut icon" type="image/x-icon" href="favicon.ico" />
         <script src="../../src/aframe/aframe-v1.5.0.min.js"></script>
@@ -14,6 +14,7 @@
         <script src="../../src/aframe/aframe-orbit-controls-component.min.js"></script>
 
         <script type="module" src="./script.js"></script>
+        <script type="module" src="../src/lighting.js"></script>
     </head>
     <style>
         body {
@@ -65,19 +66,19 @@
                 <small><a href="../../../">home</a></small>
             </div>
         </div>
-
         <div id="controlsOverlay" class="overlay">
             <div id="controls">
                 <div>
                     <label>is supported? <input id="isSupported" type="checkbox" disabled /></label>
                     <label>
-                        is world tracking supported? <input id="isWorldTrackingSupported" type="checkbox" disabled />
+                        is face tracking supported? <input id="isFaceTrackingSupported" type="checkbox" disabled />
                     </label>
                 </div>
                 <div>
                     <button id="run" disabled>run</button>
                     <button id="pause" disabled>pause</button>
                     <button id="toggleDebug" disabled>show debug</button>
+                    <button id="toggleShowCamera" disabled>show camera</button>
                 </div>
             </div>
         </div>
@@ -86,9 +87,9 @@
             embedded
             xr-mode-ui="enabled: false;"
             device-orientation-permission-ui="enabled: false"
-            renderer="physicallyCorrectLights: true; toneMapping: reinhard;"
+            renderer="colorManagement: true; physicallyCorrectLights: true; toneMapping: reinhard;"
         >
-            <a-camera id="camera" look-controls="enabled: false;" wasd-controls="enabled: false;"></a-camera>
+            <a-assets></a-assets>
 
             <a-entity id="ambientLight" light="color: #BBB; type: ambient"></a-entity>
             <a-entity
@@ -97,11 +98,12 @@
                 position="-0.5 1 1"
             ></a-entity>
 
-            <a-box position="-1 0.5 -3" rotation="0 45 0" color="#4CC3D9"></a-box>
-            <a-sphere position="0 1.25 -5" radius="1.25" color="#EF2D5E"></a-sphere>
-            <a-cylinder position="1 0.75 -3" radius="0.5" height="1.5" color="#FFC65D"></a-cylinder>
-            <a-plane position="0 0 -4" rotation="-90 0 0" width="4" height="4" color="#7BC8A4"></a-plane>
-            <a-sky color="#ECECEC"></a-sky>
+            <a-camera
+                id="camera"
+                look-controls="enabled: false;"
+                wasd-controls="enabled: false;"
+                position="0 0 0"
+            ></a-camera>
         </a-scene>
     </body>
 </html>
