@@ -112,9 +112,9 @@ const _console = new Console("ARSession");
  * @type {object}
  * @property {string} identifier
  * @property {number[]} lookAtPoint
- * @property {number[]?} position
- * @property {number[]?} quaternion
- * @property {number[][]?} transform
+ * @property {number[]} position
+ * @property {number[]} quaternion innacurate if using worldTracking - use transform instead
+ * @property {number[][]?} transform (column-major order) available when using worldTracking due to quaternion inaccuracy
  * @property {ARSFaceAnchorEye} leftEye
  * @property {ARSFaceAnchorEye} rightEye
  * @property {ARSFaceAnchorBlendShapes} blendShapes
