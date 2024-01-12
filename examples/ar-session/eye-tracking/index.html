@@ -14,6 +14,7 @@
         <script src="../../src/aframe/aframe-orbit-controls-component.min.js"></script>
 
         <script type="module" src="./script.js"></script>
+        <script type="module" src="../src/lighting.js"></script>
     </head>
     <style>
         body {
@@ -58,8 +59,26 @@
             top: 1rem;
             left: 1rem;
         }
+        #eyeTrackingOverlay {
+            top: 0;
+            left: 0;
+            background-color: transparent;
+            width: 100%;
+            height: 100%;
+        }
+        #eyeTrackingCursor {
+            width: 1rem;
+            height: 1rem;
+            background-color: red;
+            border-radius: 50%;
+            display: none;
+            position: relative;
+        }
     </style>
     <body>
+        <div id="eyeTrackingOverlay" class="overlay">
+            <div id="eyeTrackingCursor"></div>
+        </div>
         <div id="navOverlay" class="overlay">
             <div>
                 <small><a href="/">home</a></small>
@@ -79,6 +98,16 @@
                     <button id="toggleDebug" disabled>show debug</button>
                     <button id="toggleShowCamera" disabled>show camera</button>
                 </div>
+                <div>
+                    <button id="resetEyeCalibration" disabled>reset eye-tracking calibration</button>
+                    <button id="toggleEyeCalibration" disabled>calibrate eye-tracking</button>
+                </div>
+                <div>face <span id="faceSpan"></span></div>
+                <div>lookAtPoint <span id="lookAtPointSpan"></span></div>
+                <div>lookAtPointEntity <span id="lookAtPointEntitySpan"></span></div>
+                <div>lookAtPointInWorld <span id="lookAtPointInWorldSpan"></span></div>
+                <div>lookatPointInCamera <span id="lookAtPointInCameraSpan"></span></div>
+                <div>eyeTrackingPoint <span id="eyeTrackingPointSpan"></span></div>
             </div>
         </div>
 
@@ -97,15 +126,18 @@
                 position="-0.5 1 1"
             ></a-entity>
 
-            <a-camera
-                id="camera"
-                look-controls="enabled: false;"
-                wasd-controls="enabled: false;"
-                position="0 0 0"
-            ></a-camera>
+            <a-camera id="camera" look-controls="enabled: false;" wasd-controls="enabled: false;" position="0 0 0">
+                <a-ring
+                    color="black"
+                    position="0 0 -0.01"
+                    radius-inner="0.0001"
+                    radius-outer="0.0002"
+                    material="shader: flat;"
+                ></a-ring>
+            </a-camera>
 
             <a-entity id="face" position="0 0 -0.4">
-                <a-sphere radius="0.04" color="green"></a-sphere>
+                <a-sphere radius="0.03" color="green" visible="true"></a-sphere>
 
                 <a-entity id="leftEye" position="-0.03 0.04 00.02">
                     <a-sphere radius="0.01" color="white">
