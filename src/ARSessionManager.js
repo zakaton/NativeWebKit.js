@@ -112,8 +112,9 @@ const _console = new Console("ARSession");
  * @type {object}
  * @property {string} identifier
  * @property {number[]} lookAtPoint
- * @property {number[]} position
- * @property {number[]} quaternion
+ * @property {number[]?} position
+ * @property {number[]?} quaternion
+ * @property {number[][]?} transform
  * @property {ARSFaceAnchorEye} leftEye
  * @property {ARSFaceAnchorEye} rightEye
  * @property {ARSFaceAnchorBlendShapes} blendShapes

@@ -124,4 +124,8 @@ ARSessionManager.addEventListener("lightEstimate", (event) => {
     const lightColor = utils.colorTemperatureToRGB(lightEstimate.ambientColorTemperature);
     ambientLight.components.light.light.color.setRGB(...lightColor);
     directionalLight.components.light.light.color.setRGB(...lightColor);
+    if (lightEstimate.primaryLightDirection) {
+        directionalLight.components.light.light.intensity = lightEstimate.primaryLightIntensity / 1000;
+        directionalLight.object3D.position.set(...lightEstimate.primaryLightDirection.map((v) => -v));
+    }
 });
