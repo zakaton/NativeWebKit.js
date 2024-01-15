@@ -1,3 +1,7 @@
+import { createConsole } from "./Console.js";
+
+const _console = createConsole("EventDispatcher", { log: false });
+
 /** @typedef {import("./messaging.js").NKMessage} NKMessage */
 
 /**
@@ -39,7 +43,7 @@ class EventDispatcher {
      * @throws {Error}
      */
     #assertValidEventType(type) {
-        console.assert(this.#isValidEventType(type), `invalid event type "${type}"`);
+        _console.assertWithError(this.#isValidEventType(type), `invalid event type "${type}"`);
     }
 
     /** @type {Object.<string, [function]?>?} */

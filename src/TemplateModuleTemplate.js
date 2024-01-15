@@ -1,9 +1,10 @@
 import EventDispatcher from "./utils/EventDispatcher.js";
-import Console from "./utils/Console.js";
+import { createConsole } from "./Console.js";
+
 import { sendMessageToApp, addAppListener } from "./utils/messaging.js";
 import AppMessagePoll from "./utils/AppMessagePoll.js";
 
-const _console = new Console("Template");
+const _console = createConsole("Template");
 
 /** @typedef {"test"} TMMessageType */
 
@@ -92,11 +93,14 @@ class TemplateModuleManager extends EventDispatcher {
         return super.dispatchEvent(...arguments);
     }
 
-    /** TemplateModuleManager is a singleton - use TemplateModuleManager.shared */
+    /** @throws {Error} if singleton already exists */
     constructor() {
         super();
 
-        console.assert(!this.shared, "TemplateModuleManager is a singleton - use TemplateModuleManager.shared");
+        _console.assertWithError(
+            !this.shared,
+            "TemplateModuleManager is a singleton - use TemplateModuleManager.shared"
+        );
 
         addAppListener(this.#getWindowLoadMessages.bind(this), "window.load");
         addAppListener(this.#onAppMessage.bind(this), this._prefix);

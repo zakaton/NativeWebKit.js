@@ -1,9 +1,8 @@
 import { HeadphoneMotionManager } from "../../../src/NativeWebKit.js";
 import { sortObjectKeysAlphabetically } from "../../../src/utils/objectUtils.js";
 //import { HeadphoneMotionManager } from "../../../build/nativewebkit.module.js";
-console.log(HeadphoneMotionManager);
 window.HeadphoneMotionManager = HeadphoneMotionManager;
-
+console.log(HeadphoneMotionManager);
 HeadphoneMotionManager.checkAvailabilityOnLoad = true;
 HeadphoneMotionManager.stopUpdatesOnUnload = true;
 

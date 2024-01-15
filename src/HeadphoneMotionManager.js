@@ -1,5 +1,6 @@
 import EventDispatcher from "./utils/EventDispatcher.js";
-import Console from "./utils/Console.js";
+import { createConsole } from "./utils/Console.js";
+
 import { sendMessageToApp, addAppListener } from "./utils/messaging.js";
 import AppMessagePoll from "./utils/AppMessagePoll.js";
 
@@ -49,7 +50,7 @@ import AppMessagePoll from "./utils/AppMessagePoll.js";
  * @property {[number]} rotationRate
  */
 
-const _console = new Console("HeadphoneMotionManager");
+const _console = createConsole("HeadphoneMotionManager");
 
 class HeadphoneMotionManager extends EventDispatcher {
     /** @type {HMEventType[]} */
@@ -106,11 +107,14 @@ class HeadphoneMotionManager extends EventDispatcher {
         return super.dispatchEvent(...arguments);
     }
 
-    /** HeadphoneMotionManager is a singleton - use HeadphoneMotionManager.shared */
+    /** @throws {Error} if singleton already exists */
     constructor() {
         super();
 
-        console.assert(!this.shared, "HeadphoneMotionManager is a singleton - use HeadphoneMotionManager.shared");
+        _console.assertWithError(
+            !this.shared,
+            "HeadphoneMotionManager is a singleton - use HeadphoneMotionManager.shared"
+        );
 
         addAppListener(this.#getWindowLoadMessages.bind(this), "window.load");
         addAppListener(this.#onAppMessage.bind(this), this._prefix);
@@ -137,7 +141,11 @@ class HeadphoneMotionManager extends EventDispatcher {
     }
     /** @throws {Error} if newValue is not a boolean */
     set checkAvailabilityOnLoad(newValue) {
-        console.assert(typeof newValue == "boolean", "invalid newValue for checkAvailabilityOnLoad", newValue);
+        _console.assertWithError(
+            typeof newValue == "boolean",
+            "invalid newValue for checkAvailabilityOnLoad",
+            newValue
+        );
         this.#checkAvailabilityOnLoad = newValue;
     }
 
@@ -148,7 +156,7 @@ class HeadphoneMotionManager extends EventDispatcher {
     }
     /** @throws {Error} if newValue is not a boolean */
     set stopUpdatesOnUnload(newValue) {
-        console.assert(typeof newValue == "boolean", "invalid newValue for stopUpdatesOnUnload", newValue);
+        _console.assertWithError(typeof newValue == "boolean", "invalid newValue for stopUpdatesOnUnload", newValue);
         this.#stopUpdatesOnUnload = newValue;
     }
 

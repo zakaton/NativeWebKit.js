@@ -1,71 +1,147 @@
 import { isInDev } from "./environment.js";
 
+/**
+ * @callback LogFunction
+ * @param {...any} data
+ */
+
+/**
+ * @callback AssertLogFunction
+ * @param {boolean} condition
+ * @param {...any} data
+ */
+
+/**
+ * @typedef ConsoleLevelFlags
+ * @type {object}
+ * @property {boolean} log
+ * @property {boolean} warn
+ * @property {boolean} error
+ * @property {boolean} assert
+ */
+
+function emptyFunction() {}
+
+const log = console.log.bind(console);
+const warn = console.warn.bind(console);
+const error = console.error.bind(console);
+const assert = console.assert.bind(console);
+
 class Console {
+    /** @type {Object.<string, Console>} */
+    static #consoles = {};
+
     /**
-     * @callback LogFunction
-     * @param {...any} data
+     * @param {string} type
      */
-
-    #emptyFunction = function () {};
-
-    /** @param {string?} newPrefix */
-    set prefix(newPrefix) {
-        const args = [console];
-        if (newPrefix) {
-            if (Array.isArray(newPrefix)) {
-                args.push(...newPrefix);
-            } else {
-                args.push(newPrefix);
-            }
+    constructor(type) {
+        if (Console.#consoles[type]) {
+            throw new Error(`"${type}" console already exists`);
         }
-
-        this.#log = console.log.bind(...args);
-        this.#warn = console.warn.bind(...args);
-        this.#error = console.error.bind(...args);
+        Console.#consoles[type] = this;
     }
 
-    /** @type {boolean} */
-    isLoggingEnabled = true;
+    /** @type {ConsoleLevelFlags} */
+    #levelFlags = {
+        log: isInDev,
+        warn: isInDev,
+        error: isInDev,
+    };
+
+    /**
+     * @param {ConsoleLevelFlags} levelFlags
+     */
+    setLevelFlags(levelFlags) {
+        Object.assign(this.#levelFlags, levelFlags);
+    }
+
+    /**
+     * @param {string} type
+     * @param {ConsoleLevelFlags} levelFlags
+     * @throws {Error} if no console with type "type" is found
+     */
+    static setLevelFlagsForType(type, levelFlags) {
+        if (!this.#consoles[type]) {
+            throw new Error(`no console found with type "${type}"`);
+        }
+        this.#consoles[type].setLevelFlags(levelFlags);
+    }
+
+    /**
+     * @param {ConsoleLevelFlags} levelFlags
+     */
+    static setAllLevelFlags(levelFlags) {
+        for (const type in this.#consoles) {
+            this.#consoles[type].setLevelFlags(levelFlags);
+        }
+    }
+
+    /**
+     * @param {string} type
+     * @param {ConsoleLevelFlags} levelFlags
+     * @returns {Console}
+     */
+    static create(type, levelFlags) {
+        const console = this.#consoles[type] || new Console(type);
+        if (isInDev) {
+            console.setLevelFlags(levelFlags);
+        }
+        return console;
+    }
+
     /** @type {LogFunction} */
     get log() {
-        return isInDev && this.isLoggingEnabled ? this.#log : this.#emptyFunction;
+        return this.#levelFlags.log ? log : emptyFunction;
     }
-    #log = console.log.bind(console);
 
-    /** @type {boolean} */
-    isWarningEnabled = true;
     /** @type {LogFunction} */
     get warn() {
-        return isInDev && this.isWarningEnabled ? this.#warn : this.#emptyFunction;
+        return this.#levelFlags.warn ? warn : emptyFunction;
     }
-    /** @type {LogFunction} */
-    #warn = console.warn.bind(console);
 
-    /** @type {boolean} */
-    isErrorEnabled = true;
     /** @type {LogFunction} */
     get error() {
-        return isInDev && this.isErrorEnabled ? this.#error : this.#emptyFunction;
+        return this.#levelFlags.error ? error : emptyFunction;
     }
-    /** @type {LogFunction} */
-    #error = console.error.bind(console);
 
-    /** @param {boolean} isEnabled */
-    set isEnabled(isEnabled) {
-        this.isLoggingEnabled = isEnabled;
-        this.isWarningEnabled = isEnabled;
-        this.isErrorEnabled = isEnabled;
+    /** @type {AssertLogFunction} */
+    get assert() {
+        return this.#levelFlags.assert ? assert : emptyFunction;
     }
 
     /**
-     *
-     * @param {string?} prefix
+     * @param {boolean} condition
+     * @param {string?} message
+     * @throws {Error} if condition is not met
      */
-    constructor(prefix) {
-        if (prefix) {
-            this.prefix = prefix;
+    assertWithError(condition, message) {
+        if (!condition) {
+            throw new Error(message);
         }
     }
 }
 
-export default Console;
+/**
+ * @param {string} type
+ * @param {ConsoleLevelFlags?} levelFlags
+ * @returns {Console}
+ */
+export function createConsole(type, levelFlags) {
+    return Console.create(type, levelFlags);
+}
+
+/**
+ * @param {string} type
+ * @param {ConsoleLevelFlags} levelFlags
+ * @throws {Error} if no console with type is found
+ */
+export function setConsoleLevelFlagsForType(type, levelFlags) {
+    Console.setLevelFlagsForType(type, levelFlags);
+}
+
+/**
+ * @param {ConsoleLevelFlags} levelFlags
+ */
+export function setAllConsoleLevelFlags(levelFlags) {
+    Console.setAllLevelFlags(levelFlags);
+}

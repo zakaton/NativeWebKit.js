@@ -1,6 +1,6 @@
-import Console from "./Console.js";
+import { createConsole } from "./Console.js";
 
-const _console = new Console();
+const _console = createConsole("mathUtils");
 
 /**
  * @param {number} a

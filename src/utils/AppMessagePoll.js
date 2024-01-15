@@ -1,9 +1,9 @@
-import Console from "./Console.js";
+import { createConsole } from "./Console.js";
 import { checkIfSafariExtensionIsInstalled, isInApp, checkIfNativeWebKitEnabled } from "./platformUtils.js";
 import { findGreatestCommonFactor } from "./MathUtils.js";
 import { sendMessageToApp } from "./messaging.js";
 
-const _console = new Console("AppMessagePoll");
+const _console = createConsole("AppMessagePoll");
 
 /** @typedef {import("./messaging.js").NKMessage} NKMessage */
 
@@ -66,7 +66,7 @@ class AppMessagePoll {
         return this.#interval;
     }
     set interval(newInterval) {
-        console.assert(newInterval > 0, `invalid interval ${newInterval}ms`);
+        _console.assertWithError(newInterval > 0, `invalid interval ${newInterval}ms`);
         if (newInterval == this.#interval) {
             _console.warn("assigning same interval");
             return;

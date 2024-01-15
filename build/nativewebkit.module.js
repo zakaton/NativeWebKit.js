@@ -2,6 +2,154 @@
  * @copyright Zack Qattan 2024
  * @license MIT
  */
+/** @type {"__NATIVEWEBKIT__DEV__" | "__NATIVEWEBKIT__PROD__"} */
+const isInDev = "__NATIVEWEBKIT__PROD__" == "__NATIVEWEBKIT__DEV__";
+
+/**
+ * @callback LogFunction
+ * @param {...any} data
+ */
+
+/**
+ * @callback AssertLogFunction
+ * @param {boolean} condition
+ * @param {...any} data
+ */
+
+/**
+ * @typedef ConsoleLevelFlags
+ * @type {object}
+ * @property {boolean} log
+ * @property {boolean} warn
+ * @property {boolean} error
+ * @property {boolean} assert
+ */
+
+function emptyFunction() {}
+
+const log = console.log.bind(console);
+const warn = console.warn.bind(console);
+const error = console.error.bind(console);
+const assert = console.assert.bind(console);
+
+class Console {
+    /** @type {Object.<string, Console>} */
+    static #consoles = {};
+
+    /**
+     * @param {string} type
+     */
+    constructor(type) {
+        if (Console.#consoles[type]) {
+            throw new Error(`"${type}" console already exists`);
+        }
+        Console.#consoles[type] = this;
+    }
+
+    /** @type {ConsoleLevelFlags} */
+    #levelFlags = {
+        log: isInDev,
+        warn: isInDev,
+        error: isInDev,
+    };
+
+    /**
+     * @param {ConsoleLevelFlags} levelFlags
+     */
+    setLevelFlags(levelFlags) {
+        Object.assign(this.#levelFlags, levelFlags);
+    }
+
+    /**
+     * @param {string} type
+     * @param {ConsoleLevelFlags} levelFlags
+     * @throws {Error} if no console with type "type" is found
+     */
+    static setLevelFlagsForType(type, levelFlags) {
+        if (!this.#consoles[type]) {
+            throw new Error(`no console found with type "${type}"`);
+        }
+        this.#consoles[type].setLevelFlags(levelFlags);
+    }
+
+    /**
+     * @param {ConsoleLevelFlags} levelFlags
+     */
+    static setAllLevelFlags(levelFlags) {
+        for (const type in this.#consoles) {
+            this.#consoles[type].setLevelFlags(levelFlags);
+        }
+    }
+
+    /**
+     * @param {string} type
+     * @param {ConsoleLevelFlags} levelFlags
+     * @returns {Console}
+     */
+    static create(type, levelFlags) {
+        const console = this.#consoles[type] || new Console(type);
+        return console;
+    }
+
+    /** @type {LogFunction} */
+    get log() {
+        return this.#levelFlags.log ? log : emptyFunction;
+    }
+
+    /** @type {LogFunction} */
+    get warn() {
+        return this.#levelFlags.warn ? warn : emptyFunction;
+    }
+
+    /** @type {LogFunction} */
+    get error() {
+        return this.#levelFlags.error ? error : emptyFunction;
+    }
+
+    /** @type {AssertLogFunction} */
+    get assert() {
+        return this.#levelFlags.assert ? assert : emptyFunction;
+    }
+
+    /**
+     * @param {boolean} condition
+     * @param {string?} message
+     * @throws {Error} if condition is not met
+     */
+    assertWithError(condition, message) {
+        if (!condition) {
+            throw new Error(message);
+        }
+    }
+}
+
+/**
+ * @param {string} type
+ * @param {ConsoleLevelFlags?} levelFlags
+ * @returns {Console}
+ */
+function createConsole(type, levelFlags) {
+    return Console.create(type, levelFlags);
+}
+
+/**
+ * @param {string} type
+ * @param {ConsoleLevelFlags} levelFlags
+ * @throws {Error} if no console with type is found
+ */
+function setConsoleLevelFlagsForType(type, levelFlags) {
+    Console.setLevelFlagsForType(type, levelFlags);
+}
+
+/**
+ * @param {ConsoleLevelFlags} levelFlags
+ */
+function setAllConsoleLevelFlags(levelFlags) {
+    Console.setAllLevelFlags(levelFlags);
+}
+
+const _console$6 = createConsole("EventDispatcher", { log: false });
+
 /** @typedef {import("./messaging.js").NKMessage} NKMessage */
 
 /**
@@ -43,18 +191,16 @@ class EventDispatcher {
      * @throws {Error}
      */
     #assertValidEventType(type) {
-        if (!this.#isValidEventType(type)) {
-            throw Error(`invalid event type "${type}"`);
-        }
+        _console$6.assertWithError(this.#isValidEventType(type), `invalid event type "${type}"`);
     }
 
-    /** @type {Object.<string, [function]|undefined>|undefined} */
+    /** @type {Object.<string, [function]?>?} */
     #listeners;
 
     /**
      * @param {string} type
      * @param {EventListener} listener
-     * @param {EventDispatcherOptions|undefined} options
+     * @param {EventDispatcherOptions?} options
      * @throws {Error}
      */
     addEventListener(type, listener, options) {
@@ -143,75 +289,7 @@ class EventDispatcher {
     }
 }
 
-class Console {
-    /**
-     * @callback LogFunction
-     * @param {...any} data
-     */
-
-    #emptyFunction = function () {};
-
-    /** @param {string|undefined} newPrefix */
-    set prefix(newPrefix) {
-        const args = [console];
-        if (newPrefix) {
-            if (Array.isArray(newPrefix)) {
-                args.push(...newPrefix);
-            } else {
-                args.push(newPrefix);
-            }
-        }
-
-        this.#log = console.log.bind(...args);
-        this.#warn = console.warn.bind(...args);
-        this.#error = console.error.bind(...args);
-    }
-
-    /** @type {boolean} */
-    isLoggingEnabled = true;
-    /** @type {LogFunction} */
-    get log() {
-        return this.#emptyFunction;
-    }
-    #log = console.log.bind(console);
-
-    /** @type {boolean} */
-    isWarningEnabled = true;
-    /** @type {LogFunction} */
-    get warn() {
-        return this.#emptyFunction;
-    }
-    /** @type {LogFunction} */
-    #warn = console.warn.bind(console);
-
-    /** @type {boolean} */
-    isErrorEnabled = true;
-    /** @type {LogFunction} */
-    get error() {
-        return this.#emptyFunction;
-    }
-    /** @type {LogFunction} */
-    #error = console.error.bind(console);
-
-    /** @param {boolean} isEnabled */
-    set isEnabled(isEnabled) {
-        this.isLoggingEnabled = isEnabled;
-        this.isWarningEnabled = isEnabled;
-        this.isErrorEnabled = isEnabled;
-    }
-
-    /**
-     *
-     * @param {string|undefined} prefix
-     */
-    constructor(prefix) {
-        if (prefix) {
-            this.prefix = prefix;
-        }
-    }
-}
-
-const _console$5 = new Console();
+const _console$5 = createConsole("platformUtils");
 
 const { userAgent } = navigator;
 
@@ -274,7 +352,7 @@ const openInApp = () => {
     }
 };
 
-const _console$4 = new Console();
+const _console$4 = createConsole("messaging");
 
 /** @type {Set.<number>} */
 const appMessageIds = new Set();
@@ -341,6 +419,12 @@ function onAppMessages(messages) {
     if (!Array.isArray(messages)) {
         messages = [messages];
     }
+    messages = messages.flatMap((message) => {
+        if (message.type == "messages") {
+            return message.messages;
+        }
+        return message;
+    });
     _console$4.log("nativewebkit-receive messages", messages);
     messages.forEach((message) => {
         const [prefix, type] = message.type.split("-");
@@ -367,9 +451,9 @@ function onAppMessages(messages) {
 
 /** @type {NKMessage[]} */
 var pendingMessagesToSend = [];
-/** @type {NKMessagePromise|undefined} */
+/** @type {NKMessagePromise?} */
 var pendingMessagesPromise;
-/** @type {PromiseLike<boolean>|undefined} */
+/** @type {PromiseLike<boolean>?} */
 var pendingMessagesPromiseResolve;
 
 /**
@@ -444,7 +528,7 @@ async function sendMessageToApp(message, sendImmediately = true) {
     }
 }
 
-const _console$3 = new Console();
+const _console$3 = createConsole("mathUtils");
 
 /**
  * @param {number} a
@@ -457,7 +541,7 @@ function greaterCommonFactor(a, b) {
 
 /**
  * @param {number[]} numbers
- * @returns {number|null}
+ * @returns {number?}
  */
 function findGreatestCommonFactor(numbers) {
     _console$3.log("finding greatestCommonFactor of numbers", numbers);
@@ -475,7 +559,7 @@ function findGreatestCommonFactor(numbers) {
     return greatestCommonFactor;
 }
 
-const _console$2 = new Console("AppMessagePoll");
+const _console$2 = createConsole("AppMessagePoll");
 
 /** @typedef {import("./messaging.js").NKMessage} NKMessage */
 
@@ -538,10 +622,7 @@ class AppMessagePoll {
         return this.#interval;
     }
     set interval(newInterval) {
-        if (newInterval <= 0) {
-            _console$2.error(`invalid interval ${newInterval}ms`);
-            return;
-        }
+        _console$2.assertWithError(newInterval > 0, `invalid interval ${newInterval}ms`);
         if (newInterval == this.#interval) {
             _console$2.warn("assigning same interval");
             return;
@@ -565,13 +646,13 @@ class AppMessagePoll {
         AppMessagePoll.#add(this);
     }
 
-    /** @type {number|null} */
+    /** @type {number?} */
     static #intervalId = null;
     static get #IsRunning() {
         return this.#intervalId != null;
     }
 
-    /** @type {number|null} (ms) */
+    /** @type {number?} (ms) */
     static #Interval = null;
     static get #enabledPolls() {
         return this.#polls.filter((poll) => poll.#isEnabled);
@@ -582,7 +663,7 @@ class AppMessagePoll {
 
     /** @returns {boolean} did interval update */
     static #updateInterval() {
-        /** @type {number|null} */
+        /** @type {number?} */
         var newInterval = findGreatestCommonFactor(this.#intervals);
         _console$2.log(`new interval ${newInterval}`);
         if (this.#Interval != newInterval) {
@@ -731,7 +812,7 @@ class AppMessagePoll {
  * @property {[number]} rotationRate
  */
 
-const _console$1 = new Console("HeadphoneMotionManager");
+const _console$1 = createConsole("HeadphoneMotionManager");
 
 class HeadphoneMotionManager extends EventDispatcher {
     /** @type {HMEventType[]} */
@@ -760,7 +841,7 @@ class HeadphoneMotionManager extends EventDispatcher {
     /**
      * @param {HMEventType} type
      * @param {HMEventListener} listener
-     * @param {EventDispatcherOptions|undefined} options
+     * @param {EventDispatcherOptions?} options
      */
     addEventListener(type, listener, options) {
         return super.addEventListener(...arguments);
@@ -788,26 +869,27 @@ class HeadphoneMotionManager extends EventDispatcher {
         return super.dispatchEvent(...arguments);
     }
 
-    /** HeadphoneMotionManager is a singleton - use HeadphoneMotionManager.shared */
+    /** @throws {Error} if singleton already exists */
     constructor() {
         super();
 
-        if (this.shared) {
-            throw new Error("HeadphoneMotionManager is a singleton - use HeadphoneMotionManager.shared");
-        }
+        _console$1.assertWithError(
+            !this.shared,
+            "HeadphoneMotionManager is a singleton - use HeadphoneMotionManager.shared"
+        );
 
         addAppListener(this.#getWindowLoadMessages.bind(this), "window.load");
         addAppListener(this.#onAppMessage.bind(this), this._prefix);
         addAppListener(this.#getWindowUnloadMessages.bind(this), "window.unload");
     }
 
-    /** @returns {NKMessage|NKMessage[]|undefined} */
+    /** @returns {NKMessage|NKMessage[]?} */
     #getWindowLoadMessages() {
         if (this.#checkAvailabilityOnLoad) {
             return this.#checkIsAvailableMessage;
         }
     }
-    /** @returns {NKMessage|NKMessage[]|undefined} */
+    /** @returns {NKMessage|NKMessage[]?} */
     #getWindowUnloadMessages() {
         if (this.#isActive && this.#stopUpdatesOnUnload) {
             return this.#stopUpdatesMessage;
@@ -821,11 +903,12 @@ class HeadphoneMotionManager extends EventDispatcher {
     }
     /** @throws {Error} if newValue is not a boolean */
     set checkAvailabilityOnLoad(newValue) {
-        if (typeof newValue == "boolean") {
-            this.#checkAvailabilityOnLoad = newValue;
-        } else {
-            throw Error(`invalid newValue for checkAvailabilityOnLoad`, newValue);
-        }
+        _console$1.assertWithError(
+            typeof newValue == "boolean",
+            "invalid newValue for checkAvailabilityOnLoad",
+            newValue
+        );
+        this.#checkAvailabilityOnLoad = newValue;
     }
 
     /** @type {boolean} */
@@ -835,11 +918,8 @@ class HeadphoneMotionManager extends EventDispatcher {
     }
     /** @throws {Error} if newValue is not a boolean */
     set stopUpdatesOnUnload(newValue) {
-        if (typeof newValue == "boolean") {
-            this.#stopUpdatesOnUnload = newValue;
-        } else {
-            throw Error(`invalid newValue for stopUpdatesOnUnload`, newValue);
-        }
+        _console$1.assertWithError(typeof newValue == "boolean", "invalid newValue for stopUpdatesOnUnload", newValue);
+        this.#stopUpdatesOnUnload = newValue;
     }
 
     /**
@@ -859,12 +939,11 @@ class HeadphoneMotionManager extends EventDispatcher {
                 this.#onMotionData(message.motionData);
                 break;
             default:
-                _console$1.error(`uncaught message type ${type}`);
-                break;
+                throw Error(`uncaught message type ${type}`);
         }
     }
 
-    /** @type {boolean|null} */
+    /** @type {boolean?} */
     #isAvailable = null;
     get isAvailable() {
         return Boolean(this.#isAvailable);
@@ -879,11 +958,11 @@ class HeadphoneMotionManager extends EventDispatcher {
                 message: { isAvailable: this.isAvailable },
             });
             if (this.#isAvailable) {
-                this.checkIsActive();
+                this.#checkIsActive();
             }
         }
     }
-    async checkIsAvailable() {
+    async #checkIsAvailable() {
         _console$1.log("checking isAvailable...");
         return sendMessageToApp(this.#checkIsAvailableMessage);
     }
@@ -891,7 +970,7 @@ class HeadphoneMotionManager extends EventDispatcher {
         return this._formatMessage({ type: "isAvailable" });
     }
 
-    /** @type {boolean|null} */
+    /** @type {boolean?} */
     #isActive = null;
     get isActive() {
         return Boolean(this.#isActive);
@@ -916,7 +995,7 @@ class HeadphoneMotionManager extends EventDispatcher {
             }
         }
     }
-    async checkIsActive() {
+    async #checkIsActive() {
         _console$1.log("checking isActive");
         return sendMessageToApp(this.#checkIsActiveMessage());
     }
@@ -979,7 +1058,7 @@ class HeadphoneMotionManager extends EventDispatcher {
     get #motionDataTimestamp() {
         return this.motionData?.timestamp || 0;
     }
-    /** @type {HeadphoneMotionSensorLocation|null} */
+    /** @type {HeadphoneMotionSensorLocation?} */
     #sensorLocation = null;
     get sensorLocation() {
         return this.#sensorLocation;
@@ -1006,7 +1085,7 @@ class HeadphoneMotionManager extends EventDispatcher {
         this.#onSensorLocationUpdated(newMotionData.sensorLocation);
     }
 
-    async checkMotionData() {
+    async #checkMotionData() {
         _console$1.log("checkMotionData");
         return sendMessageToApp(this.#checkMotionDataMessage);
     }
@@ -1044,11 +1123,11 @@ function areObjectsEqual(a, b) {
     return areEqual;
 }
 
-const _console = new Console("ARSession");
+const _console = createConsole("ARSession");
 
-/** @typedef {"worldTrackingSupport" | "faceTrackingSupport" | "run" | "pause" | "isRunning" | "frame"} ARSMessageType */
+/** @typedef {"worldTrackingSupport" | "faceTrackingSupport" | "run" | "pause" | "status" | "frame" | "debugOptions" | "cameraMode" | "configuration" | "showCamera"} ARSMessageType */
 
-/** @typedef {"worldTrackingSupport" | "faceTrackingSupport" | "isRunning" | "frame" | "camera"} ARSEventType */
+/** @typedef {"worldTrackingSupport" | "faceTrackingSupport" | "isRunning" | "frame" | "camera" | "faceAnchors" | "faceAnchor" | "debugOptions" | "cameraMode" | "configuration" | "showCamera" | "lightEstimate"} ARSEventType */
 
 /** @typedef {import("./utils/messaging.js").NKMessage} NKMessage */
 
@@ -1094,24 +1173,170 @@ const _console = new Console("ARSession");
  * @typedef {(event: ARSEvent) => void} ARSEventListener
  */
 
+/** @typedef {"worldTracking"|"faceTracking"} ARSConfigurationType */
+/**
+ * @typedef ARSConfiguration
+ * @type {object}
+ * @property {ARSConfigurationType} type
+ */
+
+/** @typedef {"userFaceTrackingEnabled"} ARSWorldTrackingConfigurationKey */
+/**
+ * @typedef _ARSWorldTrackingConfiguration
+ * @type {object}
+ * @property {bool} userFaceTrackingEnabled
+ */
+/** @typedef {ARSConfiguration & _ARSWorldTrackingConfiguration} ARSWorldTrackingConfiguration */
+
+/** @typedef {"isWorldTrackingEnabled" | "maximumNumberOfTrackedFaces"} ARSFaceTrackingConfigurationKey */
+/**
+ * @typedef _ARSFaceTrackingConfiguration
+ * @type {object}
+ * @property {bool} isWorldTrackingEnabled
+ * @property {bool} maximumNumberOfTrackedFaces
+ */
+/** @typedef {ARSConfiguration & _ARSFaceTrackingConfiguration} ARSFaceTrackingConfiguration */
+
 /**
  * @typedef ARSFrame
  * @type {object}
+ * @property {number} timestamp
  * @property {ARSCamera} camera
+ * @property {ARSFaceAnchor[]?} faceAnchors
+ * @property {ARSLightEstimate?} lightEstimate
+ */
+
+/**
+ * @typedef ARSLightEstimate
+ * @type {object}
+ * @property {number} ambientIntensity (lumens)
+ * @property {number} ambientColorTemperature (kelvin)
+ * @property {number?} primaryLightIntensity (lumens)
+ * @property {number[]?} primaryLightDirection
  */
 
 /**
  * @typedef ARSCamera
  * @type {object}
- * @property {number[]} position
- * @property {number[]} quaternion
- * @property {number[]} position
+ * @property {number} focalLength
+ * @property {number} exposureOffset
+ * @property {number[]} position not available when cameraMode is "nonAR"
+ * @property {number[]} quaternion not available when cameraMode is "nonAR" - use eulerAngles instead
+ * @property {number[]} position not available when cameraMode is "nonAR"
  * @property {number[]} eulerAngles
  */
 
+/**
+ * @typedef ARSFaceAnchor
+ * @type {object}
+ * @property {string} identifier
+ * @property {number[]} lookAtPoint
+ * @property {number[]} position
+ * @property {number[]} quaternion
+ * @property {ARSFaceAnchorEye} leftEye
+ * @property {ARSFaceAnchorEye} rightEye
+ * @property {ARSFaceAnchorBlendShapes} blendShapes
+ */
+
+/**
+ * @typedef ARSFaceAnchorEye
+ * @type {object}
+ * @property {number[]} quaternion
+ * @property {number[]} position
+ */
+
+/** @typedef {"none" | "showAnchorGeometry" | "showAnchorOrigins" | "showFeaturePoints" | "showPhysics" | "showSceneUnderstanding" | "showStatistics" | "showWorldOrigin"} ARSDebugOption */
+
+/**
+ * @typedef ARSDebugOptions
+ * @type {object}
+ * @property {boolean} none
+ * @property {boolean} showAnchorGeometry
+ * @property {boolean} showAnchorOrigins
+ * @property {boolean} showFeaturePoints
+ * @property {boolean} showPhysics
+ * @property {boolean} showSceneUnderstanding
+ * @property {boolean} showStatistics
+ * @property {boolean} showWorldOrigin
+ */
+
+/** @typedef {"browDownLeft" | "browDownRight" | "browInnerUp" | "browOuterUpLeft" | "browOuterUpRight" | "cheekPuff" | "cheekSquintLeft" | "cheekSquintRight" | "eyeBlinkLeft" | "eyeBlinkRight" | "eyeLookDownLeft" | "eyeLookDownRight" | "eyeLookInLeft" | "eyeLookInRight" | "eyeLookOutLeft" | "eyeLookOutRight" | "eyeLookUpLeft" | "eyeLookUpRight" | "eyeSquintLeft" | "eyeSquintRight" | "eyeWideLeft" | "eyeWideRight" | "jawForward" | "jawLeft" | "jawOpen" | "jawRight" | "mouthClose" | "mouthDimpleLeft" | "mouthDimpleRight" | "mouthFrownLeft" | "mouthFrownRight" | "mouthFunnel" | "mouthLeft" | "mouthLowerDownLeft" | "mouthLowerDownRight" | "mouthPressLeft" | "mouthPressRight" | "mouthPucker" | "mouthRight" | "mouthRollLower" | "mouthRollUpper" | "mouthShrugLower" | "mouthShrugUpper" | "mouthSmileLeft" | "mouthSmileRight" | "mouthStretchLeft" | "mouthStretchRight" | "mouthUpperUpLeft" | "mouthUpperUpRight" | "noseSneerLeft" | "noseSneerRight" | "tongueOut"} ARSFaceAnchorBlendShapeLocation */
+
+/**
+ * @typedef ARSFaceAnchorBlendShapes
+ * @type {object}
+ * @property {number} browDownLeft The coefficient describing downward movement of the outer portion of the left eyebrow.
+ * @property {number} browDownRight The coefficient describing downward movement of the outer portion of the right eyebrow.
+ * @property {number} browInnerUp The coefficient describing upward movement of the inner portion of both eyebrows.
+ * @property {number} browOuterUpLeft The coefficient describing upward movement of the outer portion of the left eyebrow.
+ * @property {number} browOuterUpRight The coefficient describing upward movement of the outer portion of the right eyebrow.
+ * @property {number} cheekPuff The coefficient describing outward movement of both cheeks.
+ * @property {number} cheekSquintLeft The coefficient describing upward movement of the cheek around and below the left eye.
+ * @property {number} cheekSquintRight The coefficient describing upward movement of the cheek around and below the right eye.
+ * @property {number} eyeBlinkLeft The coefficient describing closure of the eyelids over the left eye.
+ * @property {number} eyeBlinkRight The coefficient describing closure of the eyelids over the right eye.
+ * @property {number} eyeLookDownLeft The coefficient describing movement of the left eyelids consistent with a downward gaze.
+ * @property {number} eyeLookDownRight The coefficient describing movement of the right eyelids consistent with a downward gaze.
+ * @property {number} eyeLookInLeft The coefficient describing movement of the left eyelids consistent with a rightward gaze.
+ * @property {number} eyeLookInRight The coefficient describing movement of the right eyelids consistent with a leftward gaze.
+ * @property {number} eyeLookOutLeft The coefficient describing movement of the left eyelids consistent with a leftward gaze.
+ * @property {number} eyeLookOutRight The coefficient describing movement of the right eyelids consistent with a rightward gaze.
+ * @property {number} eyeLookUpLeft The coefficient describing movement of the left eyelids consistent with an upward gaze.
+ * @property {number} eyeLookUpRight The coefficient describing movement of the right eyelids consistent with an upward gaze.
+ * @property {number} eyeSquintLeft The coefficient describing contraction of the face around the left eye.
+ * @property {number} eyeSquintRight The coefficient describing contraction of the face around the right eye.
+ * @property {number} eyeWideLeft The coefficient describing a widening of the eyelids around the left eye.
+ * @property {number} eyeWideRight The coefficient describing a widening of the eyelids around the right eye.
+ * @property {number} jawForward The coefficient describing forward movement of the lower jaw.
+ * @property {number} jawLeft The coefficient describing leftward movement of the lower jaw.
+ * @property {number} jawOpen The coefficient describing an opening of the lower jaw.
+ * @property {number} jawRight The coefficient describing rightward movement of the lower jaw.
+ * @property {number} mouthClose The coefficient describing closure of the lips independent of jaw position.
+ * @property {number} mouthDimpleLeft The coefficient describing backward movement of the left corner of the mouth.
+ * @property {number} mouthDimpleRight The coefficient describing backward movement of the right corner of the mouth.
+ * @property {number} mouthFrownLeft The coefficient describing downward movement of the left corner of the mouth.
+ * @property {number} mouthFrownRight The coefficient describing downward movement of the right corner of the mouth.
+ * @property {number} mouthFunnel The coefficient describing contraction of both lips into an open shape.
+ * @property {number} mouthLeft The coefficient describing leftward movement of both lips together.
+ * @property {number} mouthLowerDownLeft The coefficient describing downward movement of the lower lip on the left side.
+ * @property {number} mouthLowerDownRight The coefficient describing downward movement of the lower lip on the right side.
+ * @property {number} mouthPressLeft The coefficient describing upward compression of the lower lip on the left side.
+ * @property {number} mouthPressRight The coefficient describing upward compression of the lower lip on the right side.
+ * @property {number} mouthPucker The coefficient describing contraction and compression of both closed lips.
+ * @property {number} mouthRight The coefficient describing rightward movement of both lips together.
+ * @property {number} mouthRollLower The coefficient describing movement of the lower lip toward the inside of the mouth.
+ * @property {number} mouthRollUpper The coefficient describing movement of the upper lip toward the inside of the mouth.
+ * @property {number} mouthShrugLower The coefficient describing outward movement of the lower lip.
+ * @property {number} mouthShrugUpper The coefficient describing outward movement of the upper lip.
+ * @property {number} mouthSmileLeft The coefficient describing upward movement of the left corner of the mouth.
+ * @property {number} mouthSmileRight The coefficient describing upward movement of the right corner of the mouth.
+ * @property {number} mouthStretchLeft The coefficient describing leftward movement of the left corner of the mouth.
+ * @property {number} mouthStretchRight The coefficient describing rightward movement of the left corner of the mouth.
+ * @property {number} mouthUpperUpLeft The coefficient describing upward movement of the upper lip on the left side.
+ * @property {number} mouthUpperUpRight The coefficient describing upward movement of the upper lip on the right side.
+ * @property {number} noseSneerLeft The coefficient describing a raising of the left side of the nose around the nostril.
+ * @property {number} noseSneerRight The coefficient describing a raising of the right side of the nose around the nostril.
+ * @property {number} tongueOut The coefficient describing extension of the tongue.
+ */
+
+/** @typedef {"ar" | "nonAR"} ARSCameraMode */
+
 class ARSessionManager extends EventDispatcher {
     /** @type {ARSEventType[]} */
-    static #EventsTypes = ["worldTrackingSupport", "faceTrackingSupport", "isRunning", "frame", "camera"];
+    static #EventsTypes = [
+        "worldTrackingSupport",
+        "faceTrackingSupport",
+        "isRunning",
+        "frame",
+        "camera",
+        "faceAnchors",
+        "faceAnchor",
+        "debugOptions",
+        "cameraMode",
+        "configuration",
+        "showCamera",
+        "lightEstimate",
+    ];
     /** @type {ARSEventType[]} */
     get eventTypes() {
         return ARSessionManager.#EventsTypes;
@@ -1136,7 +1361,7 @@ class ARSessionManager extends EventDispatcher {
     /**
      * @param {ARSEventType} type
      * @param {ARSEventListener} listener
-     * @param {EventDispatcherOptions|undefined} options
+     * @param {EventDispatcherOptions?} options
      */
     addEventListener(type, listener, options) {
         return super.addEventListener(...arguments);
@@ -1164,13 +1389,11 @@ class ARSessionManager extends EventDispatcher {
         return super.dispatchEvent(...arguments);
     }
 
-    /** ARSessionManager is a singleton - use ARSessionManager.shared */
+    /** @throws {Error} if singleton already exists */
     constructor() {
         super();
 
-        if (this.shared) {
-            throw new Error("ARSessionManager is a singleton - use ARSessionManager.shared");
-        }
+        _console.assertWithError(!this.shared, "ARSessionManager is a singleton - use ARSessionManager.shared");
 
         addAppListener(this.#getWindowLoadMessages.bind(this), "window.load");
         addAppListener(this.#onAppMessage.bind(this), this._prefix);
@@ -1180,15 +1403,26 @@ class ARSessionManager extends EventDispatcher {
     get isSupported() {
         return is_iOS && isInApp;
     }
-    #warnNotSupported() {
-        if (isMac) {
-            _console.warn("AR Session is not supported on Mac");
-        } else {
-            _console.warn("AR Session not supported in iOS Safari");
+    /**
+     * @throws {Error} if not supported
+     */
+    #assertIsSupported() {
+        if (!this.isSupported) {
+            if (isMac) {
+                throw Error("AR Session is not supported on Mac");
+            } else {
+                throw Error("AR Session not supported in iOS Safari");
+            }
         }
     }
+    /**
+     * @throws {Error} if not running
+     */
+    #assertIsRunning() {
+        _console.assertWithError(this.isRunning, "ARSession is not running");
+    }
 
-    /** @returns {NKMessage|NKMessage[]|undefined} */
+    /** @returns {NKMessage|NKMessage[]?} */
     #getWindowLoadMessages() {
         if (!this.isSupported) {
             return;
@@ -1204,9 +1438,19 @@ class ARSessionManager extends EventDispatcher {
         if (this.checkIsRunningOnLoad) {
             messages.push(this.#checkIsRunningMessage);
         }
+        if (this.checkDebugOptionsOnLoad) {
+            messages.push(this.#checkDebugOptionsMessage);
+        }
+        if (this.checkCameraModeOnLoad) {
+            messages.push(this.#checkCameraModeMessage);
+        }
+        if (this.checkShowCameraOnLoad) {
+            messages.push(this.#checkShowCameraMessage);
+        }
+
         return messages;
     }
-    /** @returns {NKMessage|NKMessage[]|undefined} */
+    /** @returns {NKMessage|NKMessage[]?} */
     #getWindowUnloadMessages() {
         if (!this.isSupported) {
             return;
@@ -1246,19 +1490,16 @@ class ARSessionManager extends EventDispatcher {
     }
     /** @throws {Error} if newValue is not a boolean */
     set checkWorldTrackingSupportOnLoad(newValue) {
-        if (typeof newValue == "boolean") {
-            this.#checkWorldTrackingSupportOnLoad = newValue;
-        } else {
-            throw Error(`invalid newValue for checkWorldTrackingSupportOnLoad`, newValue);
-        }
+        _console.assertWithError(
+            typeof newValue == "boolean",
+            `invalid newValue for checkWorldTrackingSupportOnLoad`,
+            newValue
+        );
+        this.#checkWorldTrackingSupportOnLoad = newValue;
     }
 
-    async checkWorldTrackingSupport() {
-        if (!this.isSupported) {
-            this.#warnNotSupported();
-            return;
-        }
-
+    async #checkWorldTrackingSupport() {
+        this.#assertIsSupported();
         _console.log("checking world tracking support...");
         return sendMessageToApp(this.#checkWorldTrackingSupportMessage);
     }
@@ -1293,18 +1534,16 @@ class ARSessionManager extends EventDispatcher {
     }
     /** @throws {Error} if newValue is not a boolean */
     set checkFaceTrackingSupportOnLoad(newValue) {
-        if (typeof newValue == "boolean") {
-            this.#checkFaceTrackingSupportOnLoad = newValue;
-        } else {
-            throw Error(`invalid newValue for checkFaceTrackingSupportOnLoad`, newValue);
-        }
+        _console.assertWithError(
+            typeof newValue == "boolean",
+            "invalid newValue for checkFaceTrackingSupportOnLoad",
+            newValue
+        );
+        this.#checkFaceTrackingSupportOnLoad = newValue;
     }
 
-    async checkFaceTrackingSupport() {
-        if (!this.isSupported) {
-            this.#warnNotSupported();
-            return;
-        }
+    async #checkFaceTrackingSupport() {
+        this.#assertIsSupported();
 
         _console.log("checking face tracking support...");
         return sendMessageToApp(this.#checkFaceTrackingSupportMessage);
@@ -1327,13 +1566,13 @@ class ARSessionManager extends EventDispatcher {
                 type: "isRunning",
                 message: { isRunning: this.isRunning },
             });
+            if (this.isRunning) {
+                this.#checkConfiguration();
+            }
         }
     }
-    async checkIsRunning() {
-        if (!this.isSupported) {
-            this.#warnNotSupported();
-            return;
-        }
+    async #checkIsRunning() {
+        this.#assertIsSupported();
 
         _console.log("checking isRunning...");
         return sendMessageToApp(this.#checkIsRunningMessage);
@@ -1349,11 +1588,8 @@ class ARSessionManager extends EventDispatcher {
     }
     /** @throws {Error} if newValue is not a boolean */
     set checkIsRunningOnLoad(newValue) {
-        if (typeof newValue == "boolean") {
-            this.#checkIsRunningOnLoad = newValue;
-        } else {
-            throw Error(`invalid newValue for checkIsRunningOnLoad`, newValue);
-        }
+        _console.assertWithError(typeof newValue == "boolean", "invalid newValue for checkIsRunningOnLoad", newValue);
+        this.#checkIsRunningOnLoad = newValue;
     }
 
     /** @type {boolean} */
@@ -1363,19 +1599,78 @@ class ARSessionManager extends EventDispatcher {
     }
     /** @throws {Error} if newValue is not a boolean */
     set pauseOnUnload(newValue) {
-        if (typeof newValue == "boolean") {
-            this.#pauseOnUnload = newValue;
-        } else {
-            throw Error(`invalid newValue for pauseOnUnload`, newValue);
+        _console.assertWithError(typeof newValue == "boolean", `invalid newValue for pauseOnUnload`, newValue);
+        this.#pauseOnUnload = newValue;
+    }
+
+    /**
+     * @param {ARSConfiguration} configuration
+     * @throws {Error} if invalid
+     */
+    #assertConfigurationIsValid(configuration) {
+        _console.log("assertConfigurationIsValid", configuration);
+        _console.assertWithError(configuration, "configuration required to run ARSession");
+        _console.assertWithError(configuration.type, '"type" property required in configuration"');
+        _console.assertWithError(
+            this.allConfigurationTypes.includes(configuration.type),
+            `invalid configuration type "${configuration.type}"`
+        );
+
+        switch (configuration.type) {
+            case "worldTracking":
+                const invalidWorldTrackingConfigurationKey = Object.keys(configuration).find(
+                    (key) => key !== "type" && !this.#worldTrackingConfigurationKeys.includes(key)
+                );
+                _console.assertWithError(
+                    !invalidWorldTrackingConfigurationKey,
+                    `invalid worldTracking configuration key "${invalidWorldTrackingConfigurationKey}"`
+                );
+                /** @type {ARSWorldTrackingConfiguration} */
+                const worldTrackingConfiguration = configuration;
+                _console.assertWithError(
+                    this.worldTrackingSupport.isSupported,
+                    "your device doesn't support world tracking"
+                );
+                _console.assertWithError(
+                    !worldTrackingConfiguration.userFaceTrackingEnabled ||
+                        this.worldTrackingSupport.supportsUserFaceTracking,
+                    "your device doesn't support user face tracking with world tracking"
+                );
+                break;
+            case "faceTracking":
+                const invalidFaceTrackingConfigurationKey = Object.keys(configuration).find(
+                    (key) => key !== "type" && !this.#faceTrackingConfigurationKeys.includes(key)
+                );
+                _console.assertWithError(
+                    !invalidFaceTrackingConfigurationKey,
+                    `invalid faceTracking configuration key "${invalidFaceTrackingConfigurationKey}"`
+                );
+                /** @type {ARSFaceTrackingConfiguration} */
+                const faceTrackingConfiguration = configuration;
+                _console.assertWithError(
+                    this.faceTrackingSupport.isSupported,
+                    "your device doesn't support face tracking"
+                );
+                _console.assertWithError(
+                    !faceTrackingConfiguration.isWorldTrackingEnabled || this.faceTrackingSupport.supportsWorldTracking,
+                    "your device doesn't support user world tracking with face tracking"
+                );
+                break;
+            default:
+                throw Error(`uncaught configuration type "${configuration.type}"`);
         }
     }
 
-    async run() {
-        _console.log("run...");
-        return sendMessageToApp(this.#runMessage);
+    /** @param {ARSConfiguration} configuration */
+    async run(configuration) {
+        this.#assertIsSupported();
+        this.#assertConfigurationIsValid(configuration);
+
+        _console.log("running with configuraton", configuration);
+        return sendMessageToApp(this.#runMessage(configuration));
     }
-    get #runMessage() {
-        return this._formatMessage({ type: "run" });
+    #runMessage(configuration) {
+        return this._formatMessage({ type: "run", configuration });
     }
 
     async pause() {
@@ -1386,15 +1681,63 @@ class ARSessionManager extends EventDispatcher {
         return this._formatMessage({ type: "pause" });
     }
 
-    /** @type {ARSFrame|null} */
+    /** @type {ARSConfigurationType[]} */
+    #allConfigurationTypes = ["worldTracking", "faceTracking"];
+    get allConfigurationTypes() {
+        return this.#allConfigurationTypes;
+    }
+
+    /** @type {ARSWorldTrackingConfigurationKey[]} */
+    #worldTrackingConfigurationKeys = ["userFaceTrackingEnabled"];
+    /** @type {ARSFaceTrackingConfigurationKey[]} */
+    #faceTrackingConfigurationKeys = ["isWorldTrackingEnabled", "maximumNumberOfTrackedFaces"];
+
+    /** @type {ARSConfiguration?} */
+    #configuration = null;
+    get configuration() {
+        return this.#configuration;
+    }
+
+    async #checkConfiguration() {
+        this.#assertIsSupported();
+        this.#assertIsRunning();
+
+        _console.log("checking configuration...");
+        return sendMessageToApp(this.#checkConfigurationMessage);
+    }
+    get #checkConfigurationMessage() {
+        return this._formatMessage({ type: "configuration" });
+    }
+
+    /** @param {ARSConfiguration} newConfiguration  */
+    #onConfigurationUpdated(newConfiguration) {
+        this.#configuration = newConfiguration;
+        _console.log("updated configuration", this.configuration);
+        this.dispatchEvent({
+            type: "configuration",
+            message: { configuration: this.configuration },
+        });
+    }
+
+    /** @type {ARSFrame?} */
     #frame = null;
     get frame() {
         return this.#frame;
     }
-    /** @type {ARSCamera|null} */
-    #camera;
+    /** @type {ARSCamera?} */
+    #camera = null;
     get camera() {
         return this.#camera;
+    }
+    /** @type {ARSLightEstimate?} */
+    #lightEstimate = null;
+    get lightEstimate() {
+        return this.#lightEstimate;
+    }
+    /** @type {ARSFaceAnchor[]?} */
+    #faceAnchors = null;
+    get faceAnchors() {
+        return this.#faceAnchors;
     }
 
     /** @param {ARSFrame} frame */
@@ -1403,6 +1746,12 @@ class ARSessionManager extends EventDispatcher {
         _console.log("received frame", this.frame);
         this.dispatchEvent({ type: "frame", message: { frame: this.frame } });
         this.#onCamera(frame.camera);
+        if (frame.lightEstimate) {
+            this.#onLightEstimate(frame.lightEstimate);
+        }
+        if (frame.faceAnchors) {
+            this.#onFaceAnchors(frame.faceAnchors);
+        }
     }
 
     /** @param {ARSCamera} camera */
@@ -1410,6 +1759,219 @@ class ARSessionManager extends EventDispatcher {
         this.#camera = camera;
         _console.log("received camera", this.camera);
         this.dispatchEvent({ type: "camera", message: { camera: this.camera } });
+    }
+    /** @param {ARSLightEstimate} lightEstimate */
+    #onLightEstimate(lightEstimate) {
+        this.#lightEstimate = lightEstimate;
+        _console.log("received lightEstimate", this.lightEstimate);
+        this.dispatchEvent({ type: "lightEstimate", message: { lightEstimate: this.lightEstimate } });
+    }
+
+    /** @param {ARSFaceAnchor[]} faceAnchors */
+    #onFaceAnchors(faceAnchors) {
+        this.#faceAnchors = faceAnchors;
+        _console.log("received faceAnchors", this.faceAnchors);
+        this.dispatchEvent({ type: "faceAnchors", message: { faceAnchors: this.faceAnchors } });
+        faceAnchors.forEach((faceAnchor) => {
+            this.dispatchEvent({ type: "faceAnchor", message: { faceAnchor } });
+        });
+    }
+
+    /** @type {ARSDebugOption[]} */
+    #allDebugOptions = [
+        "none",
+        "showAnchorGeometry",
+        "showAnchorOrigins",
+        "showFeaturePoints",
+        "showPhysics",
+        "showSceneUnderstanding",
+        "showStatistics",
+        "showWorldOrigin",
+    ];
+    get allDebugOptions() {
+        return this.#allDebugOptions;
+    }
+
+    /** @type {ARSDebugOptions?} */
+    #debugOptions = null;
+    get debugOptions() {
+        return this.#debugOptions;
+    }
+    /** @param {ARSDebugOptions} newDebugOptions */
+    #onDebugOptionsUpdated(newDebugOptions) {
+        this.#debugOptions = newDebugOptions;
+        _console.log("received debugOptions", this.debugOptions);
+        this.dispatchEvent({ type: "debugOptions", message: { debugOptions: this.debugOptions } });
+    }
+
+    async #checkDebugOptions() {
+        this.#assertIsSupported();
+
+        _console.log("checking debugOptions...");
+        return sendMessageToApp(this.#checkDebugOptionsMessage);
+    }
+    get #checkDebugOptionsMessage() {
+        return this._formatMessage({ type: "debugOptions" });
+    }
+
+    /**
+     * @param {ARSDebugOptions} debugOptions
+     * @throws if debugOptions is not an object or has an invalid key
+     */
+    async setDebugOptions(debugOptions) {
+        this.#assertIsSupported();
+        _console.assertWithError(typeof debugOptions == "object", "debugOptions must be an object", debugOptions);
+        const invalidKey = Object.keys(debugOptions).find(
+            (debugOption) => !this.#allDebugOptions.includes(debugOption)
+        );
+        _console.assertWithError(!invalidKey, `invalid debugOptions key ${invalidKey}`);
+
+        _console.log("setting debugOptions...", debugOptions);
+        return sendMessageToApp(this.#setDebugOptionsMessage(debugOptions));
+    }
+
+    /** @param {ARSDebugOptions} debugOptions */
+    #setDebugOptionsMessage(debugOptions) {
+        return this._formatMessage({ type: "debugOptions", debugOptions });
+    }
+
+    /** @type {boolean} */
+    #checkDebugOptionsOnLoad = false;
+    get checkDebugOptionsOnLoad() {
+        return this.#checkDebugOptionsOnLoad;
+    }
+    /** @throws {Error} if newValue is not a boolean */
+    set checkDebugOptionsOnLoad(newValue) {
+        _console.assertWithError(
+            typeof newValue == "boolean",
+            `invalid newValue for checkDebugOptionsOnLoad`,
+            newValue
+        );
+        this.#checkDebugOptionsOnLoad = newValue;
+    }
+
+    /** @type {ARSCameraMode[]} */
+    #allCameraModes = ["ar", "nonAR"];
+    get allCameraModes() {
+        return this.#allCameraModes;
+    }
+
+    /** @type {ARSCameraMode?} */
+    #cameraMode = null;
+    get cameraMode() {
+        return this.#cameraMode;
+    }
+
+    async #checkCameraMode() {
+        this.#assertIsSupported();
+
+        _console.log("checking cameraMode...");
+        return sendMessageToApp(this.#checkCameraModeMessage);
+    }
+    get #checkCameraModeMessage() {
+        return this._formatMessage({ type: "cameraMode" });
+    }
+
+    /** @param {ARSCameraMode} cameraMode */
+    #setCameraModeMessage(cameraMode) {
+        return this._formatMessage({ type: "cameraMode", cameraMode });
+    }
+
+    /**
+     * @param {ARSCameraMode} newCameraMode
+     * @throws error if newCameraMode is not valid
+     */
+    async setCameraMode(newCameraMode) {
+        this.#assertIsSupported();
+
+        const isValidCameraMode = this.#allCameraModes.includes(newCameraMode);
+        _console.assertWithError(isValidCameraMode, `invalid cameraMode "${newCameraMode}"`);
+
+        if (newCameraMode == this.#cameraMode) {
+            _console.log(`cameraMode is already set to "${this.#cameraMode}"`);
+            return;
+        }
+
+        _console.log("setting cameraMode...", newCameraMode);
+        return sendMessageToApp(this.#setCameraModeMessage(newCameraMode));
+    }
+
+    /** @type {boolean} */
+    #checkCameraModeOnLoad = false;
+    get checkCameraModeOnLoad() {
+        return this.#checkCameraModeOnLoad;
+    }
+    /** @throws {Error} if newValue is not a boolean */
+    set checkCameraModeOnLoad(newValue) {
+        _console.assertWithError(typeof newValue == "boolean", `invalid newValue for checkCameraModeOnLoad`, newValue);
+        this.#checkCameraModeOnLoad = newValue;
+    }
+
+    /** @param {ARSCameraMode} newCameraMode */
+    #onCameraModeUpdated(newCameraMode) {
+        if (this.#cameraMode == newCameraMode) {
+            return;
+        }
+
+        this.#cameraMode = newCameraMode;
+        _console.log(`updated cameraMode to ${this.cameraMode}`);
+        this.dispatchEvent({ type: "cameraMode", message: { cameraMode: this.cameraMode } });
+    }
+
+    /** @type {boolean} */
+    #showCamera = null;
+    get showCamera() {
+        return this.#showCamera;
+    }
+
+    async #checkShowCamera() {
+        this.#assertIsSupported();
+
+        _console.log("checking showCamera...");
+        return sendMessageToApp(this.#checkShowCameraMessage);
+    }
+
+    /** @param {boolean} newShowCamera */
+    #onShowCameraUpdated(newShowCamera) {
+        if (this.#showCamera == newShowCamera) {
+            return;
+        }
+
+        this.#showCamera = newShowCamera;
+        _console.log(`updated showCamera to ${this.showCamera}`);
+        this.dispatchEvent({ type: "showCamera", message: { showCamera: this.showCamera } });
+    }
+
+    /** @type {boolean} */
+    #checkShowCameraOnLoad = false;
+    get checkShowCameraOnLoad() {
+        return this.#checkShowCameraOnLoad;
+    }
+    /** @throws {Error} if newValue is not a boolean */
+    set checkShowCameraOnLoad(newValue) {
+        _console.assertWithError(typeof newValue == "boolean", `invalid newValue for checkShowCameraOnLoad`, newValue);
+        this.#checkShowCameraOnLoad = newValue;
+    }
+
+    /** @param {boolean} newShowCamera */
+    async setShowCamera(newShowCamera) {
+        this.#assertIsSupported();
+        if (newShowCamera == this.#showCamera) {
+            _console.log(`showCamera is already set to "${this.#showCamera}"`);
+            return;
+        }
+
+        _console.log("setting showCamera...", newShowCamera);
+        return sendMessageToApp(this.#setShowCameraMessage(newShowCamera));
+    }
+
+    get #checkShowCameraMessage() {
+        return this._formatMessage({ type: "showCamera" });
+    }
+
+    /** @param {boolean} showCamera */
+    #setShowCameraMessage(showCamera) {
+        return this._formatMessage({ type: "showCamera", showCamera });
     }
 
     /**
@@ -1431,29 +1993,100 @@ class ARSessionManager extends EventDispatcher {
                 _console.log("received isRunning message", message);
                 this.#onIsRunningUpdated(message.isRunning);
                 break;
+            case "configuration":
+                _console.log("received configuration message", message);
+                this.#onConfigurationUpdated(message.configuration);
+                break;
+            case "debugOptions":
+                _console.log("received debugOptions message", message);
+                this.#onDebugOptionsUpdated(message.debugOptions);
+                break;
+            case "cameraMode":
+                _console.log("received cameraMode message", message);
+                this.#onCameraModeUpdated(message.cameraMode);
+                break;
             case "frame":
                 _console.log("received frame message", message);
                 this.#onFrame(message.frame);
                 break;
-            default:
-                _console.error(`uncaught message type ${type}`);
+            case "showCamera":
+                _console.log("received showCamera message", message);
+                this.#onShowCameraUpdated(message.showCamera);
                 break;
+            default:
+                throw Error(`uncaught message type ${type}`);
         }
     }
 }
 
 var ARSessionManager$1 = ARSessionManager.shared;
 
+// https://gist.github.com/paulkaplan/5184275
+
+/**
+ * @param {number} x
+ * @param {number} min
+ * @param {number} max
+ * @returns {number} clamped number
+ */
+function clamp(value, min, max) {
+    if (value < min) {
+        return min;
+    } else if (value > max) {
+        return max;
+    } else {
+        return value;
+    }
+}
+
+/**
+ *
+ * @param {number} kelvin
+ * @returns {number[]} [red, green, blue], ranged between [0, 1]
+ */
+function colorTemperatureToRGB(kelvin) {
+    var temp = kelvin / 100;
+
+    var red, green, blue;
+
+    if (temp <= 66) {
+        red = 255;
+
+        green = temp;
+        green = 99.4708025861 * Math.log(green) - 161.1195681661;
+
+        if (temp <= 19) {
+            blue = 0;
+        } else {
+            blue = temp - 10;
+            blue = 138.5177312231 * Math.log(blue) - 305.0447927307;
+        }
+    } else {
+        red = temp - 60;
+        red = 329.698727446 * Math.pow(red, -0.1332047592);
+
+        green = temp - 60;
+        green = 288.1221695283 * Math.pow(green, -0.0755148492);
+
+        blue = 255;
+    }
+
+    return [red, green, blue].map((value) => clamp(value / 255, 0, 1));
+}
+
 var utils = /*#__PURE__*/Object.freeze({
     __proto__: null,
     areObjectsEqual: areObjectsEqual,
     checkIfNativeWebKitEnabled: checkIfNativeWebKitEnabled,
     checkIfSafariExtensionIsInstalled: checkIfSafariExtensionIsInstalled,
+    colorTemperatureToRGB: colorTemperatureToRGB,
     isInApp: isInApp,
     isInSafari: isInSafari,
     isMac: isMac,
     is_iOS: is_iOS,
-    openInApp: openInApp
+    openInApp: openInApp,
+    setAllConsoleLevelFlags: setAllConsoleLevelFlags,
+    setConsoleLevelFlagsForType: setConsoleLevelFlagsForType
 });
 
 export { ARSessionManager$1 as ARSessionManager, HeadphoneMotionManager$1 as HeadphoneMotionManager, utils };

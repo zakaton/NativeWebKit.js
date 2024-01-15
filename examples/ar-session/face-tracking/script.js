@@ -111,7 +111,9 @@ avatarEntity.addEventListener("model-loaded", () => {
  * @param {number} newValue
  */
 function setBlendShape(blendShapeLocation, newValue) {
-    console.assert(blendShapeLocation in morphTargetDictionary, `blendshape "${blendShapeLocation}" not found`);
+    if (!(blendShapeLocation in morphTargetDictionary)) {
+        throw new Error(`blendshape "${blendShapeLocation}" not found`);
+    }
     const blendShapeInfluenceIndex = morphTargetDictionary[blendShapeLocation];
     morphTargetInfluences[blendShapeInfluenceIndex] = newValue;
 }

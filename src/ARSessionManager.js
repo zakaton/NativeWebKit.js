@@ -1,10 +1,11 @@
 import EventDispatcher from "./utils/EventDispatcher.js";
-import Console from "./utils/Console.js";
+import { createConsole } from "./utils/Console.js";
+
 import { sendMessageToApp, addAppListener } from "./utils/messaging.js";
 import { areObjectsEqual } from "./utils/objectUtils.js";
 import { isInApp, isMac, is_iOS } from "./utils/platformUtils.js";
 
-const _console = new Console("ARSession");
+const _console = createConsole("ARSession");
 
 /** @typedef {"worldTrackingSupport" | "faceTrackingSupport" | "run" | "pause" | "status" | "frame" | "debugOptions" | "cameraMode" | "configuration" | "showCamera"} ARSMessageType */
 
@@ -270,11 +271,11 @@ class ARSessionManager extends EventDispatcher {
         return super.dispatchEvent(...arguments);
     }
 
-    /** ARSessionManager is a singleton - use ARSessionManager.shared */
+    /** @throws {Error} if singleton already exists */
     constructor() {
         super();
 
-        console.assert(!this.shared, "ARSessionManager is a singleton - use ARSessionManager.shared");
+        _console.assertWithError(!this.shared, "ARSessionManager is a singleton - use ARSessionManager.shared");
 
         addAppListener(this.#getWindowLoadMessages.bind(this), "window.load");
         addAppListener(this.#onAppMessage.bind(this), this._prefix);
@@ -300,7 +301,7 @@ class ARSessionManager extends EventDispatcher {
      * @throws {Error} if not running
      */
     #assertIsRunning() {
-        console.assert(this.isRunning, "ARSession is not running");
+        _console.assertWithError(this.isRunning, "ARSession is not running");
     }
 
     /** @returns {NKMessage|NKMessage[]?} */
@@ -371,7 +372,11 @@ class ARSessionManager extends EventDispatcher {
     }
     /** @throws {Error} if newValue is not a boolean */
     set checkWorldTrackingSupportOnLoad(newValue) {
-        console.assert(typeof newValue == "boolean", `invalid newValue for checkWorldTrackingSupportOnLoad`, newValue);
+        _console.assertWithError(
+            typeof newValue == "boolean",
+            `invalid newValue for checkWorldTrackingSupportOnLoad`,
+            newValue
+        );
         this.#checkWorldTrackingSupportOnLoad = newValue;
     }
 
@@ -411,7 +416,11 @@ class ARSessionManager extends EventDispatcher {
     }
     /** @throws {Error} if newValue is not a boolean */
     set checkFaceTrackingSupportOnLoad(newValue) {
-        console.assert(typeof newValue == "boolean", "invalid newValue for checkFaceTrackingSupportOnLoad", newValue);
+        _console.assertWithError(
+            typeof newValue == "boolean",
+            "invalid newValue for checkFaceTrackingSupportOnLoad",
+            newValue
+        );
         this.#checkFaceTrackingSupportOnLoad = newValue;
     }
 
@@ -461,7 +470,7 @@ class ARSessionManager extends EventDispatcher {
     }
     /** @throws {Error} if newValue is not a boolean */
     set checkIsRunningOnLoad(newValue) {
-        console.assert(typeof newValue == "boolean", "invalid newValue for checkIsRunningOnLoad", newValue);
+        _console.assertWithError(typeof newValue == "boolean", "invalid newValue for checkIsRunningOnLoad", newValue);
         this.#checkIsRunningOnLoad = newValue;
     }
 
@@ -472,7 +481,7 @@ class ARSessionManager extends EventDispatcher {
     }
     /** @throws {Error} if newValue is not a boolean */
     set pauseOnUnload(newValue) {
-        console.assert(typeof newValue == "boolean", `invalid newValue for pauseOnUnload`, newValue);
+        _console.assertWithError(typeof newValue == "boolean", `invalid newValue for pauseOnUnload`, newValue);
         this.#pauseOnUnload = newValue;
     }
 
@@ -482,9 +491,9 @@ class ARSessionManager extends EventDispatcher {
      */
     #assertConfigurationIsValid(configuration) {
         _console.log("assertConfigurationIsValid", configuration);
-        console.assert(configuration, "configuration required to run ARSession");
-        console.assert(configuration.type, '"type" property required in configuration"');
-        console.assert(
+        _console.assertWithError(configuration, "configuration required to run ARSession");
+        _console.assertWithError(configuration.type, '"type" property required in configuration"');
+        _console.assertWithError(
             this.allConfigurationTypes.includes(configuration.type),
             `invalid configuration type "${configuration.type}"`
         );
@@ -494,14 +503,17 @@ class ARSessionManager extends EventDispatcher {
                 const invalidWorldTrackingConfigurationKey = Object.keys(configuration).find(
                     (key) => key !== "type" && !this.#worldTrackingConfigurationKeys.includes(key)
                 );
-                console.assert(
+                _console.assertWithError(
                     !invalidWorldTrackingConfigurationKey,
                     `invalid worldTracking configuration key "${invalidWorldTrackingConfigurationKey}"`
                 );
                 /** @type {ARSWorldTrackingConfiguration} */
                 const worldTrackingConfiguration = configuration;
-                console.assert(this.worldTrackingSupport.isSupported, "your device doesn't support world tracking");
-                console.assert(
+                _console.assertWithError(
+                    this.worldTrackingSupport.isSupported,
+                    "your device doesn't support world tracking"
+                );
+                _console.assertWithError(
                     !worldTrackingConfiguration.userFaceTrackingEnabled ||
                         this.worldTrackingSupport.supportsUserFaceTracking,
                     "your device doesn't support user face tracking with world tracking"
@@ -511,14 +523,17 @@ class ARSessionManager extends EventDispatcher {
                 const invalidFaceTrackingConfigurationKey = Object.keys(configuration).find(
                     (key) => key !== "type" && !this.#faceTrackingConfigurationKeys.includes(key)
                 );
-                console.assert(
+                _console.assertWithError(
                     !invalidFaceTrackingConfigurationKey,
                     `invalid faceTracking configuration key "${invalidFaceTrackingConfigurationKey}"`
                 );
                 /** @type {ARSFaceTrackingConfiguration} */
                 const faceTrackingConfiguration = configuration;
-                console.assert(this.faceTrackingSupport.isSupported, "your device doesn't support face tracking");
-                console.assert(
+                _console.assertWithError(
+                    this.faceTrackingSupport.isSupported,
+                    "your device doesn't support face tracking"
+                );
+                _console.assertWithError(
                     !faceTrackingConfiguration.isWorldTrackingEnabled || this.faceTrackingSupport.supportsWorldTracking,
                     "your device doesn't support user world tracking with face tracking"
                 );
@@ -687,11 +702,11 @@ class ARSessionManager extends EventDispatcher {
      */
     async setDebugOptions(debugOptions) {
         this.#assertIsSupported();
-        console.assert(typeof debugOptions == "object", "debugOptions must be an object", debugOptions);
+        _console.assertWithError(typeof debugOptions == "object", "debugOptions must be an object", debugOptions);
         const invalidKey = Object.keys(debugOptions).find(
             (debugOption) => !this.#allDebugOptions.includes(debugOption)
         );
-        console.assert(!invalidKey, `invalid debugOptions key ${invalidKey}`);
+        _console.assertWithError(!invalidKey, `invalid debugOptions key ${invalidKey}`);
 
         _console.log("setting debugOptions...", debugOptions);
         return sendMessageToApp(this.#setDebugOptionsMessage(debugOptions));
@@ -709,7 +724,11 @@ class ARSessionManager extends EventDispatcher {
     }
     /** @throws {Error} if newValue is not a boolean */
     set checkDebugOptionsOnLoad(newValue) {
-        console.assert(typeof newValue == "boolean", `invalid newValue for checkDebugOptionsOnLoad`, newValue);
+        _console.assertWithError(
+            typeof newValue == "boolean",
+            `invalid newValue for checkDebugOptionsOnLoad`,
+            newValue
+        );
         this.#checkDebugOptionsOnLoad = newValue;
     }
 
@@ -748,7 +767,7 @@ class ARSessionManager extends EventDispatcher {
         this.#assertIsSupported();
 
         const isValidCameraMode = this.#allCameraModes.includes(newCameraMode);
-        console.assert(isValidCameraMode, `invalid cameraMode "${newCameraMode}"`);
+        _console.assertWithError(isValidCameraMode, `invalid cameraMode "${newCameraMode}"`);
 
         if (newCameraMode == this.#cameraMode) {
             _console.log(`cameraMode is already set to "${this.#cameraMode}"`);
@@ -766,7 +785,7 @@ class ARSessionManager extends EventDispatcher {
     }
     /** @throws {Error} if newValue is not a boolean */
     set checkCameraModeOnLoad(newValue) {
-        console.assert(typeof newValue == "boolean", `invalid newValue for checkCameraModeOnLoad`, newValue);
+        _console.assertWithError(typeof newValue == "boolean", `invalid newValue for checkCameraModeOnLoad`, newValue);
         this.#checkCameraModeOnLoad = newValue;
     }
 
@@ -812,7 +831,7 @@ class ARSessionManager extends EventDispatcher {
     }
     /** @throws {Error} if newValue is not a boolean */
     set checkShowCameraOnLoad(newValue) {
-        console.assert(typeof newValue == "boolean", `invalid newValue for checkShowCameraOnLoad`, newValue);
+        _console.assertWithError(typeof newValue == "boolean", `invalid newValue for checkShowCameraOnLoad`, newValue);
         this.#checkShowCameraOnLoad = newValue;
     }
 

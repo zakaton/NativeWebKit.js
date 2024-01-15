@@ -1,9 +1,10 @@
 import EventDispatcher from "./utils/EventDispatcher.js";
-import Console from "./utils/Console.js";
+import { createConsole } from "./Console.js";
+
 import { sendMessageToApp, addAppListener } from "./utils/messaging.js";
 import AppMessagePoll from "./utils/AppMessagePoll.js";
 
-const _console = new Console("AudioSessionManager");
+const _console = createConsole("AudioSessionManager");
 
 /** @typedef {} ASMessageType */
 
@@ -92,11 +93,11 @@ class AudioSessionManager extends EventDispatcher {
         return super.dispatchEvent(...arguments);
     }
 
-    /** AudioSessionManager is a singleton - use AudioSessionManager.shared */
+    /** @throws {Error} if singleton already exists */
     constructor() {
         super();
 
-        console.assert(!this.shared, "AudioSessionManager is a singleton - use AudioSessionManager.shared");
+        _console.assertWithError(!this.shared, "AudioSessionManager is a singleton - use AudioSessionManager.shared");
 
         addAppListener(this.#onWindowLoad.bind(this), "window.load");
         addAppListener(this.#onAppMessage.bind(this), this._prefix);
