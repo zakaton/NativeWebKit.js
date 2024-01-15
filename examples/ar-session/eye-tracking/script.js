@@ -18,6 +18,7 @@ isSupportedCheckbox.checked = ARSessionManager.isSupported;
 
 if (ARSessionManager.isSupported) {
     ARSessionManager.setCameraMode("ar");
+    //ARSessionManager.setDebugOptions({ showAnchorOrigins: true });
 }
 
 /** @type {HTMLInputElement} */
@@ -100,11 +101,13 @@ ARSessionManager.addEventListener("showCamera", (event) => {
 /** @typedef {import("../../src/three/three.module.min.js").Euler} Euler */
 /** @typedef {import("../../src/three/three.module.min.js").Matrix4} Matrix4 */
 /** @typedef {import("../../src/three/three.module.min.js").Box2} Box2 */
+/** @typedef {import("../../src/three/three.module.min.js").PerspectiveCamera} PerspectiveCamera */
 
 /** @type {Matrix4} */
 const cameraMatrix = new THREE.Matrix4();
 const cameraMatrixInverse = new THREE.Matrix4();
 const aframeCamera = document.getElementById("camera");
+/** @type {PerspectiveCamera} */
 var threeCamera;
 aframeCamera.addEventListener("loaded", () => {
     threeCamera = aframeCamera?.components?.camera?.camera;
@@ -133,7 +136,7 @@ ARSessionManager.addEventListener("camera", (event) => {
 
     if (threeCamera) {
         if (latestFocalLength != camera.focalLength) {
-            threeCamera.setFocalLength(camera.focalLength);
+            threeCamera.setFocalLength(camera.focalLength * 1.14);
             latestFocalLength = camera.focalLength;
         }
     }
