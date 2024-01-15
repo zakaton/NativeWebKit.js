@@ -154,16 +154,9 @@ ARSessionManager.addEventListener("faceAnchors", (event) => {
     const faceAnchor = faceAnchors[0];
     if (faceAnchor) {
         /** @type {Vector3} */
-        const newPosition = new THREE.Vector3();
-        /** @type {Vector3} */
-        const newScale = new THREE.Vector3();
+        const newPosition = new THREE.Vector3(...faceAnchor.position);
         /** @type {Quaternion} */
-        const newQuaternion = new THREE.Quaternion();
-
-        /** @type {Matrix4} */
-        const newMatrix = new THREE.Matrix4();
-        newMatrix.elements = faceAnchor.transform.flat();
-        newMatrix.decompose(newPosition, newQuaternion, newScale);
+        const newQuaternion = new THREE.Quaternion(...faceAnchor.quaternion);
 
         faceEntity.object3D.position.lerp(newPosition, 0.5);
         faceEntity.object3D.quaternion.slerp(newQuaternion, 0.5);
