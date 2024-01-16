@@ -3,7 +3,7 @@ import { checkIfSafariExtensionIsInstalled, isInApp, checkIfNativeWebKitEnabled 
 import { findGreatestCommonFactor } from "./MathUtils.js";
 import { sendMessageToApp } from "./messaging.js";
 
-const _console = createConsole("AppMessagePoll");
+const _console = createConsole("AppMessagePoll", { log: false });
 
 /** @typedef {import("./messaging.js").NKMessage} NKMessage */
 
@@ -58,6 +58,8 @@ class AppMessagePoll {
 
     /** @type {function():NKMessage} */
     #generateMessage;
+    /** @type {string} */
+    #prefix = "";
     /** @type {number} (ms) */
     #interval;
     /** @type {number} (ms) */
@@ -79,12 +81,20 @@ class AppMessagePoll {
     }
 
     /**
-     * @param {function():NKMessage} generateMessage
+     * @param {NKMessage|function():NKMessage} messageOrMessageGenerator
+     * @param {string} prefix
      * @param {number} interval (ms)
      * @param {boolean} runInApp
      */
-    constructor(generateMessage, interval, runInApp = false) {
-        this.#generateMessage = generateMessage;
+    constructor(messageOrMessageGenerator, prefix, interval, runInApp = false) {
+        if (typeof messageOrMessageGenerator == "function") {
+            const generateMessage = messageOrMessageGenerator;
+            this.#generateMessage = generateMessage;
+        } else {
+            const message = messageOrMessageGenerator;
+            this.#generateMessage = () => message;
+        }
+        this.#prefix = prefix;
         this.#interval = interval;
         this.#runInApp = runInApp;
         AppMessagePoll.#add(this);
@@ -124,7 +134,11 @@ class AppMessagePoll {
             return timeSinceLastCallback >= poll.#interval;
         });
 
-        const messages = polls.map((poll) => poll.#generateMessage());
+        const messages = polls.map((poll) => {
+            const message = Object.assign({}, poll.#generateMessage());
+            message.type = `${poll.#prefix}-${message.type}`;
+            return message;
+        });
         _console.log("messages", messages);
 
         if (messages.length > 0) {

@@ -1,18 +1,9 @@
 <html>
     <head>
-        <title>Face Tracking | AR Session | NativeWebKit.js</title>
+        <title>Face Geometry | AR Session | NativeWebKit.js</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="shortcut icon" type="image/x-icon" href="favicon.ico" />
         <script src="../../src/aframe/aframe-v1.5.0.min.js"></script>
-
-        <!-- required to get aframe-orbit-controls-component to work -->
-        <script>
-            THREE.Quaternion.prototype.inverse = THREE.Quaternion.prototype.invert;
-            THREE.Math = THREE.MathUtils;
-        </script>
-        <!-- https://github.com/tizzle/aframe-orbit-controls-component -->
-        <script src="../../src/aframe/aframe-orbit-controls-component.min.js"></script>
-
         <script type="module" src="./script.js"></script>
     </head>
     <style>
@@ -58,26 +49,8 @@
             top: 1rem;
             left: 1rem;
         }
-        #eyeTrackingOverlay {
-            top: 0;
-            left: 0;
-            background-color: transparent;
-            width: 100%;
-            height: 100%;
-        }
-        #eyeTrackingCursor {
-            width: 1rem;
-            height: 1rem;
-            background-color: red;
-            border-radius: 50%;
-            display: none;
-            position: relative;
-        }
     </style>
     <body>
-        <div id="eyeTrackingOverlay" class="overlay">
-            <div id="eyeTrackingCursor"></div>
-        </div>
         <div id="navOverlay" class="overlay">
             <div>
                 <small><a href="../../../">home</a></small>
@@ -98,15 +71,10 @@
                     <button id="toggleShowCamera" disabled>show camera</button>
                 </div>
                 <div>
-                    <button id="resetEyeCalibration" disabled>reset eye-tracking calibration</button>
-                    <button id="toggleEyeCalibration" disabled>calibrate eye-tracking</button>
+                    <button id="sphereMode">spheres</button>
+                    <button id="meshMode">mesh</button>
+                    <button id="noMode">none</button>
                 </div>
-                <div>face <span id="faceSpan"></span></div>
-                <div>lookAtPoint <span id="lookAtPointSpan"></span></div>
-                <div>lookAtPointEntity <span id="lookAtPointEntitySpan"></span></div>
-                <div>lookAtPointInWorld <span id="lookAtPointInWorldSpan"></span></div>
-                <div>lookatPointInCamera <span id="lookAtPointInCameraSpan"></span></div>
-                <div>eyeTrackingPoint <span id="eyeTrackingPointSpan"></span></div>
             </div>
         </div>
 
@@ -116,7 +84,9 @@
             device-orientation-permission-ui="enabled: false"
             renderer="colorManagement: true; physicallyCorrectLights: true; toneMapping: reinhard;"
         >
-            <a-assets> </a-assets>
+            <a-assets>
+                <a-asset-item id="avatarAsset" src="../../../assets/3d/avatar.glb"></a-asset-item>
+            </a-assets>
 
             <a-entity id="ambientLight" light="color: #BBB; type: ambient"></a-entity>
             <a-entity
@@ -126,32 +96,13 @@
             ></a-entity>
 
             <a-camera id="camera" look-controls="enabled: false;" wasd-controls="enabled: false;" position="0 0 0">
-                <a-ring
-                    visible="false"
-                    color="black"
-                    position="0 0 -0.01"
-                    radius-inner="0.0001"
-                    radius-outer="0.0002"
-                    material="shader: flat;"
-                ></a-ring>
             </a-camera>
 
-            <a-entity id="face" position="0 0 -0.4">
-                <a-sphere radius="0.01" color="green" visible="true"></a-sphere>
-
-                <a-entity id="leftEye" position="-0.03 0.04 00.02">
-                    <a-sphere radius="0.01" color="white">
-                        <a-sphere radius="0.005" color="black" position="0 0 0.01"></a-sphere>
-                    </a-sphere>
-                </a-entity>
-                <a-entity id="rightEye" position="0.03 0.04 0.02">
-                    <a-sphere radius="0.01" color="white">
-                        <a-sphere radius="0.005" color="black" position="0 0 0.01"></a-sphere>
-                    </a-sphere>
-                </a-entity>
-
-                <a-entity id="lookAtPoint">
-                    <a-sphere color="red" radius="0.005"></a-sphere>
+            <a-entity id="facePosition" position="0 0 -0.5">
+                <a-entity id="faceRotation">
+                    <a-entity id="faceSpheres" visible="false"></a-entity>
+                    <a-entity id="geometry" visible="true"></a-entity>
+                    <a-entity id="avatar" visible="false" gltf-model="#avatarAsset" position="0 -0.59 0"></a-entity>
                 </a-entity>
             </a-entity>
         </a-scene>

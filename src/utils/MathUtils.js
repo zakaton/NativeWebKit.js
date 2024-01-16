@@ -1,6 +1,6 @@
 import { createConsole } from "./Console.js";
 
-const _console = createConsole("mathUtils");
+const _console = createConsole("mathUtils", { log: false });
 
 /**
  * @param {number} a

@@ -4,7 +4,7 @@ import { createConsole } from "./Console.js";
 import { sendMessageToApp, addAppListener } from "./utils/messaging.js";
 import AppMessagePoll from "./utils/AppMessagePoll.js";
 
-const _console = createConsole("Template");
+const _console = createConsole("Template", { log: false });
 
 /** @typedef {"test"} TMMessageType */
 
@@ -38,29 +38,14 @@ const _console = createConsole("Template");
  * @typedef {(event: TMEvent) => void} TMEventListener
  */
 
-class TemplateModuleManager extends EventDispatcher {
+class TemplateModuleManager extends BaseManager {
     /** @type {TMEventType[]} */
     static #EventsTypes = ["test"];
     /** @type {TMEventType[]} */
     get eventTypes() {
         return TemplateModuleManager.#EventsTypes;
     }
-
-    static #shared = new TemplateModuleManager();
-    static get shared() {
-        return this.#shared;
-    }
-
-    get _prefix() {
-        return "tm";
-    }
-    /**
-     * @param {TMMessage} message
-     * @returns {NKMessage}
-     */
-    _formatMessage(message) {
-        return super._formatMessage(message);
-    }
+    #eventDispatcher = new EventDispatcher(this.eventTypes);
 
     /**
      * @param {TMEventType} type
@@ -68,7 +53,7 @@ class TemplateModuleManager extends EventDispatcher {
      * @param {EventDispatcherOptions?} options
      */
     addEventListener(type, listener, options) {
-        return super.addEventListener(...arguments);
+        return this.#eventDispatcher.addEventListener(...arguments);
     }
     /**
      * @param {TMEventType} type
@@ -76,7 +61,7 @@ class TemplateModuleManager extends EventDispatcher {
      * @returns {boolean}
      */
     removeEventListener(type, listener) {
-        return super.removeEventListener(...arguments);
+        return this.#eventDispatcher.removeEventListener(...arguments);
     }
     /**
      * @param {TMEventType} type
@@ -84,13 +69,26 @@ class TemplateModuleManager extends EventDispatcher {
      * @returns {boolean}
      */
     hasEventListener(type, listener) {
-        return super.hasEventListener(...arguments);
+        return this.#eventDispatcher.hasEventListener(...arguments);
     }
     /**
      * @param {TMEvent} event
      */
     dispatchEvent(event) {
-        return super.dispatchEvent(...arguments);
+        return this.#eventDispatcher.dispatchEvent(event);
+    }
+
+    static #shared = new TemplateModuleManager();
+    static get shared() {
+        return this.#shared;
+    }
+    #prefix = "tm";
+    /**
+     * @param {TMMessage[]} messages
+     * @returns {NKMessage[]}
+     */
+    #formatMessages(messages) {
+        return messages.map((message) => Object.assign({}, message, { type: `${this.#prefix}-${message.type}` }));
     }
 
     /** @throws {Error} if singleton already exists */
@@ -103,7 +101,7 @@ class TemplateModuleManager extends EventDispatcher {
         );
 
         addAppListener(this.#getWindowLoadMessages.bind(this), "window.load");
-        addAppListener(this.#onAppMessage.bind(this), this._prefix);
+        addAppListener(this.#onAppMessage.bind(this), this.#prefix);
         addAppListener(this.#getWindowUnloadMessages.bind(this), "window.unload");
     }
 
@@ -117,17 +115,30 @@ class TemplateModuleManager extends EventDispatcher {
         }
     }
 
-    /** @returns {NKMessage|NKMessage[]?} */
-    #getWindowLoadMessages() {}
-    /** @returns {NKMessage|NKMessage[]?} */
-    #getWindowUnloadMessages() {}
+    /** @returns {NKMessage[]?} */
+    #getWindowLoadMessages() {
+        /** @type {TMMessage[]} */
+        const messages = [];
+        return this.#formatMessages(messages);
+    }
+    /** @returns {NKMessage[]?} */
+    #getWindowUnloadMessages() {
+        /** @type {TMMessage[]} */
+        const messages = [];
+        return this.#formatMessages(messages);
+    }
+
+    /**
+     * @param {TMAppMessage} message
+     */
+    async sendMessageToApp(message) {
+        message.type = `${this.#prefix}-${message.type}`;
+        return sendMessageToApp(message);
+    }
 
     async sendTestMessage() {
         _console.log("test message...");
-        return sendMessageToApp(this.#testMessage);
-    }
-    get #testMessage() {
-        return this._formatMessage({ type: "test" });
+        return this.sendMessageToApp({ type: "test" });
     }
 
     /**

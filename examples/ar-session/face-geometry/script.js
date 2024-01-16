@@ -18,6 +18,7 @@ isSupportedCheckbox.checked = ARSessionManager.isSupported;
 
 if (ARSessionManager.isSupported) {
     ARSessionManager.setCameraMode("ar");
+    ARSessionManager.setMessageConfiguration({ faceAnchorGeometry: true });
 }
 
 /** @type {HTMLInputElement} */
@@ -92,41 +93,77 @@ ARSessionManager.addEventListener("showCamera", (event) => {
     toggleShowCameraButton.innerText = showCamera ? "hide camera" : "show camera";
 });
 
-/**@typedef {import("../../../src/ARSessionManager.js").ARSFaceAnchorBlendShapeLocation} ARSFaceAnchorBlendShapeLocation */
-
-/** @type {Object.<string, number>} */
-var morphTargetDictionary;
-/** @type {number[]} */
-var morphTargetInfluences;
-const avatarEntity = document.getElementById("avatar");
-avatarEntity.addEventListener("model-loaded", () => {
-    ({ morphTargetInfluences, morphTargetDictionary } =
-        avatarEntity.components["gltf-model"].model.children[0].children[1]);
-    console.log("morphTargetDictionary", morphTargetDictionary);
-    console.log("morphTargetInfluences", morphTargetInfluences);
-});
-
-/**
- * @param {ARSFaceAnchorBlendShapeLocation} blendShapeLocation
- * @param {number} newValue
- */
-function setBlendShape(blendShapeLocation, newValue) {
-    if (!(blendShapeLocation in morphTargetDictionary)) {
-        throw new Error(`blendshape "${blendShapeLocation}" not found`);
-    }
-    const blendShapeInfluenceIndex = morphTargetDictionary[blendShapeLocation];
-    morphTargetInfluences[blendShapeInfluenceIndex] = newValue;
-}
-
 /** @typedef {import("../../../src/ARSessionManager.js").ARSFaceAnchor} ARSFaceAnchor */
 
-const avatarPositionEntity = document.getElementById("avatarPosition");
-const avatarRotationEntity = document.getElementById("avatarRotation");
+const facePositionEntity = document.getElementById("facePosition");
+const faceRotationEntity = document.getElementById("faceRotation");
 
 /** @typedef {import("../../src/three/three.module.min.js").Vector3} Vector3 */
 /** @typedef {import("../../src/three/three.module.min.js").Quaternion} Quaternion */
 /** @typedef {import("../../src/three/three.module.min.js").Euler} Euler */
 /** @typedef {import("../../src/three/three.module.min.js").Matrix4} Matrix4 */
+/** @typedef {import("../../src/three/three.module.min.js").BufferGeometry} BufferGeometry */
+/** @typedef {import("../../src/three/three.module.min.js").MeshBasicMaterial} MeshBasicMaterial */
+/** @typedef {import("../../src/three/three.module.min.js").Mesh} Mesh */
+/** @typedef {import("../../src/three/three.module.min.js").BufferAttribute} BufferAttribute */
+
+const faceSpheres = [];
+const faceSpheresEntity = document.getElementById("faceSpheres");
+window.faceSpheres = faceSpheres;
+
+/** @type {BufferGeometry} */
+const geometry = new THREE.BufferGeometry();
+/** @type {Float32Array?} */
+var vertices;
+/** @type {number[]} */
+var triangleIndices;
+
+const material = new THREE.MeshStandardMaterial({
+    color: 0x00ff00,
+});
+/** @type {Mesh} */
+var mesh;
+const geometryEntity = document.getElementById("geometry");
+
+/** @typedef {"no mode"|"spheres mode" | "mesh mode"} FaceMode */
+/** @type {FaceMode} */
+var faceMode;
+/** @param {FaceMode} newFaceMode  */
+const setFaceMode = (newFaceMode) => {
+    if (faceMode == newFaceMode) {
+        return;
+    }
+    faceMode = newFaceMode;
+    console.log("new faceMode", faceMode);
+    switch (faceMode) {
+        case "no mode":
+            geometryEntity.object3D.visible = false;
+            faceSpheresEntity.object3D.visible = false;
+            break;
+        case "mesh mode":
+            geometryEntity.object3D.visible = true;
+            faceSpheresEntity.object3D.visible = false;
+            break;
+        case "spheres mode":
+            geometryEntity.object3D.visible = false;
+            faceSpheresEntity.object3D.visible = true;
+            break;
+    }
+};
+setFaceMode("mesh mode");
+
+const sphereModeButton = document.getElementById("sphereMode");
+sphereModeButton.addEventListener("click", () => {
+    setFaceMode("spheres mode");
+});
+const meshModeButton = document.getElementById("meshMode");
+meshModeButton.addEventListener("click", () => {
+    setFaceMode("mesh mode");
+});
+const noModeButton = document.getElementById("noMode");
+noModeButton.addEventListener("click", () => {
+    setFaceMode("no mode");
+});
 
 ARSessionManager.addEventListener("faceAnchors", (event) => {
     /** @type {ARSFaceAnchor[]} */
@@ -138,11 +175,53 @@ ARSessionManager.addEventListener("faceAnchors", (event) => {
         /** @type {Quaternion} */
         const newQuaternion = new THREE.Quaternion(...faceAnchor.quaternion);
 
-        avatarPositionEntity.object3D.position.lerp(newPosition, 0.5);
-        avatarRotationEntity.object3D.quaternion.slerp(newQuaternion, 0.5);
-        Object.entries(faceAnchor.blendShapes).forEach(([blendShapeLocation, value]) => {
-            setBlendShape(blendShapeLocation, value);
-        });
+        facePositionEntity.object3D.position.lerp(newPosition, 0.5);
+        faceRotationEntity.object3D.quaternion.slerp(newQuaternion, 0.5);
+
+        if (faceAnchor.geometry?.triangleIndices) {
+            console.log("vertices", faceAnchor.geometry.vertices);
+            vertices = new Float32Array(faceAnchor.geometry.vertices.flat());
+            triangleIndices = faceAnchor.geometry.triangleIndices;
+            geometry.setIndex(triangleIndices);
+            console.log("set index", triangleIndices);
+            const bufferAttribute = new THREE.BufferAttribute(vertices, 3);
+            console.log("buffer attribute", bufferAttribute);
+            geometry.setAttribute("position", bufferAttribute);
+            console.log("added vertices to geometry", vertices);
+            geometry.computeVertexNormals();
+            mesh = new THREE.Mesh(geometry, material);
+            console.log("created mesh", mesh);
+            geometryEntity.object3D.add(mesh);
+
+            window.triangleIndices = faceAnchor.geometry.triangleIndices;
+            window.textureCoordinates = faceAnchor.geometry.textureCoordinates;
+        } else {
+            if (faceMode == "mesh mode") {
+                if (vertices) {
+                    /** @type {BufferAttribute} */
+                    const positionAttribute = geometry.getAttribute("position");
+                    faceAnchor.geometry?.vertices.forEach((vertex, index) => {
+                        positionAttribute.setXYZ(index, ...vertex);
+                    });
+                    positionAttribute.needsUpdate = true;
+                }
+            }
+        }
+
+        if (faceMode == "spheres mode") {
+            faceAnchor.geometry?.vertices.forEach((vertex, index) => {
+                if (!faceSpheres[index]) {
+                    const faceSphere = document.createElement("a-sphere");
+                    faceSphere.setAttribute("color", "green");
+                    faceSphere.setAttribute("radius", "0.001");
+                    faceSphere.setAttribute("position", vertex.join(" "));
+                    faceSpheresEntity.appendChild(faceSphere);
+                    faceSpheres[index] = faceSphere;
+                }
+                const faceSphere = faceSpheres[index];
+                faceSphere.object3D?.position.set(...vertex);
+            });
+        }
     }
 });
 
@@ -166,7 +245,7 @@ ARSessionManager.addEventListener("camera", (event) => {
     const threeCamera = aframeCamera?.components?.camera?.camera;
     if (threeCamera) {
         if (latestFocalLength != camera.focalLength) {
-            threeCamera.setFocalLength(camera.focalLength);
+            threeCamera.setFocalLength(camera.focalLength * 1.13);
             latestFocalLength = camera.focalLength;
         }
     }

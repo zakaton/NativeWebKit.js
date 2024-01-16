@@ -4,7 +4,7 @@ import { createConsole } from "./Console.js";
 import { sendMessageToApp, addAppListener } from "./utils/messaging.js";
 import AppMessagePoll from "./utils/AppMessagePoll.js";
 
-const _console = createConsole("AudioSessionManager");
+const _console = createConsole("AudioSessionManager", { log: false });
 
 /** @typedef {} ASMessageType */
 
@@ -12,7 +12,7 @@ const _console = createConsole("AudioSessionManager");
 
 /** @typedef {import("./utils/EventDispatcher.js").EventDispatcherOptions} EventDispatcherOptions */
 
-/** @typedef {import("./utils/messaging.js").NKMessage} NKMessage */
+/** @typedef {import("./utils/messaging.js").EventDispatcherEvent} EventDispatcherEvent */
 
 /**
  * @typedef ASMessage
@@ -38,29 +38,14 @@ const _console = createConsole("AudioSessionManager");
  * @typedef {(event: ASEvent) => void} ASEventListener
  */
 
-class AudioSessionManager extends EventDispatcher {
+class AudioSessionManager {
     /** @type {ASEventType[]} */
     static #EventsTypes = [];
     /** @type {ASEventType[]} */
     get eventTypes() {
         return AudioSessionManager.#EventsTypes;
     }
-
-    static #shared = new AudioSessionManager();
-    static get shared() {
-        return this.#shared;
-    }
-
-    get _prefix() {
-        return "as";
-    }
-    /**
-     * @param {ASMessage} message
-     * @returns {NKMessage}
-     */
-    _formatMessage(message) {
-        return super._formatMessage(message);
-    }
+    #eventDispatcher = new EventDispatcher(this.eventTypes);
 
     /**
      * @param {ASEventType} type
@@ -68,7 +53,7 @@ class AudioSessionManager extends EventDispatcher {
      * @param {EventDispatcherOptions?} options
      */
     addEventListener(type, listener, options) {
-        return super.addEventListener(...arguments);
+        return this.#eventDispatcher.addEventListener(type, listener, options);
     }
     /**
      * @param {ASEventType} type
@@ -76,7 +61,7 @@ class AudioSessionManager extends EventDispatcher {
      * @returns {boolean}
      */
     removeEventListener(type, listener) {
-        return super.removeEventListener(...arguments);
+        return this.#eventDispatcher.removeEventListener(type, listener);
     }
     /**
      * @param {ASEventType} type
@@ -84,29 +69,40 @@ class AudioSessionManager extends EventDispatcher {
      * @returns {boolean}
      */
     hasEventListener(type, listener) {
-        return super.hasEventListener(...arguments);
+        return this.#eventDispatcher.hasEventListener(type, listener);
     }
     /**
      * @param {ASEventType} event
      */
     dispatchEvent(event) {
-        return super.dispatchEvent(...arguments);
+        return this.#eventDispatcher.dispatchEvent(event);
+    }
+
+    static #shared = new AudioSessionManager();
+    static get shared() {
+        return this.#shared;
+    }
+    #prefix = "ars";
+    /**
+     * @param {ASMessage[]} messages
+     * @returns {NKMessage[]}
+     */
+    #formatMessages(messages) {
+        return messages.map((message) => Object.assign({}, message, { type: `${this.#prefix}-${message.type}` }));
     }
 
     /** @throws {Error} if singleton already exists */
     constructor() {
-        super();
-
         _console.assertWithError(!this.shared, "AudioSessionManager is a singleton - use AudioSessionManager.shared");
 
         addAppListener(this.#onWindowLoad.bind(this), "window.load");
-        addAppListener(this.#onAppMessage.bind(this), this._prefix);
+        addAppListener(this.#onAppMessage.bind(this), this.#prefix);
         addAppListener(this.#onBeforeWindowUnload.bind(this), "window.unload");
     }
 
-    /** @returns {NKMessage|NKMessage[]?} */
+    /** @returns {NKMessage[]?} */
     #onWindowLoad() {}
-    /** @returns {NKMessage|NKMessage[]?} */
+    /** @returns {NKMessage[]?} */
     #onBeforeWindowUnload() {}
 
     /**

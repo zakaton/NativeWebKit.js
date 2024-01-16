@@ -217,3 +217,22 @@ ARSessionManager.addEventListener("showCamera", (event) => {
     showCameraCheckbox.checked = showCamera;
 });
 showCameraCheckbox.disabled = !ARSessionManager.isSupported;
+
+/** @type {HTMLInputElement[]} */
+const messageConfigurationCheckboxes = Array.from(document.querySelectorAll("[data-message-configuration]"));
+const messageConfigurationCheckboxesObject = {};
+messageConfigurationCheckboxes.forEach((checkbox) => {
+    const configurationType = checkbox.dataset.messageConfiguration;
+    messageConfigurationCheckboxesObject[configurationType] = checkbox;
+    checkbox.disabled = !ARSessionManager.isSupported;
+    checkbox.addEventListener("input", () => {
+        ARSessionManager.setMessageConfiguration({ [configurationType]: checkbox.checked });
+    });
+});
+ARSessionManager.addEventListener("messageConfiguration", () => {
+    /** @type {import("../../../src/ARSessionManager.js").ARSMessageConfiguration} */
+    const messageConfiguration = ARSessionManager.messageConfiguration;
+    Object.keys(messageConfiguration).forEach((configurationType) => {
+        messageConfigurationCheckboxesObject[configurationType].checked = messageConfiguration[configurationType];
+    });
+});

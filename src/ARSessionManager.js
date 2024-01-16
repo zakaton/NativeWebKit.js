@@ -5,11 +5,11 @@ import { sendMessageToApp, addAppListener } from "./utils/messaging.js";
 import { areObjectsEqual } from "./utils/objectUtils.js";
 import { isInApp, isMac, is_iOS } from "./utils/platformUtils.js";
 
-const _console = createConsole("ARSession");
+const _console = createConsole("ARSession", { log: false });
 
-/** @typedef {"worldTrackingSupport" | "faceTrackingSupport" | "run" | "pause" | "status" | "frame" | "debugOptions" | "cameraMode" | "configuration" | "showCamera"} ARSMessageType */
+/** @typedef {"worldTrackingSupport" | "faceTrackingSupport" | "run" | "pause" | "status" | "frame" | "debugOptions" | "cameraMode" | "configuration" | "showCamera" | "messageConfiguration" | "isRunning"} ARSMessageType */
 
-/** @typedef {"worldTrackingSupport" | "faceTrackingSupport" | "isRunning" | "frame" | "camera" | "faceAnchors" | "faceAnchor" | "debugOptions" | "cameraMode" | "configuration" | "showCamera" | "lightEstimate"} ARSEventType */
+/** @typedef {"worldTrackingSupport" | "faceTrackingSupport" | "isRunning" | "frame" | "camera" | "faceAnchors" | "faceAnchor" | "debugOptions" | "cameraMode" | "configuration" | "showCamera" | "lightEstimate" | "messageConfiguration"} ARSEventType */
 
 /** @typedef {import("./utils/messaging.js").NKMessage} NKMessage */
 
@@ -117,7 +117,8 @@ const _console = createConsole("ARSession");
  * @property {number[]} quaternion
  * @property {ARSFaceAnchorEye} leftEye
  * @property {ARSFaceAnchorEye} rightEye
- * @property {ARSFaceAnchorBlendShapes} blendShapes
+ * @property {ARSFaceAnchorBlendShapes?} blendShapes
+ * @property {ARSFaceAnchorGeometry?} geometry
  */
 
 /**
@@ -125,6 +126,24 @@ const _console = createConsole("ARSession");
  * @type {object}
  * @property {number[]} quaternion
  * @property {number[]} position
+ */
+
+/**
+ * @typedef ARSFaceAnchorGeometry
+ * @type {object}
+ * @property {number[][]} vertices array of 3d vertices
+ * @property {number} triangleCount
+ * @property {number[]} triangleIndices
+ * @property {number[][]} textureCoordinates 2d texture coordinate of each vertex
+ */
+
+/** @typedef {"faceAnchorBlendshapes" | "faceAnchorGeometry"} ARSMessageConfigurationType */
+
+/**
+ * @typedef ARSMessageConfiguration
+ * @type {object}
+ * @property {boolean} faceAnchorBlendshapes
+ * @property {boolean} faceAnchorGeometry
  */
 
 /** @typedef {"none" | "showAnchorGeometry" | "showAnchorOrigins" | "showFeaturePoints" | "showPhysics" | "showSceneUnderstanding" | "showStatistics" | "showWorldOrigin"} ARSDebugOption */
@@ -203,7 +222,7 @@ const _console = createConsole("ARSession");
 
 /** @typedef {"ar" | "nonAR"} ARSCameraMode */
 
-class ARSessionManager extends EventDispatcher {
+class ARSessionManager {
     /** @type {ARSEventType[]} */
     static #EventsTypes = [
         "worldTrackingSupport",
@@ -218,35 +237,20 @@ class ARSessionManager extends EventDispatcher {
         "configuration",
         "showCamera",
         "lightEstimate",
+        "messageConfiguration",
     ];
     /** @type {ARSEventType[]} */
     get eventTypes() {
         return ARSessionManager.#EventsTypes;
     }
-
-    static #shared = new ARSessionManager();
-    static get shared() {
-        return this.#shared;
-    }
-
-    get _prefix() {
-        return "ars";
-    }
-    /**
-     * @param {ARSMessage} message
-     * @returns {NKMessage}
-     */
-    _formatMessage(message) {
-        return super._formatMessage(message);
-    }
-
+    #eventDispatcher = new EventDispatcher(this.eventTypes);
     /**
      * @param {ARSEventType} type
      * @param {ARSEventListener} listener
      * @param {EventDispatcherOptions?} options
      */
     addEventListener(type, listener, options) {
-        return super.addEventListener(...arguments);
+        return this.#eventDispatcher.addEventListener(...arguments);
     }
     /**
      * @param {ARSEventType} type
@@ -254,7 +258,7 @@ class ARSessionManager extends EventDispatcher {
      * @returns {boolean}
      */
     removeEventListener(type, listener) {
-        return super.removeEventListener(...arguments);
+        return this.#eventDispatcher.removeEventListener(...arguments);
     }
     /**
      * @param {ARSEventType} type
@@ -262,23 +266,34 @@ class ARSessionManager extends EventDispatcher {
      * @returns {boolean}
      */
     hasEventListener(type, listener) {
-        return super.hasEventListener(...arguments);
+        return this.#eventDispatcher.hasEventListener(...arguments);
     }
     /**
      * @param {ARSEvent} event
      */
     dispatchEvent(event) {
-        return super.dispatchEvent(...arguments);
+        return this.#eventDispatcher.dispatchEvent(...arguments);
+    }
+
+    static #shared = new ARSessionManager();
+    static get shared() {
+        return this.#shared;
+    }
+    #prefix = "ars";
+    /**
+     * @param {ARSMessage[]} messages
+     * @returns {NKMessage[]}
+     */
+    #formatMessages(messages) {
+        return messages.map((message) => Object.assign({}, message, { type: `${this.#prefix}-${message.type}` }));
     }
 
     /** @throws {Error} if singleton already exists */
     constructor() {
-        super();
-
         _console.assertWithError(!this.shared, "ARSessionManager is a singleton - use ARSessionManager.shared");
 
         addAppListener(this.#getWindowLoadMessages.bind(this), "window.load");
-        addAppListener(this.#onAppMessage.bind(this), this._prefix);
+        addAppListener(this.#onAppMessage.bind(this), this.#prefix);
         addAppListener(this.#getWindowUnloadMessages.bind(this), "window.unload");
     }
 
@@ -304,45 +319,55 @@ class ARSessionManager extends EventDispatcher {
         _console.assertWithError(this.isRunning, "ARSession is not running");
     }
 
-    /** @returns {NKMessage|NKMessage[]?} */
+    /**
+     * @param {ARSAppMessage} message
+     */
+    async sendMessageToApp(message) {
+        message.type = `${this.#prefix}-${message.type}`;
+        return sendMessageToApp(message);
+    }
+
+    /** @returns {NKMessage[]} */
     #getWindowLoadMessages() {
         if (!this.isSupported) {
             return;
         }
 
+        /** @type {ARSMessage[]} */
         const messages = [];
         if (this.checkFaceTrackingSupportOnLoad) {
-            messages.push(this.#checkFaceTrackingSupportMessage);
+            messages.push({ type: "faceTrackingSupport" });
         }
         if (this.checkWorldTrackingSupportOnLoad) {
-            messages.push(this.#checkWorldTrackingSupportMessage);
+            messages.push({ type: "worldTrackingSupport" });
         }
         if (this.checkIsRunningOnLoad) {
-            messages.push(this.#checkIsRunningMessage);
+            messages.push({ type: "isRunning" });
         }
         if (this.checkDebugOptionsOnLoad) {
-            messages.push(this.#checkDebugOptionsMessage);
+            messages.push({ type: "debugOptions" });
         }
         if (this.checkCameraModeOnLoad) {
-            messages.push(this.#checkCameraModeMessage);
+            messages.push({ type: "cameraMode" });
         }
         if (this.checkShowCameraOnLoad) {
-            messages.push(this.#checkShowCameraMessage);
+            messages.push({ type: "showCamera" });
         }
 
-        return messages;
+        return this.#formatMessages(messages);
     }
-    /** @returns {NKMessage|NKMessage[]?} */
+    /** @returns {NKMessage[]} */
     #getWindowUnloadMessages() {
         if (!this.isSupported) {
             return;
         }
 
+        /** @type {ARSMessage[]} */
         const messages = [];
         if (this.pauseOnUnload && this.isRunning) {
-            messages.push(this.#pauseMessage);
+            messages.push({ type: "pause" });
         }
-        return messages;
+        return this.#formatMessages(messages);
     }
 
     /** @type {ARSWorldTrackingSupport} */
@@ -380,15 +405,6 @@ class ARSessionManager extends EventDispatcher {
         this.#checkWorldTrackingSupportOnLoad = newValue;
     }
 
-    async #checkWorldTrackingSupport() {
-        this.#assertIsSupported();
-        _console.log("checking world tracking support...");
-        return sendMessageToApp(this.#checkWorldTrackingSupportMessage);
-    }
-    get #checkWorldTrackingSupportMessage() {
-        return this._formatMessage({ type: "worldTrackingSupport" });
-    }
-
     /** @type {ARSFaceTrackingSupport} */
     #faceTrackingSupport = {
         isSupported: false,
@@ -424,16 +440,6 @@ class ARSessionManager extends EventDispatcher {
         this.#checkFaceTrackingSupportOnLoad = newValue;
     }
 
-    async #checkFaceTrackingSupport() {
-        this.#assertIsSupported();
-
-        _console.log("checking face tracking support...");
-        return sendMessageToApp(this.#checkFaceTrackingSupportMessage);
-    }
-    get #checkFaceTrackingSupportMessage() {
-        return this._formatMessage({ type: "faceTrackingSupport" });
-    }
-
     /** @type {boolean} */
     #isRunning = false;
     get isRunning() {
@@ -452,15 +458,6 @@ class ARSessionManager extends EventDispatcher {
                 this.#checkConfiguration();
             }
         }
-    }
-    async #checkIsRunning() {
-        this.#assertIsSupported();
-
-        _console.log("checking isRunning...");
-        return sendMessageToApp(this.#checkIsRunningMessage);
-    }
-    get #checkIsRunningMessage() {
-        return this._formatMessage({ type: "isRunning" });
     }
 
     /** @type {boolean} */
@@ -549,18 +546,12 @@ class ARSessionManager extends EventDispatcher {
         this.#assertConfigurationIsValid(configuration);
 
         _console.log("running with configuraton", configuration);
-        return sendMessageToApp(this.#runMessage(configuration));
-    }
-    #runMessage(configuration) {
-        return this._formatMessage({ type: "run", configuration });
+        return this.sendMessageToApp({ type: "run", configuration });
     }
 
     async pause() {
         _console.log("pause...");
-        return sendMessageToApp(this.#pauseMessage);
-    }
-    get #pauseMessage() {
-        return this._formatMessage({ type: "pause" });
+        return this.sendMessageToApp({ type: "pause" });
     }
 
     /** @type {ARSConfigurationType[]} */
@@ -585,10 +576,7 @@ class ARSessionManager extends EventDispatcher {
         this.#assertIsRunning();
 
         _console.log("checking configuration...");
-        return sendMessageToApp(this.#checkConfigurationMessage);
-    }
-    get #checkConfigurationMessage() {
-        return this._formatMessage({ type: "configuration" });
+        return this.sendMessageToApp({ type: "configuration" });
     }
 
     /** @param {ARSConfiguration} newConfiguration  */
@@ -686,35 +674,20 @@ class ARSessionManager extends EventDispatcher {
         this.dispatchEvent({ type: "debugOptions", message: { debugOptions: this.debugOptions } });
     }
 
-    async #checkDebugOptions() {
-        this.#assertIsSupported();
-
-        _console.log("checking debugOptions...");
-        return sendMessageToApp(this.#checkDebugOptionsMessage);
-    }
-    get #checkDebugOptionsMessage() {
-        return this._formatMessage({ type: "debugOptions" });
-    }
-
     /**
-     * @param {ARSDebugOptions} debugOptions
+     * @param {ARSDebugOptions} newDebugOptions
      * @throws if debugOptions is not an object or has an invalid key
      */
-    async setDebugOptions(debugOptions) {
+    async setDebugOptions(newDebugOptions) {
         this.#assertIsSupported();
-        _console.assertWithError(typeof debugOptions == "object", "debugOptions must be an object", debugOptions);
-        const invalidKey = Object.keys(debugOptions).find(
+        _console.assertWithError(typeof newDebugOptions == "object", "debugOptions must be an object", newDebugOptions);
+        const invalidKey = Object.keys(newDebugOptions).find(
             (debugOption) => !this.#allDebugOptions.includes(debugOption)
         );
         _console.assertWithError(!invalidKey, `invalid debugOptions key ${invalidKey}`);
 
-        _console.log("setting debugOptions...", debugOptions);
-        return sendMessageToApp(this.#setDebugOptionsMessage(debugOptions));
-    }
-
-    /** @param {ARSDebugOptions} debugOptions */
-    #setDebugOptionsMessage(debugOptions) {
-        return this._formatMessage({ type: "debugOptions", debugOptions });
+        _console.log("setting debugOptions...", newDebugOptions);
+        return this.sendMessageToApp({ type: "debugOptions", debugOptions: newDebugOptions });
     }
 
     /** @type {boolean} */
@@ -744,16 +717,6 @@ class ARSessionManager extends EventDispatcher {
         return this.#cameraMode;
     }
 
-    async #checkCameraMode() {
-        this.#assertIsSupported();
-
-        _console.log("checking cameraMode...");
-        return sendMessageToApp(this.#checkCameraModeMessage);
-    }
-    get #checkCameraModeMessage() {
-        return this._formatMessage({ type: "cameraMode" });
-    }
-
     /** @param {ARSCameraMode} cameraMode */
     #setCameraModeMessage(cameraMode) {
         return this._formatMessage({ type: "cameraMode", cameraMode });
@@ -775,7 +738,7 @@ class ARSessionManager extends EventDispatcher {
         }
 
         _console.log("setting cameraMode...", newCameraMode);
-        return sendMessageToApp(this.#setCameraModeMessage(newCameraMode));
+        return this.sendMessageToApp({ type: "cameraMode", cameraMode: newCameraMode });
     }
 
     /** @type {boolean} */
@@ -804,13 +767,6 @@ class ARSessionManager extends EventDispatcher {
     #showCamera = null;
     get showCamera() {
         return this.#showCamera;
-    }
-
-    async #checkShowCamera() {
-        this.#assertIsSupported();
-
-        _console.log("checking showCamera...");
-        return sendMessageToApp(this.#checkShowCameraMessage);
     }
 
     /** @param {boolean} newShowCamera */
@@ -844,16 +800,31 @@ class ARSessionManager extends EventDispatcher {
         }
 
         _console.log("setting showCamera...", newShowCamera);
-        return sendMessageToApp(this.#setShowCameraMessage(newShowCamera));
+        return this.sendMessageToApp({ type: "showCamera", showCamera: newShowCamera });
     }
 
-    get #checkShowCameraMessage() {
-        return this._formatMessage({ type: "showCamera" });
+    /** @type {ARSMessageConfiguration} */
+    #messageConfiguration = {
+        faceAnchorBlendshapes: false,
+        faceAnchorGeometry: false,
+    };
+    get messageConfiguration() {
+        return this.#messageConfiguration;
     }
-
-    /** @param {boolean} showCamera */
-    #setShowCameraMessage(showCamera) {
-        return this._formatMessage({ type: "showCamera", showCamera });
+    /** @param {ARSMessageConfiguration} newMessageConfiguration */
+    async setMessageConfiguration(newMessageConfiguration) {
+        this.#assertIsSupported();
+        _console.log("setting messageConfiguration...", newMessageConfiguration);
+        return this.sendMessageToApp({ type: "messageConfiguration", messageConfiguration: newMessageConfiguration });
+    }
+    /** @param {ARSMessageConfiguration} newMessageConfiguration */
+    #onMessageConfigurationUpdated(newMessageConfiguration) {
+        this.#messageConfiguration = newMessageConfiguration;
+        _console.log("updated messageConfiguration", this.messageConfiguration);
+        this.dispatchEvent({
+            type: "messageConfiguration",
+            message: { messageConfiguration: this.messageConfiguration },
+        });
     }
 
     /**
@@ -894,6 +865,10 @@ class ARSessionManager extends EventDispatcher {
             case "showCamera":
                 _console.log("received showCamera message", message);
                 this.#onShowCameraUpdated(message.showCamera);
+                break;
+            case "messageConfiguration":
+                _console.log("received messageConfiguration message", message);
+                this.#onMessageConfigurationUpdated(message.messageConfiguration);
                 break;
             default:
                 throw Error(`uncaught message type ${type}`);

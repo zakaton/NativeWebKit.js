@@ -1,6 +1,6 @@
 import { createConsole } from "./Console.js";
 
-const _console = createConsole("platformUtils");
+const _console = createConsole("platformUtils", { log: false });
 
 const { userAgent } = navigator;
 

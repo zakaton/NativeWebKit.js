@@ -156,40 +156,43 @@
 
 	const _console$6 = createConsole("EventDispatcher", { log: false });
 
-	/** @typedef {import("./messaging.js").NKMessage} NKMessage */
-
 	/**
 	 * @typedef EventDispatcherEvent
 	 * @type {object}
 	 * @property {string} type
+	 * @property {object} message
 	 */
 
 	/**
 	 * @typedef EventDispatcherOptions
 	 * @type {object}
-	 * @property {boolean} once
+	 * @property {boolean?} once
 	 */
 
-	/**
-	 * @typedef {(event: EventDispatcherEvent) => void} EventListener
-	 */
+	/** @typedef {(event: EventDispatcherEvent) => void} EventDispatcherListener */
 
 	// based on https://github.com/mrdoob/eventdispatcher.js/
 	class EventDispatcher {
-	    /** @type {string[]} */
-	    get eventTypes() {
-	        return [];
+	    /**
+	     * @param {string[]?} eventTypes
+	     */
+	    constructor(eventTypes) {
+	        _console$6.assertWithError(Array.isArray(eventTypes), "eventTypes must be an array");
+	        this.#eventTypes = eventTypes;
 	    }
+
+	    /** @type {string[]?} */
+	    #eventTypes;
 
 	    /**
 	     * @param {string} type
 	     * @returns {boolean}
 	     */
 	    #isValidEventType(type) {
-	        if (this.eventTypes.length == 0) {
+	        if (!this.#eventTypes) {
 	            return true;
 	        }
-	        return this.eventTypes.includes(type);
+	        return this.#eventTypes.includes(type);
 	    }
 
 	    /**
@@ -205,11 +208,11 @@
 
 	    /**
 	     * @param {string} type
-	     * @param {EventListener} listener
+	     * @param {EventDispatcherListener} listener
 	     * @param {EventDispatcherOptions?} options
-	     * @throws {Error}
 	     */
 	    addEventListener(type, listener, options) {
+	        _console$6.log(`adding "${type}" eventListener`, listener);
 	        this.#assertValidEventType(type);
 
 	        if (!this.#listeners) this.#listeners = {};
@@ -236,22 +239,24 @@
 	    /**
 	     *
 	     * @param {string} type
-	     * @param {EventListener} listener
+	     * @param {EventDispatcherListener} listener
 	     * @returns {boolean}
-	     * @throws {Error}
+	     * @throws {Error} if type is not valid
 	     */
 	    hasEventListener(type, listener) {
+	        _console$6.log(`has "${type}" eventListener?`, listener);
 	        this.#assertValidEventType(type);
 	        return this.#listeners?.[type]?.includes(listener);
 	    }
 
 	    /**
 	     * @param {string} type
-	     * @param {EventListener} listener
-	     * @returns {boolean}
-	     * @throws {Error}
+	     * @param {EventDispatcherListener} listener
+	     * @returns {boolean} successfully removed listener
+	     * @throws {Error} if type is not valid
 	     */
 	    removeEventListener(type, listener) {
+	        _console$6.log(`removing "${type}" eventListener`, listener);
 	        this.#assertValidEventType(type);
 	        if (this.hasEventListener(type, listener)) {
 	            const index = this.#listeners[type].indexOf(listener);
@@ -263,7 +268,7 @@
 
 	    /**
 	     * @param {EventDispatcherEvent} event
-	     * @throws {Error}
+	     * @throws {Error} if type is not valid
 	     */
 	    dispatchEvent(event) {
 	        this.#assertValidEventType(event.type);
@@ -284,18 +289,18 @@
 	        return "";
 	    }
 	    /**
-	     * @param {NKMessage} message
-	     * @returns {NKMessage}
+	     * @param {EventDispatcherEvent} message
+	     * @returns {EventDispatcherEvent}
 	     */
-	    _formatMessage(message) {
-	        /** @type {NKMessage} */
+	    formatMessage(message) {
+	        /** @type {EventDispatcherEvent} */
 	        const formattedMessage = { ...message };
 	        formattedMessage.type = `${this._prefix}-${message.type}`;
 	        return formattedMessage;
 	    }
 	}
 
-	const _console$5 = createConsole("platformUtils");
+	const _console$5 = createConsole("platformUtils", { log: false });
 
 	const { userAgent } = navigator;
 
@@ -358,7 +363,7 @@
 	    }
 	};
 
-	const _console$4 = createConsole("messaging");
+	const _console$4 = createConsole("messaging", { log: false });
 
 	/** @type {Set.<number>} */
 	const appMessageIds = new Set();
@@ -534,7 +539,7 @@
 	    }
 	}
 
-	const _console$3 = createConsole("mathUtils");
+	const _console$3 = createConsole("mathUtils", { log: false });
 
 	/**
 	 * @param {number} a
@@ -565,7 +570,7 @@
 	    return greatestCommonFactor;
 	}
 
-	const _console$2 = createConsole("AppMessagePoll");
+	const _console$2 = createConsole("AppMessagePoll", { log: false });
 
 	/** @typedef {import("./messaging.js").NKMessage} NKMessage */
 
@@ -620,6 +625,8 @@
 
 	    /** @type {function():NKMessage} */
 	    #generateMessage;
+	    /** @type {string} */
+	    #prefix = "";
 	    /** @type {number} (ms) */
 	    #interval;
 	    /** @type {number} (ms) */
@@ -641,12 +648,20 @@
 	    }
 
 	    /**
-	     * @param {function():NKMessage} generateMessage
+	     * @param {NKMessage|function():NKMessage} messageOrMessageGenerator
+	     * @param {string} prefix
 	     * @param {number} interval (ms)
 	     * @param {boolean} runInApp
 	     */
-	    constructor(generateMessage, interval, runInApp = false) {
-	        this.#generateMessage = generateMessage;
+	    constructor(messageOrMessageGenerator, prefix, interval, runInApp = false) {
+	        if (typeof messageOrMessageGenerator == "function") {
+	            const generateMessage = messageOrMessageGenerator;
+	            this.#generateMessage = generateMessage;
+	        } else {
+	            const message = messageOrMessageGenerator;
+	            this.#generateMessage = () => message;
+	        }
+	        this.#prefix = prefix;
 	        this.#interval = interval;
 	        this.#runInApp = runInApp;
 	        AppMessagePoll.#add(this);
@@ -686,7 +701,11 @@
 	            return timeSinceLastCallback >= poll.#interval;
 	        });
 
-	        const messages = polls.map((poll) => poll.#generateMessage());
+	        const messages = polls.map((poll) => {
+	            const message = Object.assign({}, poll.#generateMessage());
+	            message.type = `${poll.#prefix}-${message.type}`;
+	            return message;
+	        });
 	        _console$2.log("messages", messages);
 
 	        if (messages.length > 0) {
@@ -818,39 +837,23 @@
 	 * @property {[number]} rotationRate
 	 */
 
-	const _console$1 = createConsole("HeadphoneMotionManager");
+	const _console$1 = createConsole("HeadphoneMotionManager", { log: false });
 
-	class HeadphoneMotionManager extends EventDispatcher {
+	class HeadphoneMotionManager {
 	    /** @type {HMEventType[]} */
 	    static #EventsTypes = ["isAvailable", "isActive", "motionData", "sensorLocation"];
 	    /** @type {HMEventType[]} */
 	    get eventTypes() {
 	        return HeadphoneMotionManager.#EventsTypes;
 	    }
-
-	    static #shared = new HeadphoneMotionManager();
-	    static get shared() {
-	        return this.#shared;
-	    }
-
-	    get _prefix() {
-	        return "hm";
-	    }
-	    /**
-	     * @param {HMMessage} message
-	     * @returns {NKMessage}
-	     */
-	    _formatMessage(message) {
-	        return super._formatMessage(message);
-	    }
-
+	    #eventDispatcher = new EventDispatcher(this.eventTypes);
 	    /**
 	     * @param {HMEventType} type
 	     * @param {HMEventListener} listener
 	     * @param {EventDispatcherOptions?} options
 	     */
 	    addEventListener(type, listener, options) {
-	        return super.addEventListener(...arguments);
+	        return this.#eventDispatcher.addEventListener(type, listener, options);
 	    }
 	    /**
 	     * @param {HMEventType} type
@@ -858,7 +861,7 @@
 	     * @returns {boolean}
 	     */
 	    removeEventListener(type, listener) {
-	        return super.removeEventListener(...arguments);
+	        return this.#eventDispatcher.removeEventListener(type, listener);
 	    }
 	    /**
 	     * @param {HMEventType} type
@@ -866,40 +869,65 @@
 	     * @returns {boolean}
 	     */
 	    hasEventListener(type, listener) {
-	        return super.hasEventListener(...arguments);
+	        return this.#eventDispatcher.hasEventListener(type, listener);
 	    }
 	    /**
 	     * @param {HMEvent} event
 	     */
 	    dispatchEvent(event) {
-	        return super.dispatchEvent(...arguments);
+	        return this.#eventDispatcher.dispatchEvent(event);
+	    }
+
+	    static #shared = new HeadphoneMotionManager();
+	    static get shared() {
+	        return this.#shared;
+	    }
+	    #prefix = "hm";
+	    /**
+	     * @param {HMMessage[]} messages
+	     * @returns {NKMessage[]}
+	     */
+	    #formatMessages(messages) {
+	        return messages.map((message) => Object.assign({}, message, { type: `${this.#prefix}-${message.type}` }));
 	    }
 
 	    /** @throws {Error} if singleton already exists */
 	    constructor() {
-	        super();
-
 	        _console$1.assertWithError(
 	            !this.shared,
 	            "HeadphoneMotionManager is a singleton - use HeadphoneMotionManager.shared"
 	        );
 
 	        addAppListener(this.#getWindowLoadMessages.bind(this), "window.load");
-	        addAppListener(this.#onAppMessage.bind(this), this._prefix);
+	        addAppListener(this.#onAppMessage.bind(this), this.#prefix);
 	        addAppListener(this.#getWindowUnloadMessages.bind(this), "window.unload");
 	    }
 
-	    /** @returns {NKMessage|NKMessage[]?} */
+	    /** @returns {NKMessage[]?} */
 	    #getWindowLoadMessages() {
+	        /** @type {HMMessage[]} */
+	        const messages = [];
 	        if (this.#checkAvailabilityOnLoad) {
-	            return this.#checkIsAvailableMessage;
+	            messages.push({ type: "isAvailable" });
 	        }
+	        return this.#formatMessages(messages);
 	    }
-	    /** @returns {NKMessage|NKMessage[]?} */
+	    /** @returns {NKMessage[]?} */
 	    #getWindowUnloadMessages() {
+	        /** @type {HMMessage[]} */
+	        const messages = [];
 	        if (this.#isActive && this.#stopUpdatesOnUnload) {
-	            return this.#stopUpdatesMessage;
+	            messages.push({ type: "stopUpdates" });
 	        }
+	        return this.#formatMessages(messages);
+	    }
+
+	    /**
+	     * @param {HMAppMessage} message
+	     */
+	    async sendMessageToApp(message) {
+	        message.type = `${this.#prefix}-${message.type}`;
+	        return sendMessageToApp(message);
 	    }
 
 	    /** @type {boolean} */
@@ -970,10 +998,7 @@
 	    }
 	    async #checkIsAvailable() {
 	        _console$1.log("checking isAvailable...");
-	        return sendMessageToApp(this.#checkIsAvailableMessage);
-	    }
-	    get #checkIsAvailableMessage() {
-	        return this._formatMessage({ type: "isAvailable" });
+	        return this.sendMessageToApp({ type: "isAvailable" });
 	    }
 
 	    /** @type {boolean?} */
@@ -1003,12 +1028,9 @@
 	    }
 	    async #checkIsActive() {
 	        _console$1.log("checking isActive");
-	        return sendMessageToApp(this.#checkIsActiveMessage());
+	        return this.sendMessageToApp({ type: "isActive" });
 	    }
-	    #checkIsActiveMessage() {
-	        return this._formatMessage({ type: "isActive" });
-	    }
-	    #isActivePoll = new AppMessagePoll(this.#checkIsActiveMessage.bind(this), 50, true);
+	    #isActivePoll = new AppMessagePoll({ type: "isActive" }, this.#prefix, 50, true);
 
 	    async startUpdates() {
 	        if (!this.isAvailable) {
@@ -1021,10 +1043,7 @@
 	        }
 	        _console$1.log("starting motion updates");
 	        this.#isActivePoll.start();
-	        return sendMessageToApp(this.#startUpdatesMessage);
-	    }
-	    get #startUpdatesMessage() {
-	        return this._formatMessage({ type: "startUpdates" });
+	        return this.sendMessageToApp({ type: "startUpdates" });
 	    }
 	    async stopUpdates() {
 	        if (!this.isAvailable) {
@@ -1037,10 +1056,7 @@
 	        }
 	        _console$1.log("stopping motion updates");
 	        this.#isActivePoll.start();
-	        return sendMessageToApp(this.#stopUpdatesMessage);
-	    }
-	    get #stopUpdatesMessage() {
-	        return this._formatMessage({ type: "stopUpdates" });
+	        return this.sendMessageToApp({ type: "stopUpdates" });
 	    }
 
 	    async toggleMotionUpdates() {
@@ -1091,14 +1107,10 @@
 	        this.#onSensorLocationUpdated(newMotionData.sensorLocation);
 	    }
 
-	    async #checkMotionData() {
-	        _console$1.log("checkMotionData");
-	        return sendMessageToApp(this.#checkMotionDataMessage);
-	    }
 	    #checkMotionDataMessage() {
-	        return this._formatMessage({ type: "getData", timestamp: this.#motionDataTimestamp });
+	        return { type: "getData", timestamp: this.#motionDataTimestamp };
 	    }
-	    #motionDataPoll = new AppMessagePoll(this.#checkMotionDataMessage.bind(this), 20);
+	    #motionDataPoll = new AppMessagePoll(this.#checkMotionDataMessage.bind(this), this.#prefix, 20);
 	}
 	var HeadphoneMotionManager$1 = HeadphoneMotionManager.shared;
 
@@ -1129,11 +1141,11 @@
 	    return areEqual;
 	}
 
-	const _console = createConsole("ARSession");
+	const _console = createConsole("ARSession", { log: false });
 
-	/** @typedef {"worldTrackingSupport" | "faceTrackingSupport" | "run" | "pause" | "status" | "frame" | "debugOptions" | "cameraMode" | "configuration" | "showCamera"} ARSMessageType */
+	/** @typedef {"worldTrackingSupport" | "faceTrackingSupport" | "run" | "pause" | "status" | "frame" | "debugOptions" | "cameraMode" | "configuration" | "showCamera" | "messageConfiguration" | "isRunning"} ARSMessageType */
 
-	/** @typedef {"worldTrackingSupport" | "faceTrackingSupport" | "isRunning" | "frame" | "camera" | "faceAnchors" | "faceAnchor" | "debugOptions" | "cameraMode" | "configuration" | "showCamera" | "lightEstimate"} ARSEventType */
+	/** @typedef {"worldTrackingSupport" | "faceTrackingSupport" | "isRunning" | "frame" | "camera" | "faceAnchors" | "faceAnchor" | "debugOptions" | "cameraMode" | "configuration" | "showCamera" | "lightEstimate" | "messageConfiguration"} ARSEventType */
 
 	/** @typedef {import("./utils/messaging.js").NKMessage} NKMessage */
 
@@ -1241,7 +1253,8 @@
 	 * @property {number[]} quaternion
 	 * @property {ARSFaceAnchorEye} leftEye
 	 * @property {ARSFaceAnchorEye} rightEye
-	 * @property {ARSFaceAnchorBlendShapes} blendShapes
+	 * @property {ARSFaceAnchorBlendShapes?} blendShapes
+	 * @property {ARSFaceAnchorGeometry?} geometry
 	 */
 
 	/**
@@ -1249,6 +1262,24 @@
 	 * @type {object}
 	 * @property {number[]} quaternion
 	 * @property {number[]} position
+	 */
+
+	/**
+	 * @typedef ARSFaceAnchorGeometry
+	 * @type {object}
+	 * @property {number[][]} vertices array of 3d vertices
+	 * @property {number} triangleCount
+	 * @property {number[]} triangleIndices
+	 * @property {number[][]} textureCoordinates 2d texture coordinate of each vertex
+	 */
+
+	/** @typedef {"faceAnchorBlendshapes" | "faceAnchorGeometry"} ARSMessageConfigurationType */
+
+	/**
+	 * @typedef ARSMessageConfiguration
+	 * @type {object}
+	 * @property {boolean} faceAnchorBlendshapes
+	 * @property {boolean} faceAnchorGeometry
 	 */
 
 	/** @typedef {"none" | "showAnchorGeometry" | "showAnchorOrigins" | "showFeaturePoints" | "showPhysics" | "showSceneUnderstanding" | "showStatistics" | "showWorldOrigin"} ARSDebugOption */
@@ -1327,7 +1358,7 @@
 
 	/** @typedef {"ar" | "nonAR"} ARSCameraMode */
 
-	class ARSessionManager extends EventDispatcher {
+	class ARSessionManager {
 	    /** @type {ARSEventType[]} */
 	    static #EventsTypes = [
 	        "worldTrackingSupport",
@@ -1342,35 +1373,20 @@
 	        "configuration",
 	        "showCamera",
 	        "lightEstimate",
+	        "messageConfiguration",
 	    ];
 	    /** @type {ARSEventType[]} */
 	    get eventTypes() {
 	        return ARSessionManager.#EventsTypes;
 	    }
-
-	    static #shared = new ARSessionManager();
-	    static get shared() {
-	        return this.#shared;
-	    }
-
-	    get _prefix() {
-	        return "ars";
-	    }
-	    /**
-	     * @param {ARSMessage} message
-	     * @returns {NKMessage}
-	     */
-	    _formatMessage(message) {
-	        return super._formatMessage(message);
-	    }
-
+	    #eventDispatcher = new EventDispatcher(this.eventTypes);
 	    /**
 	     * @param {ARSEventType} type
 	     * @param {ARSEventListener} listener
 	     * @param {EventDispatcherOptions?} options
 	     */
 	    addEventListener(type, listener, options) {
-	        return super.addEventListener(...arguments);
+	        return this.#eventDispatcher.addEventListener(...arguments);
 	    }
 	    /**
 	     * @param {ARSEventType} type
@@ -1378,7 +1394,7 @@
 	     * @returns {boolean}
 	     */
 	    removeEventListener(type, listener) {
-	        return super.removeEventListener(...arguments);
+	        return this.#eventDispatcher.removeEventListener(...arguments);
 	    }
 	    /**
 	     * @param {ARSEventType} type
@@ -1386,23 +1402,34 @@
 	     * @returns {boolean}
 	     */
 	    hasEventListener(type, listener) {
-	        return super.hasEventListener(...arguments);
+	        return this.#eventDispatcher.hasEventListener(...arguments);
 	    }
 	    /**
 	     * @param {ARSEvent} event
 	     */
 	    dispatchEvent(event) {
-	        return super.dispatchEvent(...arguments);
+	        return this.#eventDispatcher.dispatchEvent(...arguments);
+	    }
+
+	    static #shared = new ARSessionManager();
+	    static get shared() {
+	        return this.#shared;
+	    }
+	    #prefix = "ars";
+	    /**
+	     * @param {ARSMessage[]} messages
+	     * @returns {NKMessage[]}
+	     */
+	    #formatMessages(messages) {
+	        return messages.map((message) => Object.assign({}, message, { type: `${this.#prefix}-${message.type}` }));
 	    }
 
 	    /** @throws {Error} if singleton already exists */
 	    constructor() {
-	        super();
-
 	        _console.assertWithError(!this.shared, "ARSessionManager is a singleton - use ARSessionManager.shared");
 
 	        addAppListener(this.#getWindowLoadMessages.bind(this), "window.load");
-	        addAppListener(this.#onAppMessage.bind(this), this._prefix);
+	        addAppListener(this.#onAppMessage.bind(this), this.#prefix);
 	        addAppListener(this.#getWindowUnloadMessages.bind(this), "window.unload");
 	    }
 
@@ -1428,45 +1455,55 @@
 	        _console.assertWithError(this.isRunning, "ARSession is not running");
 	    }
 
-	    /** @returns {NKMessage|NKMessage[]?} */
+	    /**
+	     * @param {ARSAppMessage} message
+	     */
+	    async sendMessageToApp(message) {
+	        message.type = `${this.#prefix}-${message.type}`;
+	        return sendMessageToApp(message);
+	    }
+
+	    /** @returns {NKMessage[]} */
 	    #getWindowLoadMessages() {
 	        if (!this.isSupported) {
 	            return;
 	        }
 
+	        /** @type {ARSMessage[]} */
 	        const messages = [];
 	        if (this.checkFaceTrackingSupportOnLoad) {
-	            messages.push(this.#checkFaceTrackingSupportMessage);
+	            messages.push({ type: "faceTrackingSupport" });
 	        }
 	        if (this.checkWorldTrackingSupportOnLoad) {
-	            messages.push(this.#checkWorldTrackingSupportMessage);
+	            messages.push({ type: "worldTrackingSupport" });
 	        }
 	        if (this.checkIsRunningOnLoad) {
-	            messages.push(this.#checkIsRunningMessage);
+	            messages.push({ type: "isRunning" });
 	        }
 	        if (this.checkDebugOptionsOnLoad) {
-	            messages.push(this.#checkDebugOptionsMessage);
+	            messages.push({ type: "debugOptions" });
 	        }
 	        if (this.checkCameraModeOnLoad) {
-	            messages.push(this.#checkCameraModeMessage);
+	            messages.push({ type: "cameraMode" });
 	        }
 	        if (this.checkShowCameraOnLoad) {
-	            messages.push(this.#checkShowCameraMessage);
+	            messages.push({ type: "showCamera" });
 	        }
 
-	        return messages;
+	        return this.#formatMessages(messages);
 	    }
-	    /** @returns {NKMessage|NKMessage[]?} */
+	    /** @returns {NKMessage[]} */
 	    #getWindowUnloadMessages() {
 	        if (!this.isSupported) {
 	            return;
 	        }
 
+	        /** @type {ARSMessage[]} */
 	        const messages = [];
 	        if (this.pauseOnUnload && this.isRunning) {
-	            messages.push(this.#pauseMessage);
+	            messages.push({ type: "pause" });
 	        }
-	        return messages;
+	        return this.#formatMessages(messages);
 	    }
 
 	    /** @type {ARSWorldTrackingSupport} */
@@ -1504,15 +1541,6 @@
 	        this.#checkWorldTrackingSupportOnLoad = newValue;
 	    }
 
-	    async #checkWorldTrackingSupport() {
-	        this.#assertIsSupported();
-	        _console.log("checking world tracking support...");
-	        return sendMessageToApp(this.#checkWorldTrackingSupportMessage);
-	    }
-	    get #checkWorldTrackingSupportMessage() {
-	        return this._formatMessage({ type: "worldTrackingSupport" });
-	    }
-
 	    /** @type {ARSFaceTrackingSupport} */
 	    #faceTrackingSupport = {
 	        isSupported: false,
@@ -1548,16 +1576,6 @@
 	        this.#checkFaceTrackingSupportOnLoad = newValue;
 	    }
 
-	    async #checkFaceTrackingSupport() {
-	        this.#assertIsSupported();
-
-	        _console.log("checking face tracking support...");
-	        return sendMessageToApp(this.#checkFaceTrackingSupportMessage);
-	    }
-	    get #checkFaceTrackingSupportMessage() {
-	        return this._formatMessage({ type: "faceTrackingSupport" });
-	    }
-
 	    /** @type {boolean} */
 	    #isRunning = false;
 	    get isRunning() {
@@ -1576,15 +1594,6 @@
 	                this.#checkConfiguration();
 	            }
 	        }
-	    }
-	    async #checkIsRunning() {
-	        this.#assertIsSupported();
-
-	        _console.log("checking isRunning...");
-	        return sendMessageToApp(this.#checkIsRunningMessage);
-	    }
-	    get #checkIsRunningMessage() {
-	        return this._formatMessage({ type: "isRunning" });
 	    }
 
 	    /** @type {boolean} */
@@ -1673,18 +1682,12 @@
 	        this.#assertConfigurationIsValid(configuration);
 
 	        _console.log("running with configuraton", configuration);
-	        return sendMessageToApp(this.#runMessage(configuration));
-	    }
-	    #runMessage(configuration) {
-	        return this._formatMessage({ type: "run", configuration });
+	        return this.sendMessageToApp({ type: "run", configuration });
 	    }
 
 	    async pause() {
 	        _console.log("pause...");
-	        return sendMessageToApp(this.#pauseMessage);
-	    }
-	    get #pauseMessage() {
-	        return this._formatMessage({ type: "pause" });
+	        return this.sendMessageToApp({ type: "pause" });
 	    }
 
 	    /** @type {ARSConfigurationType[]} */
@@ -1709,10 +1712,7 @@
 	        this.#assertIsRunning();
 
 	        _console.log("checking configuration...");
-	        return sendMessageToApp(this.#checkConfigurationMessage);
-	    }
-	    get #checkConfigurationMessage() {
-	        return this._formatMessage({ type: "configuration" });
+	        return this.sendMessageToApp({ type: "configuration" });
 	    }
 
 	    /** @param {ARSConfiguration} newConfiguration  */
@@ -1810,35 +1810,20 @@
 	        this.dispatchEvent({ type: "debugOptions", message: { debugOptions: this.debugOptions } });
 	    }
 
-	    async #checkDebugOptions() {
-	        this.#assertIsSupported();
-
-	        _console.log("checking debugOptions...");
-	        return sendMessageToApp(this.#checkDebugOptionsMessage);
-	    }
-	    get #checkDebugOptionsMessage() {
-	        return this._formatMessage({ type: "debugOptions" });
-	    }
-
 	    /**
-	     * @param {ARSDebugOptions} debugOptions
+	     * @param {ARSDebugOptions} newDebugOptions
 	     * @throws if debugOptions is not an object or has an invalid key
 	     */
-	    async setDebugOptions(debugOptions) {
+	    async setDebugOptions(newDebugOptions) {
 	        this.#assertIsSupported();
-	        _console.assertWithError(typeof debugOptions == "object", "debugOptions must be an object", debugOptions);
-	        const invalidKey = Object.keys(debugOptions).find(
+	        _console.assertWithError(typeof newDebugOptions == "object", "debugOptions must be an object", newDebugOptions);
+	        const invalidKey = Object.keys(newDebugOptions).find(
 	            (debugOption) => !this.#allDebugOptions.includes(debugOption)
 	        );
 	        _console.assertWithError(!invalidKey, `invalid debugOptions key ${invalidKey}`);
 
-	        _console.log("setting debugOptions...", debugOptions);
-	        return sendMessageToApp(this.#setDebugOptionsMessage(debugOptions));
-	    }
-
-	    /** @param {ARSDebugOptions} debugOptions */
-	    #setDebugOptionsMessage(debugOptions) {
-	        return this._formatMessage({ type: "debugOptions", debugOptions });
+	        _console.log("setting debugOptions...", newDebugOptions);
+	        return this.sendMessageToApp({ type: "debugOptions", debugOptions: newDebugOptions });
 	    }
 
 	    /** @type {boolean} */
@@ -1868,16 +1853,6 @@
 	        return this.#cameraMode;
 	    }
 
-	    async #checkCameraMode() {
-	        this.#assertIsSupported();
-
-	        _console.log("checking cameraMode...");
-	        return sendMessageToApp(this.#checkCameraModeMessage);
-	    }
-	    get #checkCameraModeMessage() {
-	        return this._formatMessage({ type: "cameraMode" });
-	    }
-
 	    /** @param {ARSCameraMode} cameraMode */
 	    #setCameraModeMessage(cameraMode) {
 	        return this._formatMessage({ type: "cameraMode", cameraMode });
@@ -1899,7 +1874,7 @@
 	        }
 
 	        _console.log("setting cameraMode...", newCameraMode);
-	        return sendMessageToApp(this.#setCameraModeMessage(newCameraMode));
+	        return this.sendMessageToApp({ type: "cameraMode", cameraMode: newCameraMode });
 	    }
 
 	    /** @type {boolean} */
@@ -1928,13 +1903,6 @@
 	    #showCamera = null;
 	    get showCamera() {
 	        return this.#showCamera;
-	    }
-
-	    async #checkShowCamera() {
-	        this.#assertIsSupported();
-
-	        _console.log("checking showCamera...");
-	        return sendMessageToApp(this.#checkShowCameraMessage);
 	    }
 
 	    /** @param {boolean} newShowCamera */
@@ -1968,16 +1936,31 @@
 	        }
 
 	        _console.log("setting showCamera...", newShowCamera);
-	        return sendMessageToApp(this.#setShowCameraMessage(newShowCamera));
+	        return this.sendMessageToApp({ type: "showCamera", showCamera: newShowCamera });
 	    }
 
-	    get #checkShowCameraMessage() {
-	        return this._formatMessage({ type: "showCamera" });
+	    /** @type {ARSMessageConfiguration} */
+	    #messageConfiguration = {
+	        faceAnchorBlendshapes: false,
+	        faceAnchorGeometry: false,
+	    };
+	    get messageConfiguration() {
+	        return this.#messageConfiguration;
 	    }
-
-	    /** @param {boolean} showCamera */
-	    #setShowCameraMessage(showCamera) {
-	        return this._formatMessage({ type: "showCamera", showCamera });
+	    /** @param {ARSMessageConfiguration} newMessageConfiguration */
+	    async setMessageConfiguration(newMessageConfiguration) {
+	        this.#assertIsSupported();
+	        _console.log("setting messageConfiguration...", newMessageConfiguration);
+	        return this.sendMessageToApp({ type: "messageConfiguration", messageConfiguration: newMessageConfiguration });
+	    }
+	    /** @param {ARSMessageConfiguration} newMessageConfiguration */
+	    #onMessageConfigurationUpdated(newMessageConfiguration) {
+	        this.#messageConfiguration = newMessageConfiguration;
+	        _console.log("updated messageConfiguration", this.messageConfiguration);
+	        this.dispatchEvent({
+	            type: "messageConfiguration",
+	            message: { messageConfiguration: this.messageConfiguration },
+	        });
 	    }
 
 	    /**
@@ -2018,6 +2001,10 @@
 	            case "showCamera":
 	                _console.log("received showCamera message", message);
 	                this.#onShowCameraUpdated(message.showCamera);
+	                break;
+	            case "messageConfiguration":
+	                _console.log("received messageConfiguration message", message);
+	                this.#onMessageConfigurationUpdated(message.messageConfiguration);
 	                break;
 	            default:
 	                throw Error(`uncaught message type ${type}`);

@@ -1,7 +1,7 @@
 import { createConsole } from "./Console.js";
 import { isInApp, checkIfNativeWebKitEnabled } from "./platformUtils.js";
 
-const _console = createConsole("messaging");
+const _console = createConsole("messaging", { log: false });
 
 /** @type {Set.<number>} */
 const appMessageIds = new Set();

@@ -2,40 +2,43 @@ import { createConsole } from "./Console.js";
 
 const _console = createConsole("EventDispatcher", { log: false });
 
-/** @typedef {import("./messaging.js").NKMessage} NKMessage */
-
 /**
  * @typedef EventDispatcherEvent
  * @type {object}
  * @property {string} type
+ * @property {object} message
  */
 
 /**
  * @typedef EventDispatcherOptions
  * @type {object}
- * @property {boolean} once
+ * @property {boolean?} once
  */
 
-/**
- * @typedef {(event: EventDispatcherEvent) => void} EventListener
- */
+/** @typedef {(event: EventDispatcherEvent) => void} EventDispatcherListener */
 
 // based on https://github.com/mrdoob/eventdispatcher.js/
 class EventDispatcher {
-    /** @type {string[]} */
-    get eventTypes() {
-        return [];
+    /**
+     * @param {string[]?} eventTypes
+     */
+    constructor(eventTypes) {
+        _console.assertWithError(Array.isArray(eventTypes), "eventTypes must be an array");
+        this.#eventTypes = eventTypes;
     }
+
+    /** @type {string[]?} */
+    #eventTypes;
 
     /**
      * @param {string} type
      * @returns {boolean}
      */
     #isValidEventType(type) {
-        if (this.eventTypes.length == 0) {
+        if (!this.#eventTypes) {
             return true;
         }
-        return this.eventTypes.includes(type);
+        return this.#eventTypes.includes(type);
     }
 
     /**
@@ -51,11 +54,11 @@ class EventDispatcher {
 
     /**
      * @param {string} type
-     * @param {EventListener} listener
+     * @param {EventDispatcherListener} listener
      * @param {EventDispatcherOptions?} options
-     * @throws {Error}
      */
     addEventListener(type, listener, options) {
+        _console.log(`adding "${type}" eventListener`, listener);
         this.#assertValidEventType(type);
 
         if (!this.#listeners) this.#listeners = {};
@@ -82,22 +85,24 @@ class EventDispatcher {
     /**
      *
      * @param {string} type
-     * @param {EventListener} listener
+     * @param {EventDispatcherListener} listener
      * @returns {boolean}
-     * @throws {Error}
+     * @throws {Error} if type is not valid
      */
     hasEventListener(type, listener) {
+        _console.log(`has "${type}" eventListener?`, listener);
         this.#assertValidEventType(type);
         return this.#listeners?.[type]?.includes(listener);
     }
 
     /**
      * @param {string} type
-     * @param {EventListener} listener
-     * @returns {boolean}
-     * @throws {Error}
+     * @param {EventDispatcherListener} listener
+     * @returns {boolean} successfully removed listener
+     * @throws {Error} if type is not valid
      */
     removeEventListener(type, listener) {
+        _console.log(`removing "${type}" eventListener`, listener);
         this.#assertValidEventType(type);
         if (this.hasEventListener(type, listener)) {
             const index = this.#listeners[type].indexOf(listener);
@@ -109,7 +114,7 @@ class EventDispatcher {
 
     /**
      * @param {EventDispatcherEvent} event
-     * @throws {Error}
+     * @throws {Error} if type is not valid
      */
     dispatchEvent(event) {
         this.#assertValidEventType(event.type);
@@ -130,15 +135,52 @@ class EventDispatcher {
         return "";
     }
     /**
-     * @param {NKMessage} message
-     * @returns {NKMessage}
+     * @param {EventDispatcherEvent} message
+     * @returns {EventDispatcherEvent}
      */
-    _formatMessage(message) {
-        /** @type {NKMessage} */
+    formatMessage(message) {
+        /** @type {EventDispatcherEvent} */
         const formattedMessage = { ...message };
         formattedMessage.type = `${this._prefix}-${message.type}`;
         return formattedMessage;
     }
+}
+
+/**
+ * @param {string[]} eventTypes
+ * @param {object.<string, EventListener>} boundEventListeners
+ * @param {object} target
+ */
+export function bindEventListeners(eventTypes, boundEventListeners, target) {
+    _console.log("bindEventListeners", { eventTypes, boundEventListeners, target });
+    eventTypes.forEach((eventType) => {
+        const _eventType = `_on${spacesToPascalCase(eventType)}`;
+        _console.assertWithError(target[_eventType], `no event "${_eventType}" found in target`, target);
+        _console.log(`binding eventType "${eventType}" as ${_eventType} from target`, target);
+        const boundEvent = target[_eventType].bind(target);
+        target[_eventType] = boundEvent;
+        boundEventListeners[eventType] = boundEvent;
+    });
+}
+
+/**
+ * @param {object} target
+ * @param {object.<string, EventListener>} boundEventListeners
+ */
+export function addEventListeners(target, boundEventListeners) {
+    Object.entries(boundEventListeners).forEach(([eventType, eventListener]) => {
+        target.addEventListener(eventType, eventListener);
+    });
+}
+
+/**
+ * @param {object} target
+ * @param {object.<string, EventListener>} boundEventListeners
+ */
+export function removeEventListeners(target, boundEventListeners) {
+    Object.entries(boundEventListeners).forEach(([eventType, eventListener]) => {
+        target.removeEventListener(eventType, eventListener);
+    });
 }
 
 export default EventDispatcher;

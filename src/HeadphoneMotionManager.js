@@ -50,39 +50,23 @@ import AppMessagePoll from "./utils/AppMessagePoll.js";
  * @property {[number]} rotationRate
  */
 
-const _console = createConsole("HeadphoneMotionManager");
+const _console = createConsole("HeadphoneMotionManager", { log: false });
 
-class HeadphoneMotionManager extends EventDispatcher {
+class HeadphoneMotionManager {
     /** @type {HMEventType[]} */
     static #EventsTypes = ["isAvailable", "isActive", "motionData", "sensorLocation"];
     /** @type {HMEventType[]} */
     get eventTypes() {
         return HeadphoneMotionManager.#EventsTypes;
     }
-
-    static #shared = new HeadphoneMotionManager();
-    static get shared() {
-        return this.#shared;
-    }
-
-    get _prefix() {
-        return "hm";
-    }
-    /**
-     * @param {HMMessage} message
-     * @returns {NKMessage}
-     */
-    _formatMessage(message) {
-        return super._formatMessage(message);
-    }
-
+    #eventDispatcher = new EventDispatcher(this.eventTypes);
     /**
      * @param {HMEventType} type
      * @param {HMEventListener} listener
      * @param {EventDispatcherOptions?} options
      */
     addEventListener(type, listener, options) {
-        return super.addEventListener(...arguments);
+        return this.#eventDispatcher.addEventListener(type, listener, options);
     }
     /**
      * @param {HMEventType} type
@@ -90,7 +74,7 @@ class HeadphoneMotionManager extends EventDispatcher {
      * @returns {boolean}
      */
     removeEventListener(type, listener) {
-        return super.removeEventListener(...arguments);
+        return this.#eventDispatcher.removeEventListener(type, listener);
     }
     /**
      * @param {HMEventType} type
@@ -98,40 +82,65 @@ class HeadphoneMotionManager extends EventDispatcher {
      * @returns {boolean}
      */
     hasEventListener(type, listener) {
-        return super.hasEventListener(...arguments);
+        return this.#eventDispatcher.hasEventListener(type, listener);
     }
     /**
      * @param {HMEvent} event
      */
     dispatchEvent(event) {
-        return super.dispatchEvent(...arguments);
+        return this.#eventDispatcher.dispatchEvent(event);
+    }
+
+    static #shared = new HeadphoneMotionManager();
+    static get shared() {
+        return this.#shared;
+    }
+    #prefix = "hm";
+    /**
+     * @param {HMMessage[]} messages
+     * @returns {NKMessage[]}
+     */
+    #formatMessages(messages) {
+        return messages.map((message) => Object.assign({}, message, { type: `${this.#prefix}-${message.type}` }));
     }
 
     /** @throws {Error} if singleton already exists */
     constructor() {
-        super();
-
         _console.assertWithError(
             !this.shared,
             "HeadphoneMotionManager is a singleton - use HeadphoneMotionManager.shared"
         );
 
         addAppListener(this.#getWindowLoadMessages.bind(this), "window.load");
-        addAppListener(this.#onAppMessage.bind(this), this._prefix);
+        addAppListener(this.#onAppMessage.bind(this), this.#prefix);
         addAppListener(this.#getWindowUnloadMessages.bind(this), "window.unload");
     }
 
-    /** @returns {NKMessage|NKMessage[]?} */
+    /** @returns {NKMessage[]?} */
     #getWindowLoadMessages() {
+        /** @type {HMMessage[]} */
+        const messages = [];
         if (this.#checkAvailabilityOnLoad) {
-            return this.#checkIsAvailableMessage;
+            messages.push({ type: "isAvailable" });
         }
+        return this.#formatMessages(messages);
     }
-    /** @returns {NKMessage|NKMessage[]?} */
+    /** @returns {NKMessage[]?} */
     #getWindowUnloadMessages() {
+        /** @type {HMMessage[]} */
+        const messages = [];
         if (this.#isActive && this.#stopUpdatesOnUnload) {
-            return this.#stopUpdatesMessage;
+            messages.push({ type: "stopUpdates" });
         }
+        return this.#formatMessages(messages);
+    }
+
+    /**
+     * @param {HMAppMessage} message
+     */
+    async sendMessageToApp(message) {
+        message.type = `${this.#prefix}-${message.type}`;
+        return sendMessageToApp(message);
     }
 
     /** @type {boolean} */
@@ -202,10 +211,7 @@ class HeadphoneMotionManager extends EventDispatcher {
     }
     async #checkIsAvailable() {
         _console.log("checking isAvailable...");
-        return sendMessageToApp(this.#checkIsAvailableMessage);
-    }
-    get #checkIsAvailableMessage() {
-        return this._formatMessage({ type: "isAvailable" });
+        return this.sendMessageToApp({ type: "isAvailable" });
     }
 
     /** @type {boolean?} */
@@ -235,12 +241,9 @@ class HeadphoneMotionManager extends EventDispatcher {
     }
     async #checkIsActive() {
         _console.log("checking isActive");
-        return sendMessageToApp(this.#checkIsActiveMessage());
+        return this.sendMessageToApp({ type: "isActive" });
     }
-    #checkIsActiveMessage() {
-        return this._formatMessage({ type: "isActive" });
-    }
-    #isActivePoll = new AppMessagePoll(this.#checkIsActiveMessage.bind(this), 50, true);
+    #isActivePoll = new AppMessagePoll({ type: "isActive" }, this.#prefix, 50, true);
 
     async startUpdates() {
         if (!this.isAvailable) {
@@ -253,10 +256,7 @@ class HeadphoneMotionManager extends EventDispatcher {
         }
         _console.log("starting motion updates");
         this.#isActivePoll.start();
-        return sendMessageToApp(this.#startUpdatesMessage);
-    }
-    get #startUpdatesMessage() {
-        return this._formatMessage({ type: "startUpdates" });
+        return this.sendMessageToApp({ type: "startUpdates" });
     }
     async stopUpdates() {
         if (!this.isAvailable) {
@@ -269,10 +269,7 @@ class HeadphoneMotionManager extends EventDispatcher {
         }
         _console.log("stopping motion updates");
         this.#isActivePoll.start();
-        return sendMessageToApp(this.#stopUpdatesMessage);
-    }
-    get #stopUpdatesMessage() {
-        return this._formatMessage({ type: "stopUpdates" });
+        return this.sendMessageToApp({ type: "stopUpdates" });
     }
 
     async toggleMotionUpdates() {
@@ -323,13 +320,9 @@ class HeadphoneMotionManager extends EventDispatcher {
         this.#onSensorLocationUpdated(newMotionData.sensorLocation);
     }
 
-    async #checkMotionData() {
-        _console.log("checkMotionData");
-        return sendMessageToApp(this.#checkMotionDataMessage);
-    }
     #checkMotionDataMessage() {
-        return this._formatMessage({ type: "getData", timestamp: this.#motionDataTimestamp });
+        return { type: "getData", timestamp: this.#motionDataTimestamp };
     }
-    #motionDataPoll = new AppMessagePoll(this.#checkMotionDataMessage.bind(this), 20);
+    #motionDataPoll = new AppMessagePoll(this.#checkMotionDataMessage.bind(this), this.#prefix, 20);
 }
 export default HeadphoneMotionManager.shared;
