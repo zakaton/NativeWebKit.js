@@ -106,6 +106,8 @@ const faceRotationEntity = document.getElementById("faceRotation");
 /** @typedef {import("../../src/three/three.module.min.js").MeshBasicMaterial} MeshBasicMaterial */
 /** @typedef {import("../../src/three/three.module.min.js").Mesh} Mesh */
 /** @typedef {import("../../src/three/three.module.min.js").BufferAttribute} BufferAttribute */
+/** @typedef {import("../../src/three/three.module.min.js").MeshStandardMaterial} MeshStandardMaterial */
+/** @typedef {import("../../src/three/three.module.min.js").Texture} Texture */
 
 const faceSpheres = [];
 const faceSpheresEntity = document.getElementById("faceSpheres");
@@ -115,17 +117,66 @@ window.faceSpheres = faceSpheres;
 const geometry = new THREE.BufferGeometry();
 /** @type {Float32Array?} */
 var vertices;
+/** @type {Float32Array?} */
+var textureCoordinates;
 /** @type {number[]} */
 var triangleIndices;
 
+/** @type {Texture} */
+const imageTexture = new THREE.TextureLoader().load("/assets/images/image.jpg");
+imageTexture.flipY = false;
+console.log("imageTexture", imageTexture);
+
+/** @type {MeshStandardMaterial} */
 const material = new THREE.MeshStandardMaterial({
-    color: 0x00ff00,
+    color: "green",
+    transparent: true,
 });
+window.material = material;
+/** @type {HTMLCanvasElement} */
+const canvas = document.getElementById("canvas");
+const context = canvas.getContext("2d");
+context.fillStyle = "white";
+//context.fillRect(0, 0, canvas.width, canvas.height);
+context.lineWidth = 10;
+const canvasTexture = new THREE.CanvasTexture(canvas);
+canvasTexture.flipY = false;
+const clearCanvasButton = document.getElementById("clearCanvas");
+clearCanvasButton.addEventListener("click", () => {
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    canvasTexture.needsUpdate = true;
+});
+console.log("canvas", canvas);
+console.log("canvasTexture", canvasTexture);
+function getCanvasTouchPosition(event) {
+    const rect = canvas.getBoundingClientRect();
+    const { clientX, clientY } = event.touches[0];
+    var x = (clientX - rect.left) / rect.width;
+    var y = (clientY - rect.top) / rect.height;
+    x = THREE.MathUtils.clamp(x, 0, 1);
+    y = THREE.MathUtils.clamp(y, 0, 1);
+    x *= canvas.width;
+    y *= canvas.height;
+    return { x, y };
+}
+canvas.addEventListener("touchstart", (event) => {
+    const { x, y } = getCanvasTouchPosition(event);
+    context.beginPath();
+    context.moveTo(x, y);
+    canvasTexture.needsUpdate = true;
+});
+canvas.addEventListener("touchmove", (event) => {
+    const { x, y } = getCanvasTouchPosition(event);
+    context.lineTo(x, y);
+    context.stroke();
+    canvasTexture.needsUpdate = true;
+});
+
 /** @type {Mesh} */
 var mesh;
 const geometryEntity = document.getElementById("geometry");
 
-/** @typedef {"no mode"|"spheres mode" | "mesh mode"} FaceMode */
+/** @typedef {"none" | "spheres" | "mesh" | "image" | "wireframe" | "canvas"} FaceMode */
 /** @type {FaceMode} */
 var faceMode;
 /** @param {FaceMode} newFaceMode  */
@@ -135,34 +186,62 @@ const setFaceMode = (newFaceMode) => {
     }
     faceMode = newFaceMode;
     console.log("new faceMode", faceMode);
+    var showGeometry = false;
+    var showFaceSpheres = false;
+    var showCanvas = false;
+    var materialColor;
+    var materialMap;
+    var showWireframe = false;
+    var showCanvas;
+
     switch (faceMode) {
-        case "no mode":
-            geometryEntity.object3D.visible = false;
-            faceSpheresEntity.object3D.visible = false;
+        case "none":
             break;
-        case "mesh mode":
-            geometryEntity.object3D.visible = true;
-            faceSpheresEntity.object3D.visible = false;
+        case "mesh":
+            showGeometry = true;
+            materialColor = "green";
             break;
-        case "spheres mode":
-            geometryEntity.object3D.visible = false;
-            faceSpheresEntity.object3D.visible = true;
+        case "image":
+            showGeometry = true;
+            materialColor = "white";
+            materialMap = imageTexture;
+            break;
+        case "wireframe":
+            showWireframe = true;
+            showGeometry = true;
+            materialColor = "green";
+            break;
+        case "canvas":
+            showGeometry = true;
+            showCanvas = true;
+            materialColor = "white";
+            materialMap = canvasTexture;
+            break;
+        case "spheres":
+            showFaceSpheres = true;
             break;
     }
+    geometryEntity.object3D.visible = showGeometry;
+    faceSpheresEntity.object3D.visible = showFaceSpheres;
+    if (showCanvas) {
+        canvas.removeAttribute("hidden");
+    } else {
+        canvas.setAttribute("hidden", "");
+    }
+    material.color.setColorName(materialColor);
+    material.map = materialMap;
+    material.wireframe = showWireframe;
+    material.needsUpdate = true;
+    console.log(materialMap);
 };
-setFaceMode("mesh mode");
 
-const sphereModeButton = document.getElementById("sphereMode");
-sphereModeButton.addEventListener("click", () => {
-    setFaceMode("spheres mode");
+/** @type {HTMLSelectElement} */
+const modeSelect = document.getElementById("mode");
+modeSelect.addEventListener("input", () => {
+    setFaceMode(modeSelect.value);
 });
-const meshModeButton = document.getElementById("meshMode");
-meshModeButton.addEventListener("click", () => {
-    setFaceMode("mesh mode");
-});
-const noModeButton = document.getElementById("noMode");
-noModeButton.addEventListener("click", () => {
-    setFaceMode("no mode");
+scene.addEventListener("loaded", () => {
+    setFaceMode(modeSelect.value);
 });
 
 ARSessionManager.addEventListener("faceAnchors", (event) => {
@@ -181,12 +260,15 @@ ARSessionManager.addEventListener("faceAnchors", (event) => {
         if (faceAnchor.geometry?.triangleIndices) {
             console.log("vertices", faceAnchor.geometry.vertices);
             vertices = new Float32Array(faceAnchor.geometry.vertices.flat());
+            textureCoordinates = new Float32Array(faceAnchor.geometry.textureCoordinates.flat());
             triangleIndices = faceAnchor.geometry.triangleIndices;
             geometry.setIndex(triangleIndices);
             console.log("set index", triangleIndices);
-            const bufferAttribute = new THREE.BufferAttribute(vertices, 3);
-            console.log("buffer attribute", bufferAttribute);
-            geometry.setAttribute("position", bufferAttribute);
+            const positionBufferAttribute = new THREE.BufferAttribute(vertices, 3);
+            const uvBufferAttribute = new THREE.BufferAttribute(textureCoordinates, 2);
+            console.log("position buffer attribute", positionBufferAttribute);
+            geometry.setAttribute("position", positionBufferAttribute);
+            geometry.setAttribute("uv", uvBufferAttribute);
             console.log("added vertices to geometry", vertices);
             geometry.computeVertexNormals();
             mesh = new THREE.Mesh(geometry, material);
@@ -196,23 +278,35 @@ ARSessionManager.addEventListener("faceAnchors", (event) => {
             window.triangleIndices = faceAnchor.geometry.triangleIndices;
             window.textureCoordinates = faceAnchor.geometry.textureCoordinates;
         } else {
-            if (faceMode == "mesh mode") {
+            if (["mesh", "image", "wireframe", "canvas"].includes(faceMode)) {
                 if (vertices) {
                     /** @type {BufferAttribute} */
                     const positionAttribute = geometry.getAttribute("position");
                     faceAnchor.geometry?.vertices.forEach((vertex, index) => {
                         positionAttribute.setXYZ(index, ...vertex);
                     });
+                    //geometry.computeVertexNormals();
                     positionAttribute.needsUpdate = true;
                 }
             }
         }
 
-        if (faceMode == "spheres mode") {
+        if (faceMode == "spheres") {
+            const numberOfVertices = faceAnchor.geometry?.vertices?.length;
             faceAnchor.geometry?.vertices.forEach((vertex, index) => {
                 if (!faceSpheres[index]) {
+                    const interpolation = index / (numberOfVertices - 1);
+                    var positive = Math.floor(interpolation * 255).toString(16);
+                    var negative = Math.floor((1 - interpolation) * 255).toString(16);
+                    if (positive.length == 1) {
+                        positive = `0${positive}`;
+                    }
+                    if (negative.length == 1) {
+                        negative = `0${negative}`;
+                    }
                     const faceSphere = document.createElement("a-sphere");
-                    faceSphere.setAttribute("color", "green");
+                    const color = `#ff${negative}${negative}`;
+                    faceSphere.setAttribute("color", color);
                     faceSphere.setAttribute("radius", "0.001");
                     faceSphere.setAttribute("position", vertex.join(" "));
                     faceSpheresEntity.appendChild(faceSphere);

@@ -36,9 +36,12 @@
             position: absolute;
             z-index: 1;
             bottom: 1rem;
-            background-color: hsla(0, 0%, 100%, 0.5);
+
             width: fit-content;
             height: fit-content;
+        }
+        .overlay > div > div:not(.transparent) {
+            background-color: hsla(0, 0%, 100%, 0.5);
         }
 
         #controlsOverlay {
@@ -49,6 +52,12 @@
             top: 1rem;
             left: 1rem;
         }
+        #canvas {
+            width: 200px;
+            height: 200px;
+            border: solid 1px black;
+            touch-action: none;
+        }
     </style>
     <body>
         <div id="navOverlay" class="overlay">
@@ -56,8 +65,12 @@
                 <small><a href="../../../">home</a></small>
             </div>
         </div>
+
         <div id="controlsOverlay" class="overlay">
             <div id="controls">
+                <div id="canvasContainer" class="transparent">
+                    <canvas id="canvas" width="1000" height="1000"></canvas>
+                </div>
                 <div>
                     <label>is supported? <input id="isSupported" type="checkbox" disabled /></label>
                     <label>
@@ -71,9 +84,18 @@
                     <button id="toggleShowCamera" disabled>show camera</button>
                 </div>
                 <div>
-                    <button id="sphereMode">spheres</button>
-                    <button id="meshMode">mesh</button>
-                    <button id="noMode">none</button>
+                    <label>
+                        mode
+                        <select id="mode">
+                            <option>none</option>
+                            <option>spheres</option>
+                            <option selected>mesh</option>
+                            <option>image</option>
+                            <option>wireframe</option>
+                            <option>canvas</option>
+                        </select>
+                    </label>
+                    <button id="clearCanvas">clear canvas</button>
                 </div>
             </div>
         </div>
