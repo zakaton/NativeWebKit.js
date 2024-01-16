@@ -116,8 +116,10 @@ window.faceSpheres = faceSpheres;
 /** @type {BufferGeometry} */
 const geometry = new THREE.BufferGeometry();
 /** @type {Float32Array?} */
-var vertices;
+var verticesFlatArray;
 /** @type {Float32Array?} */
+var textureCoordinatesFlatArray;
+/** @type {number[][]} */
 var textureCoordinates;
 /** @type {number[]} */
 var triangleIndices;
@@ -172,6 +174,33 @@ canvas.addEventListener("touchmove", (event) => {
     canvasTexture.needsUpdate = true;
 });
 
+/** @type {HTMLCanvasElement} */
+const faceMeshCanvas = document.getElementById("faceMeshCanvas");
+const faceMeshContext = faceMeshCanvas.getContext("2d");
+function drawFaceMeshCanvas() {
+    console.log("drawFaceMeshCanvas", triangleIndices, textureCoordinates);
+    faceMeshContext.clearRect(0, 0, faceMeshCanvas.width, faceMeshCanvas.height);
+    triangleIndices.forEach((vertexIndex, index) => {
+        const triangleIndex = index % 3;
+        const textureCoordinate = textureCoordinates[vertexIndex];
+
+        const x = textureCoordinate[0] * faceMeshCanvas.width;
+        const y = textureCoordinate[1] * faceMeshCanvas.height;
+
+        if (index < 10) {
+            console.log({ vertexIndex, index, triangleIndex, textureCoordinate, x, y });
+        }
+
+        if (triangleIndex == 0) {
+            faceMeshContext.beginPath();
+            faceMeshContext.moveTo(x, y);
+        } else {
+            faceMeshContext.lineTo(x, y);
+            faceMeshContext.stroke();
+        }
+    });
+}
+
 /** @type {Mesh} */
 var mesh;
 const geometryEntity = document.getElementById("geometry");
@@ -224,15 +253,14 @@ const setFaceMode = (newFaceMode) => {
     geometryEntity.object3D.visible = showGeometry;
     faceSpheresEntity.object3D.visible = showFaceSpheres;
     if (showCanvas) {
-        canvas.removeAttribute("hidden");
+        canvas.parentElement.style.display = "";
     } else {
-        canvas.setAttribute("hidden", "");
+        canvas.parentElement.style.display = "none";
     }
     material.color.setColorName(materialColor);
     material.map = materialMap;
     material.wireframe = showWireframe;
     material.needsUpdate = true;
-    console.log(materialMap);
 };
 
 /** @type {HTMLSelectElement} */
@@ -259,27 +287,27 @@ ARSessionManager.addEventListener("faceAnchors", (event) => {
 
         if (faceAnchor.geometry?.triangleIndices) {
             console.log("vertices", faceAnchor.geometry.vertices);
-            vertices = new Float32Array(faceAnchor.geometry.vertices.flat());
-            textureCoordinates = new Float32Array(faceAnchor.geometry.textureCoordinates.flat());
+            verticesFlatArray = new Float32Array(faceAnchor.geometry.vertices.flat());
+            textureCoordinates = faceAnchor.geometry.textureCoordinates;
+            textureCoordinatesFlatArray = new Float32Array(textureCoordinates.flat());
             triangleIndices = faceAnchor.geometry.triangleIndices;
             geometry.setIndex(triangleIndices);
             console.log("set index", triangleIndices);
-            const positionBufferAttribute = new THREE.BufferAttribute(vertices, 3);
-            const uvBufferAttribute = new THREE.BufferAttribute(textureCoordinates, 2);
+            const positionBufferAttribute = new THREE.BufferAttribute(verticesFlatArray, 3);
+            const uvBufferAttribute = new THREE.BufferAttribute(textureCoordinatesFlatArray, 2);
             console.log("position buffer attribute", positionBufferAttribute);
             geometry.setAttribute("position", positionBufferAttribute);
             geometry.setAttribute("uv", uvBufferAttribute);
-            console.log("added vertices to geometry", vertices);
+            console.log("added vertices to geometry", verticesFlatArray);
             geometry.computeVertexNormals();
             mesh = new THREE.Mesh(geometry, material);
             console.log("created mesh", mesh);
             geometryEntity.object3D.add(mesh);
 
-            window.triangleIndices = faceAnchor.geometry.triangleIndices;
-            window.textureCoordinates = faceAnchor.geometry.textureCoordinates;
+            drawFaceMeshCanvas();
         } else {
             if (["mesh", "image", "wireframe", "canvas"].includes(faceMode)) {
-                if (vertices) {
+                if (verticesFlatArray) {
                     /** @type {BufferAttribute} */
                     const positionAttribute = geometry.getAttribute("position");
                     faceAnchor.geometry?.vertices.forEach((vertex, index) => {

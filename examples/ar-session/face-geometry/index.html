@@ -52,11 +52,22 @@
             top: 1rem;
             left: 1rem;
         }
-        #canvas {
+        #canvasContainer {
+            position: relative;
+        }
+        canvas {
             width: 200px;
             height: 200px;
+        }
+        #canvas {
             border: solid 1px black;
+            box-sizing: border-box;
             touch-action: none;
+        }
+        #faceMeshCanvas {
+            z-index: -1;
+            position: absolute;
+            background-color: hsla(0, 0%, 100%, 0.3);
         }
     </style>
     <body>
@@ -70,6 +81,7 @@
             <div id="controls">
                 <div id="canvasContainer" class="transparent">
                     <canvas id="canvas" width="1000" height="1000"></canvas>
+                    <canvas id="faceMeshCanvas" width="1000" height="1000"></canvas>
                 </div>
                 <div>
                     <label>is supported? <input id="isSupported" type="checkbox" disabled /></label>
@@ -89,10 +101,10 @@
                         <select id="mode">
                             <option>none</option>
                             <option>spheres</option>
-                            <option selected>mesh</option>
+                            <option>mesh</option>
                             <option>image</option>
                             <option>wireframe</option>
-                            <option>canvas</option>
+                            <option selected>canvas</option>
                         </select>
                     </label>
                     <button id="clearCanvas">clear canvas</button>
