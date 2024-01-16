@@ -126,6 +126,7 @@ var triangleIndices;
 
 /** @type {Texture} */
 const imageTexture = new THREE.TextureLoader().load("/assets/images/image.jpg");
+imageTexture.encoding = THREE.sRGBEncoding;
 imageTexture.flipY = false;
 console.log("imageTexture", imageTexture);
 
@@ -142,6 +143,7 @@ context.fillStyle = "white";
 //context.fillRect(0, 0, canvas.width, canvas.height);
 context.lineWidth = 10;
 const canvasTexture = new THREE.CanvasTexture(canvas);
+canvasTexture.encoding = THREE.sRGBEncoding;
 canvasTexture.flipY = false;
 const clearCanvasButton = document.getElementById("clearCanvas");
 clearCanvasButton.addEventListener("click", () => {
@@ -187,10 +189,6 @@ function drawFaceMeshCanvas() {
         const x = textureCoordinate[0] * faceMeshCanvas.width;
         const y = textureCoordinate[1] * faceMeshCanvas.height;
 
-        if (index < 10) {
-            console.log({ vertexIndex, index, triangleIndex, textureCoordinate, x, y });
-        }
-
         if (triangleIndex == 0) {
             faceMeshContext.beginPath();
             faceMeshContext.moveTo(x, y);
@@ -201,11 +199,44 @@ function drawFaceMeshCanvas() {
     });
 }
 
+/** @type {Texture} */
+var userImageTexture;
+/** @type {HTMLInputElement} */
+const imageInput = document.getElementById("imageInput");
+imageInput.addEventListener("input", async (event) => {
+    const imageFile = imageInput.files[0];
+    if (!imageFile) {
+        console.log("no imageFile");
+        return;
+    }
+    console.log("imageFile", imageFile);
+    const imageUrl = URL.createObjectURL(imageFile);
+    console.log("image url", imageUrl);
+    userImageTexture = new THREE.TextureLoader().load(imageUrl);
+    userImageTexture.encoding = THREE.sRGBEncoding;
+    userImageTexture.flipY = false;
+    console.log("userImageTexture", userImageTexture);
+    if (faceMode == "userImage") {
+        material.map = userImageTexture;
+        material.needsUpdate = true;
+    }
+});
+const clearImageButton = document.getElementById("clearImage");
+clearImageButton.addEventListener("click", () => {
+    imageInput.value = "";
+    console.log("clear image");
+    if (faceMode == "userImage") {
+        console.log("removing map");
+        material.map = null;
+        material.needsUpdate = true;
+    }
+});
+
 /** @type {Mesh} */
 var mesh;
 const geometryEntity = document.getElementById("geometry");
 
-/** @typedef {"none" | "spheres" | "mesh" | "image" | "wireframe" | "canvas"} FaceMode */
+/** @typedef {"none" | "spheres" | "mesh" | "image" | "wireframe" | "canvas" | "userImage"} FaceMode */
 /** @type {FaceMode} */
 var faceMode;
 /** @param {FaceMode} newFaceMode  */
@@ -246,6 +277,11 @@ const setFaceMode = (newFaceMode) => {
             materialColor = "white";
             materialMap = canvasTexture;
             break;
+        case "userImage":
+            showGeometry = true;
+            materialColor = "white";
+            materialMap = userImageTexture;
+            break;
         case "spheres":
             showFaceSpheres = true;
             break;
@@ -257,7 +293,11 @@ const setFaceMode = (newFaceMode) => {
     } else {
         canvas.parentElement.style.display = "none";
     }
-    material.color.setColorName(materialColor);
+    if (materialColor) {
+        material.color.setColorName(materialColor);
+    } else {
+        material.color.setColorName("transparent");
+    }
     material.map = materialMap;
     material.wireframe = showWireframe;
     material.needsUpdate = true;
@@ -306,7 +346,7 @@ ARSessionManager.addEventListener("faceAnchors", (event) => {
 
             drawFaceMeshCanvas();
         } else {
-            if (["mesh", "image", "wireframe", "canvas"].includes(faceMode)) {
+            if (["mesh", "image", "wireframe", "canvas", "userImage"].includes(faceMode)) {
                 if (verticesFlatArray) {
                     /** @type {BufferAttribute} */
                     const positionAttribute = geometry.getAttribute("position");

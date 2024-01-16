@@ -102,12 +102,26 @@
                             <option>none</option>
                             <option>spheres</option>
                             <option>mesh</option>
-                            <option>image</option>
+                            <option selected>image</option>
                             <option>wireframe</option>
-                            <option selected>canvas</option>
+                            <option>canvas</option>
+                            <option value="userImage">user image</option>
                         </select>
                     </label>
                     <button id="clearCanvas">clear canvas</button>
+                </div>
+                <div>
+                    <label>
+                        image
+                        <input
+                            style="width: 150px"
+                            type="file"
+                            id="imageInput"
+                            name="image"
+                            accept="image/png, image/jpeg"
+                        />
+                    </label>
+                    <button id="clearImage">clear</button>
                 </div>
             </div>
         </div>
