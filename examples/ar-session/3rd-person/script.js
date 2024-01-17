@@ -4,11 +4,10 @@ window.ARSessionManager = ARSessionManager;
 console.log(ARSessionManager);
 
 ARSessionManager.checkWorldTrackingSupportOnLoad = true;
+ARSessionManager.checkFaceTrackingSupportOnLoad = true;
 ARSessionManager.checkIsRunningOnLoad = true;
 ARSessionManager.pauseOnUnload = true;
-ARSessionManager.checkDebugOptionsOnLoad = true;
 ARSessionManager.checkCameraModeOnLoad = true;
-ARSessionManager.checkShowCameraOnLoad = true;
 
 const scene = document.querySelector("a-scene");
 
@@ -17,7 +16,7 @@ const isSupportedCheckbox = document.getElementById("isSupported");
 isSupportedCheckbox.checked = ARSessionManager.isSupported;
 
 if (ARSessionManager.isSupported) {
-    ARSessionManager.setCameraMode("ar");
+    ARSessionManager.setShowCamera(false);
     ARSessionManager.setMessageConfiguration({ faceAnchorEyes: true });
 }
 
@@ -32,17 +31,49 @@ ARSessionManager.addEventListener("worldTrackingSupport", (event) => {
     isWorldTrackingSupportedWithFaceTrackingCheckbox.checked =
         worldTrackingSupport.isSupported && worldTrackingSupport.supportsUserFaceTracking;
 });
+/** @type {HTMLInputElement} */
+const isFaceTrackingSupportedWithWorldTrackingCheckbox = document.getElementById(
+    "isFaceTrackingSupportedWithWorldTracking"
+);
+ARSessionManager.addEventListener("faceTrackingSupport", (event) => {
+    /** @type {import("../../../src/ARSessionManager.js").ARSFaceTrackingSupport} */
+    const faceTrackingSupport = event.message.faceTrackingSupport;
+    console.log("faceTrackingSupper", faceTrackingSupport);
+    isFaceTrackingSupportedWithWorldTrackingCheckbox.checked =
+        faceTrackingSupport.isSupported && faceTrackingSupport.supportsWorldTracking;
+});
+
+/** @type {HTMLSelectElement} */
+const configurationTypeSelect = document.getElementById("configurationType");
+configurationTypeSelect.addEventListener("input", () => {
+    if (ARSessionManager.isRunning) {
+        runARSession();
+    }
+});
+ARSessionManager.addEventListener("configuration", () => {
+    configurationTypeSelect.value = ARSessionManager.configuration.type;
+});
 
 /** @typedef {import("../../../src/ARSessionManager.js").ARSConfigurationType} ARSConfigurationType */
 /** @typedef {import("../../../src/ARSessionManager.js").ARSConfiguration} ARSConfiguration */
+/** @typedef {import("../../../src/ARSessionManager.js").ARSWorldTrackingConfiguration} ARSWorldTrackingConfiguration */
+/** @typedef {import("../../../src/ARSessionManager.js").ARSFaceTrackingConfiguration} ARSFaceTrackingConfiguration */
 
-/** @type {import("../../../src/ARSessionManager.js").ARSWorldTrackingConfiguration} */
-var configuration = { type: "worldTracking", userFaceTrackingEnabled: true };
+/** @type {ARSFaceTrackingConfiguration} */
+var faceTrackingConfiguration = { type: "faceTracking", isWorldTrackingEnabled: true };
+/** @type {ARSWorldTrackingConfiguration} */
+var worldTrackingConfiguration = { type: "worldTracking", userFaceTrackingEnabled: true };
+
+function runARSession() {
+    const configuration =
+        configurationTypeSelect.value == "faceTracking" ? faceTrackingConfiguration : worldTrackingConfiguration;
+    ARSessionManager.run(configuration);
+}
 
 /** @type {HTMLButtonElement} */
 const runButton = document.getElementById("run");
 runButton.addEventListener("click", () => {
-    ARSessionManager.run(configuration);
+    runARSession();
 });
 runButton.disabled = !ARSessionManager.isSupported;
 
@@ -62,76 +93,20 @@ ARSessionManager.addEventListener("isRunning", (event) => {
     pauseButton.disabled = !isRunning;
 });
 
-/** @typedef {import("../../../src/ARSessionManager.js").ARSDebugOptions} ARSDebugOptions */
-var isDebugEnabled = false;
-/** @type {HTMLButtonElement} */
-const toggleDebugButton = document.getElementById("toggleDebug");
-toggleDebugButton.addEventListener("click", () => {
-    const newIsDebugEnabled = !isDebugEnabled;
-    ARSessionManager.setDebugOptions({
-        showAnchorOrigins: newIsDebugEnabled,
-    });
-});
-toggleDebugButton.disabled = !ARSessionManager.isSupported;
+const virtualCameraEntity = document.getElementById("virtualCamera");
+const faceEntity = document.getElementById("face");
 
-ARSessionManager.addEventListener("debugOptions", (event) => {
-    /** @type {ARSDebugOptions} */
-    const debugOptions = event.message.debugOptions;
-    console.log("debugOptions", debugOptions);
-    isDebugEnabled = debugOptions.showAnchorOrigins;
-    toggleDebugButton.innerText = isDebugEnabled ? "hide debug" : "show debug";
-});
-
-/** @type {HTMLButtonElement} */
-const toggleShowCameraButton = document.getElementById("toggleShowCamera");
-toggleShowCameraButton.addEventListener("click", () => {
-    ARSessionManager.setShowCamera(!ARSessionManager.showCamera);
-});
-toggleShowCameraButton.disabled = !ARSessionManager.isSupported;
-
-const sky = document.querySelector("a-sky");
-ARSessionManager.addEventListener("showCamera", (event) => {
-    /** @type {boolean} */
-    const showCamera = event.message.showCamera;
-    console.log("showCamera", showCamera);
-    const newVisible = !showCamera;
-    if (newVisible != sky.object3D.visible) {
-        sky.object3D.visible = newVisible;
-    }
-});
-
-/** @typedef {import("../../src/three/three.module.min.js").Vector2} Vector2 */
-/** @typedef {import("../../src/three/three.module.min.js").Vector3} Vector3 */
-/** @typedef {import("../../src/three/three.module.min.js").Quaternion} Quaternion */
-/** @typedef {import("../../src/three/three.module.min.js").Euler} Euler */
-/** @typedef {import("../../src/three/three.module.min.js").Matrix4} Matrix4 */
-
-const aframeCamera = document.getElementById("camera");
-var threeCamera;
-aframeCamera.addEventListener("loaded", () => {
-    threeCamera = aframeCamera?.components?.camera?.camera;
-    console.log("threeCamera", threeCamera);
-});
 var latestFocalLength;
 ARSessionManager.addEventListener("camera", (event) => {
     /** @type {import("../../../src/ARSessionManager.js").ARSCamera} */
     const camera = event.message.camera;
 
-    aframeCamera.object3D.position.set(...camera.position);
+    virtualCameraEntity.object3D.position.set(...camera.position);
+    virtualCameraEntity.object3D.quaternion.set(...camera.quaternion);
 
-    if (ARSessionManager.cameraMode == "ar") {
-        const quaternion = new THREE.Quaternion(...camera.quaternion);
-        aframeCamera.object3D.quaternion.copy(quaternion);
-    } else {
-        /** @type {Euler} */
-        const euler = new THREE.Euler(...camera.eulerAngles);
-        euler.z += Math.PI / 2;
-        aframeCamera.object3D.rotation.copy(euler);
-    }
-
-    if (threeCamera) {
+    if (virtualCameraEntity.object3D) {
         if (latestFocalLength != camera.focalLength) {
-            threeCamera.setFocalLength(camera.focalLength * 1.13);
+            // FILL - set angle of cone to match focal length?
             latestFocalLength = camera.focalLength;
         }
     }
@@ -139,15 +114,13 @@ ARSessionManager.addEventListener("camera", (event) => {
     scene.renderer.toneMappingExposure = camera.exposureOffset;
 });
 
-const faceEntity = document.getElementById("face");
+const leftEyeEntity = document.getElementById("leftEye");
+const rightEyeEntity = document.getElementById("rightEye");
 const lookAtPointEntity = document.getElementById("lookAtPoint");
-const lookAtPointSpan = document.getElementById("lookAtPointSpan");
-const facePositionSpan = document.getElementById("facePositionSpan");
-const faceRotationSpan = document.getElementById("faceRotationSpan");
-const cameraPositionSpan = document.getElementById("cameraPositionSpan");
-const cameraRotationSpan = document.getElementById("cameraRotationSpan");
-var eyeBlinkThreshold = 0.5;
+const eyeBlinkThreshold = 0.5;
 
+/** @typedef {import("../../src/three/three.module.min.js").Vector3} Vector3 */
+/** @typedef {import("../../src/three/three.module.min.js").Quaternion} Quaternion */
 /** @typedef {import("../../../src/ARSessionManager.js").ARSFaceAnchor} ARSFaceAnchor */
 ARSessionManager.addEventListener("faceAnchors", (event) => {
     /** @type {ARSFaceAnchor[]} */
@@ -162,29 +135,36 @@ ARSessionManager.addEventListener("faceAnchors", (event) => {
         faceEntity.object3D.position.lerp(newPosition, 0.5);
         faceEntity.object3D.quaternion.slerp(newQuaternion, 0.5);
 
-        faceBox.object3D.quaternion.slerp(newQuaternion, 0.5);
-
         const isLeftEyeClosed = faceAnchor.blendShapes.eyeBlinkLeft > eyeBlinkThreshold;
         const isRightEyeClosed = faceAnchor.blendShapes.eyeBlinkRight > eyeBlinkThreshold;
 
         /** @type {Vector3} */
-        const lookAtPoint = new THREE.Vector3(...faceAnchor.lookAtPoint);
-        lookAtPoint.x *= -1;
+        const newLeftEyePosition = new THREE.Vector3(...faceAnchor.leftEye.position);
+        /** @type {Quaternion} */
+        const newLeftEyeQuaternion = new THREE.Quaternion(...faceAnchor.leftEye.quaternion);
+        leftEyeEntity.object3D.position.lerp(newLeftEyePosition, 0.5);
+        leftEyeEntity.object3D.quaternion.slerp(newLeftEyeQuaternion, 0.5);
 
-        const newLookAtPointEntityPosition = lookAtPoint.clone();
+        /** @type {Vector3} */
+        const newRightEyePosition = new THREE.Vector3(...faceAnchor.rightEye.position);
+        /** @type {Quaternion} */
+        const newRightEyeQuaternion = new THREE.Quaternion(...faceAnchor.rightEye.quaternion);
+        rightEyeEntity.object3D.position.lerp(newRightEyePosition, 0.5);
+        rightEyeEntity.object3D.quaternion.slerp(newRightEyeQuaternion, 0.5);
+
+        /** @type {Vector3} */
+        const newLookAtPointEntityPosition = new THREE.Vector3(...faceAnchor.lookAtPoint);
         lookAtPointEntity.object3D.position.lerp(newLookAtPointEntityPosition, 0.5);
 
-        cameraPositionSpan.innerText = aframeCamera.object3D.position.toArray().map((v) => v.toFixed(4));
-        cameraRotationSpan.innerText = aframeCamera.object3D.rotation
-            .toArray()
-            .slice(0, 3)
-            .map((v) => v.toFixed(4));
-        facePositionSpan.innerText = faceEntity.object3D.position.toArray().map((v) => v.toFixed(4));
-        faceRotationSpan.innerText = faceEntity.object3D.rotation
-            .toArray()
-            .slice(0, 3)
-            .map((v) => v.toFixed(4));
-        lookAtPointSpan.innerText = lookAtPoint.toArray().map((v) => v.toFixed(4));
+        const showLeftEye = !isLeftEyeClosed;
+        if (leftEyeEntity.object3D.visible != showLeftEye) {
+            leftEyeEntity.object3D.visible = showLeftEye;
+        }
+
+        const showRightEye = !isRightEyeClosed;
+        if (rightEyeEntity.object3D.visible != showRightEye) {
+            rightEyeEntity.object3D.visible = showRightEye;
+        }
     }
 });
 

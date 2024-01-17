@@ -167,7 +167,7 @@ ARSessionManager.addEventListener("camera", (event) => {
     const threeCamera = aframeCamera?.components?.camera?.camera;
     if (threeCamera) {
         if (latestFocalLength != camera.focalLength) {
-            threeCamera.setFocalLength(camera.focalLength * 1.14);
+            threeCamera.setFocalLength(camera.focalLength * 1.13);
             latestFocalLength = camera.focalLength;
         }
     }

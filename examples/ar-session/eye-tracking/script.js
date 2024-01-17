@@ -19,6 +19,7 @@ isSupportedCheckbox.checked = ARSessionManager.isSupported;
 if (ARSessionManager.isSupported) {
     ARSessionManager.setCameraMode("ar");
     //ARSessionManager.setDebugOptions({ showAnchorOrigins: true });
+    ARSessionManager.setMessageConfiguration({ faceAnchorEyes: true });
 }
 
 /** @type {HTMLInputElement} */

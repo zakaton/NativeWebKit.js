@@ -1,0 +1,191 @@
+<html>
+    <head>
+        <title>3rd Person | AR Session | NativeWebKit.js</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <link rel="shortcut icon" type="image/x-icon" href="favicon.ico" />
+        <script src="../../src/aframe/aframe-v1.5.0.min.js"></script>
+
+        <!-- required to get aframe-orbit-controls-component to work -->
+        <script>
+            THREE.Quaternion.prototype.inverse = THREE.Quaternion.prototype.invert;
+            THREE.Math = THREE.MathUtils;
+        </script>
+        <!-- https://github.com/tizzle/aframe-orbit-controls-component -->
+        <script src="../../src/aframe/aframe-orbit-controls-component.min.js"></script>
+
+        <script type="module" src="./script.js"></script>
+    </head>
+    <style>
+        body {
+            margin: 0;
+        }
+        a-scene {
+            width: 100%;
+            height: 100%;
+        }
+
+        #controls {
+            margin: auto;
+            width: fit-content;
+            display: flex;
+            flex-direction: column;
+        }
+        #controls > div {
+            display: flex;
+            flex-direction: row;
+            gap: 0.5rem;
+            justify-content: right;
+        }
+
+        label {
+            display: block;
+        }
+
+        .overlay {
+            position: absolute;
+            z-index: 1;
+            bottom: 1rem;
+            background-color: hsla(0, 0%, 100%, 0.5);
+            width: fit-content;
+            height: fit-content;
+        }
+
+        #controlsOverlay {
+            bottom: 1rem;
+            width: 100%;
+        }
+        #navOverlay {
+            top: 1rem;
+            left: 1rem;
+        }
+    </style>
+    <body>
+        <div id="navOverlay" class="overlay">
+            <div>
+                <small><a href="../../../">home</a></small>
+            </div>
+        </div>
+
+        <div id="controlsOverlay" class="overlay">
+            <div id="controls">
+                <div>
+                    <label>is supported? <input id="isSupported" type="checkbox" disabled /></label>
+                    <label>
+                        world w/face?
+                        <input id="isWorldTrackingSupportedWithFaceTracking" type="checkbox" disabled />
+                    </label>
+                    <label>
+                        face w/world?
+                        <input id="isFaceTrackingSupportedWithWorldTracking" type="checkbox" disabled />
+                    </label>
+                </div>
+                <div>
+                    <button id="run" disabled>run</button>
+                    <button id="pause" disabled>pause</button>
+                    <select id="configurationType">
+                        <optgroup label="configuration type">
+                            <option value="faceTracking">face</option>
+                            <option value="worldTracking">world</option>
+                        </optgroup>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <a-scene
+            embedded
+            xr-mode-ui="enabled: false;"
+            device-orientation-permission-ui="enabled: false"
+            renderer="physicallyCorrectLights: true; toneMapping: reinhard;"
+        >
+            <a-assets>
+                <a-asset-item id="headAsset" src="../../../assets/3d/monkey.gltf"></a-asset-item>
+                <canvas id="floorTexture"></canvas>
+            </a-assets>
+
+            <a-camera
+                id="camera"
+                position="0 1 1"
+                orbit-controls="
+            enableZoom: true;
+            autoRotate: false;
+            target: #virtualCamera;
+            enableDamping: true;
+            dampingFactor: 0.125;
+            rotateSpeed:0.25;
+            minDistance:0.1;
+            maxDistance:100;
+        "
+            ></a-camera>
+
+            <a-entity id="target"></a-entity>
+
+            <a-entity id="virtualCamera">
+                <a-cone color="blue" rotation="90 180 0" height="0.1" radius-bottom="0.05"></a-cone>
+            </a-entity>
+
+            <a-entity id="face" position="0 0 0.5">
+                <a-cone color="green" position="0 0 0.02" rotation="90 0 0" height="0.05" radius-bottom="0.05"></a-cone>
+
+                <a-entity id="lookAtPoint">
+                    <a-cone
+                        color="red"
+                        position="0 0 0.2"
+                        rotation="90 0 0"
+                        height="0.05"
+                        radius-bottom="0.02"
+                    ></a-cone>
+                </a-entity>
+
+                <a-entity id="leftEye" position="-0.03 0.04 00.02">
+                    <a-sphere radius="0.01" color="white">
+                        <a-sphere radius="0.005" color="black" position="0 0 0.01"></a-sphere>
+                    </a-sphere>
+                </a-entity>
+                <a-entity id="rightEye" position="0.03 0.04 0.02">
+                    <a-sphere radius="0.01" color="white">
+                        <a-sphere radius="0.005" color="black" position="0 0 0.01"></a-sphere>
+                    </a-sphere>
+                </a-entity>
+            </a-entity>
+
+            <a-entity id="ambientLight" light="color: #BBB; type: ambient"></a-entity>
+            <a-entity
+                id="directionalLight"
+                light="color: #FFF; intensity: 0.3; castShadow: true"
+                position="-0.5 1 1"
+            ></a-entity>
+
+            <a-plane
+                id="floor"
+                shadow="cast: false; receive: true;"
+                material="src: #floorTexture; repeat: 10 10;"
+                position="0 -0.5 0"
+                rotation="-90 0 0"
+                width="3"
+                height="3"
+            ></a-plane>
+            <a-sky color="#ECECEC"></a-sky>
+        </a-scene>
+    </body>
+    <script>
+        {
+            const canvas = document.getElementById("floorTexture");
+            const context = canvas.getContext("2d");
+
+            const checkeredColors = ["white", "grey"];
+
+            const { width, height } = canvas;
+            const cellWidth = width / 2;
+            const cellHeight = height / 2;
+
+            context.clearRect(0, 0, width, height);
+
+            checkeredColors.forEach((color, index) => {
+                context.fillStyle = checkeredColors[index];
+                context.fillRect(index * cellWidth, 0, cellWidth, cellHeight);
+                context.fillRect(((index + 1) * cellWidth) % width, cellHeight, cellWidth, cellHeight);
+            });
+        }
+    </script>
+</html>

@@ -1775,7 +1775,11 @@
 
 	    /** @param {ARSFaceAnchor[]} faceAnchors */
 	    #onFaceAnchors(faceAnchors) {
+	        const oldFactorAnchors = this.#faceAnchors;
 	        this.#faceAnchors = faceAnchors;
+	        oldFactorAnchors?.forEach((oldFaceAnchor) => {
+	            faceAnchors.find((faceAnchor) => faceAnchor.identifier == oldFaceAnchor.identifier);
+	        });
 	        _console.log("received faceAnchors", this.faceAnchors);
 	        this.dispatchEvent({ type: "faceAnchors", message: { faceAnchors: this.faceAnchors } });
 	        faceAnchors.forEach((faceAnchor) => {
@@ -1851,11 +1855,6 @@
 	    #cameraMode = null;
 	    get cameraMode() {
 	        return this.#cameraMode;
-	    }
-
-	    /** @param {ARSCameraMode} cameraMode */
-	    #setCameraModeMessage(cameraMode) {
-	        return this._formatMessage({ type: "cameraMode", cameraMode });
 	    }
 
 	    /**
