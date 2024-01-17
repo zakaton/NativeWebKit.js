@@ -1248,11 +1248,11 @@
 	 * @typedef ARSFaceAnchor
 	 * @type {object}
 	 * @property {string} identifier
-	 * @property {number[]} lookAtPoint
+	 * @property {number[]?} lookAtPoint
 	 * @property {number[]} position
 	 * @property {number[]} quaternion
-	 * @property {ARSFaceAnchorEye} leftEye
-	 * @property {ARSFaceAnchorEye} rightEye
+	 * @property {ARSFaceAnchorEye?} leftEye
+	 * @property {ARSFaceAnchorEye?} rightEye
 	 * @property {ARSFaceAnchorBlendShapes?} blendShapes
 	 * @property {ARSFaceAnchorGeometry?} geometry
 	 */
@@ -1280,6 +1280,7 @@
 	 * @type {object}
 	 * @property {boolean} faceAnchorBlendshapes
 	 * @property {boolean} faceAnchorGeometry
+	 * @property {boolean} faceAnchorEyes
 	 */
 
 	/** @typedef {"none" | "showAnchorGeometry" | "showAnchorOrigins" | "showFeaturePoints" | "showPhysics" | "showSceneUnderstanding" | "showStatistics" | "showWorldOrigin"} ARSDebugOption */
@@ -1508,8 +1509,8 @@
 
 	    /** @type {ARSWorldTrackingSupport} */
 	    #worldTrackingSupport = {
-	        isSupported: false,
-	        supportsUserFaceTracking: false,
+	        isSupported: null,
+	        supportsUserFaceTracking: null,
 	    };
 	    get worldTrackingSupport() {
 	        return this.#worldTrackingSupport;
@@ -1543,8 +1544,8 @@
 
 	    /** @type {ARSFaceTrackingSupport} */
 	    #faceTrackingSupport = {
-	        isSupported: false,
-	        supportsWorldTracking: false,
+	        isSupported: null,
+	        supportsWorldTracking: null,
 	    };
 	    get faceTrackingSupport() {
 	        return this.#faceTrackingSupport;
@@ -1643,6 +1644,10 @@
 	                /** @type {ARSWorldTrackingConfiguration} */
 	                const worldTrackingConfiguration = configuration;
 	                _console.assertWithError(
+	                    this.worldTrackingSupport.isSupported != null,
+	                    "check for world tracking support before running an AR session"
+	                );
+	                _console.assertWithError(
 	                    this.worldTrackingSupport.isSupported,
 	                    "your device doesn't support world tracking"
 	                );
@@ -1662,6 +1667,10 @@
 	                );
 	                /** @type {ARSFaceTrackingConfiguration} */
 	                const faceTrackingConfiguration = configuration;
+	                _console.assertWithError(
+	                    this.#faceTrackingSupport.isSupported != null,
+	                    "check for face tracking support before running an AR session"
+	                );
 	                _console.assertWithError(
 	                    this.faceTrackingSupport.isSupported,
 	                    "your device doesn't support face tracking"
@@ -1775,11 +1784,7 @@
 
 	    /** @param {ARSFaceAnchor[]} faceAnchors */
 	    #onFaceAnchors(faceAnchors) {
-	        const oldFactorAnchors = this.#faceAnchors;
 	        this.#faceAnchors = faceAnchors;
-	        oldFactorAnchors?.forEach((oldFaceAnchor) => {
-	            faceAnchors.find((faceAnchor) => faceAnchor.identifier == oldFaceAnchor.identifier);
-	        });
 	        _console.log("received faceAnchors", this.faceAnchors);
 	        this.dispatchEvent({ type: "faceAnchors", message: { faceAnchors: this.faceAnchors } });
 	        faceAnchors.forEach((faceAnchor) => {
@@ -1942,6 +1947,7 @@
 	    #messageConfiguration = {
 	        faceAnchorBlendshapes: false,
 	        faceAnchorGeometry: false,
+	        faceAnchorEyes: false,
 	    };
 	    get messageConfiguration() {
 	        return this.#messageConfiguration;

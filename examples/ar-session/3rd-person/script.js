@@ -43,13 +43,19 @@ ARSessionManager.addEventListener("faceTrackingSupport", (event) => {
         faceTrackingSupport.isSupported && faceTrackingSupport.supportsWorldTracking;
 });
 
+/** @type {"faceTracking" | "worldTracking"} */
+var configurationType;
+
 /** @type {HTMLSelectElement} */
 const configurationTypeSelect = document.getElementById("configurationType");
 configurationTypeSelect.addEventListener("input", () => {
+    configurationType = configurationTypeSelect.value;
+    console.log("configurationType", configurationType);
     if (ARSessionManager.isRunning) {
         runARSession();
     }
 });
+configurationType = configurationTypeSelect.value;
 ARSessionManager.addEventListener("configuration", () => {
     configurationTypeSelect.value = ARSessionManager.configuration.type;
 });
@@ -65,8 +71,7 @@ var faceTrackingConfiguration = { type: "faceTracking", isWorldTrackingEnabled: 
 var worldTrackingConfiguration = { type: "worldTracking", userFaceTrackingEnabled: true };
 
 function runARSession() {
-    const configuration =
-        configurationTypeSelect.value == "faceTracking" ? faceTrackingConfiguration : worldTrackingConfiguration;
+    const configuration = configurationType == "faceTracking" ? faceTrackingConfiguration : worldTrackingConfiguration;
     ARSessionManager.run(configuration);
 }
 
@@ -120,7 +125,16 @@ const lookAtPointEntity = document.getElementById("lookAtPoint");
 const eyeBlinkThreshold = 0.5;
 
 /** @typedef {import("../../src/three/three.module.min.js").Vector3} Vector3 */
+/** @typedef {import("../../src/three/three.module.min.js").Euler} Euler */
 /** @typedef {import("../../src/three/three.module.min.js").Quaternion} Quaternion */
+
+/** @type {Euler} */
+const rotateYaw180DegreesEuler = new THREE.Euler();
+rotateYaw180DegreesEuler.y = Math.PI;
+/** @type {Quaternion} */
+const rotate180DegreesQuaternion = new THREE.Quaternion();
+rotate180DegreesQuaternion.setFromEuler(rotateYaw180DegreesEuler);
+
 /** @typedef {import("../../../src/ARSessionManager.js").ARSFaceAnchor} ARSFaceAnchor */
 ARSessionManager.addEventListener("faceAnchors", (event) => {
     /** @type {ARSFaceAnchor[]} */
@@ -128,12 +142,18 @@ ARSessionManager.addEventListener("faceAnchors", (event) => {
     const faceAnchor = faceAnchors[0];
     if (faceAnchor) {
         /** @type {Vector3} */
-        const newPosition = new THREE.Vector3(...faceAnchor.position);
+        const newFacePosition = new THREE.Vector3(...faceAnchor.position);
         /** @type {Quaternion} */
-        const newQuaternion = new THREE.Quaternion(...faceAnchor.quaternion);
+        const newFaceQuaternion = new THREE.Quaternion(...faceAnchor.quaternion);
 
-        faceEntity.object3D.position.lerp(newPosition, 0.5);
-        faceEntity.object3D.quaternion.slerp(newQuaternion, 0.5);
+        if (shouldCorrectData) {
+            if (configurationType == "worldTracking") {
+                newFaceQuaternion.multiply(rotate180DegreesQuaternion);
+            }
+        }
+
+        faceEntity.object3D.position.lerp(newFacePosition, 0.5);
+        faceEntity.object3D.quaternion.slerp(newFaceQuaternion, 0.5);
 
         const isLeftEyeClosed = faceAnchor.blendShapes.eyeBlinkLeft > eyeBlinkThreshold;
         const isRightEyeClosed = faceAnchor.blendShapes.eyeBlinkRight > eyeBlinkThreshold;
@@ -142,6 +162,9 @@ ARSessionManager.addEventListener("faceAnchors", (event) => {
         const newLeftEyePosition = new THREE.Vector3(...faceAnchor.leftEye.position);
         /** @type {Quaternion} */
         const newLeftEyeQuaternion = new THREE.Quaternion(...faceAnchor.leftEye.quaternion);
+        if (shouldCorrectData) {
+        } else {
+        }
         leftEyeEntity.object3D.position.lerp(newLeftEyePosition, 0.5);
         leftEyeEntity.object3D.quaternion.slerp(newLeftEyeQuaternion, 0.5);
 
@@ -154,7 +177,15 @@ ARSessionManager.addEventListener("faceAnchors", (event) => {
 
         /** @type {Vector3} */
         const newLookAtPointEntityPosition = new THREE.Vector3(...faceAnchor.lookAtPoint);
+        if (shouldCorrectData) {
+            if (configurationType == "worldTracking") {
+                newLookAtPointEntityPosition.z *= -1;
+            } else {
+                // FILL?
+            }
+        }
         lookAtPointEntity.object3D.position.lerp(newLookAtPointEntityPosition, 0.5);
+        lookAtPointEntity.object3D.lookAt(faceEntity.object3D.position);
 
         const showLeftEye = !isLeftEyeClosed;
         if (leftEyeEntity.object3D.visible != showLeftEye) {
@@ -172,6 +203,7 @@ ARSessionManager.addEventListener("faceAnchors", (event) => {
 
 const ambientLight = document.getElementById("ambientLight");
 const directionalLight = document.getElementById("directionalLight");
+const virtualPrimaryLightEntity = document.getElementById("virtualPrimaryLight");
 
 ARSessionManager.addEventListener("lightEstimate", (event) => {
     /** @type {ARSLightEstimate} */
@@ -182,6 +214,43 @@ ARSessionManager.addEventListener("lightEstimate", (event) => {
     directionalLight.components.light.light.color.setRGB(...lightColor);
     if (lightEstimate.primaryLightDirection) {
         directionalLight.components.light.light.intensity = lightEstimate.primaryLightIntensity / 1000;
-        directionalLight.object3D.position.set(...lightEstimate.primaryLightDirection.map((v) => -v));
+        const primaryLightDirection = new THREE.Vector3(...lightEstimate.primaryLightDirection.map((v) => -v));
+        directionalLight.object3D.position.copy(primaryLightDirection);
+
+        /** @type {Vector3} */
+        const virtualPrimaryLightPosition = new THREE.Vector3();
+        virtualPrimaryLightPosition.copy(faceEntity.object3D.position);
+        virtualPrimaryLightPosition.addScaledVector(primaryLightDirection, 0.5);
+        virtualPrimaryLightEntity.object3D.position.copy(virtualPrimaryLightPosition);
+        virtualPrimaryLightEntity.object3D.lookAt(faceEntity.object3D.position);
     }
+    if (virtualPrimaryLightEntity.object3D.visible != Boolean(lightEstimate.primaryLightDirection)) {
+        virtualPrimaryLightEntity.object3D.visible = Boolean(lightEstimate.primaryLightDirection);
+    }
+});
+
+var shouldCorrectData = false;
+/** @type {HTMLButtonElement} */
+const toggleDataCorrectionButton = document.getElementById("toggleDataCorrection");
+toggleDataCorrectionButton.addEventListener("click", () => {
+    shouldCorrectData = !shouldCorrectData;
+    console.log("shouldCorrectData", shouldCorrectData);
+    toggleDataCorrectionButton.innerText = shouldCorrectData ? "disable correction" : "enable correction";
+});
+
+var isMirrorModeEnabled = false;
+/** @type {HTMLButtonElement} */
+const toggleMirrorModeButton = document.getElementById("toggleMirrorMode");
+toggleMirrorModeButton.addEventListener("click", () => {
+    isMirrorModeEnabled = !isMirrorModeEnabled;
+    console.log("isMirrorModeEnabled", isMirrorModeEnabled);
+    toggleMirrorModeButton.innerText = isMirrorModeEnabled ? "disable mirror mode" : "enable mirror mode";
+});
+ARSessionManager.addEventListener("configuration", () => {
+    if (configurationType == "faceTracking") {
+        toggleMirrorModeButton.removeAttribute("hidden");
+    } else {
+        toggleMirrorModeButton.setAttribute("hidden", "");
+    }
+    configurationTypeSelect.value = ARSessionManager.configuration.type;
 });
