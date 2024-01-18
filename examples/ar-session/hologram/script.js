@@ -3,6 +3,31 @@ import { ARSessionManager, utils } from "../../../src/NativeWebKit.js";
 window.ARSessionManager = ARSessionManager;
 console.log(ARSessionManager);
 
+/** @typedef {import("../../src/three/three.module.min.js").Vector3} Vector3 */
+/** @typedef {import("../../src/three/three.module.min.js").Euler} Euler */
+/** @typedef {import("../../src/three/three.module.min.js").Quaternion} Quaternion */
+
+/** @type {Euler} */
+const rotateYaw180DegreesEuler = new THREE.Euler();
+rotateYaw180DegreesEuler.y = Math.PI;
+/** @type {Quaternion} */
+const rotate180DegreesQuaternion = new THREE.Quaternion();
+rotate180DegreesQuaternion.setFromEuler(rotateYaw180DegreesEuler);
+
+/** @type {Euler} */
+const mirrorEuler = new THREE.Euler(0, 0, 0, "YZX");
+/**
+ * @param {Quaternion} quaternion
+ * @param  {...string} axes
+ */
+const mirrorQuaternionAboutAxes = (quaternion, ...axes) => {
+    mirrorEuler.setFromQuaternion(quaternion);
+    axes.forEach((axis) => {
+        mirrorEuler[axis] *= -1;
+    });
+    quaternion.setFromEuler(mirrorEuler);
+};
+
 ARSessionManager.checkWorldTrackingSupportOnLoad = true;
 ARSessionManager.checkFaceTrackingSupportOnLoad = true;
 ARSessionManager.checkIsRunningOnLoad = true;
@@ -10,6 +35,7 @@ ARSessionManager.pauseOnUnload = true;
 ARSessionManager.checkShowCameraOnLoad = true;
 
 const scene = document.querySelector("a-scene");
+const sceneContainerEntity = document.getElementById("sceneContainer");
 
 /** @type {HTMLInputElement} */
 const isSupportedCheckbox = document.getElementById("isSupported");
@@ -57,7 +83,9 @@ configurationTypeSelect.addEventListener("input", () => {
 });
 configurationType = configurationTypeSelect.value;
 ARSessionManager.addEventListener("configuration", () => {
-    configurationTypeSelect.value = ARSessionManager.configuration.type;
+    configurationTypeSelect.value = configurationType = ARSessionManager.configuration.type;
+    console.log({ configurationType });
+    sceneContainerEntity.object3D.rotation.y = configurationType == "faceTracking" ? Math.PI : 0;
 });
 
 /** @typedef {import("../../../src/ARSessionManager.js").ARSConfigurationType} ARSConfigurationType */
@@ -98,14 +126,30 @@ ARSessionManager.addEventListener("isRunning", (event) => {
     pauseButton.disabled = !isRunning;
 });
 
+/** @type {Vector3} */
+const cameraPosition = new THREE.Vector3();
+/** @type {Quaternion} */
+const cameraQuaternion = new THREE.Quaternion();
+
 const aframeCamera = document.getElementById("camera");
 var latestFocalLength;
 ARSessionManager.addEventListener("camera", (event) => {
     /** @type {import("../../../src/ARSessionManager.js").ARSCamera} */
     const camera = event.message.camera;
 
-    aframeCamera.object3D.position.set(...camera.position);
-    aframeCamera.object3D.quaternion.set(...camera.quaternion);
+    cameraPosition.set(...camera.position);
+    cameraQuaternion.set(...camera.quaternion);
+
+    if (configurationType == "faceTracking") {
+        cameraPosition.x *= -1;
+        mirrorQuaternionAboutAxes(cameraQuaternion, "z", "y");
+        cameraQuaternion.multiply(rotate180DegreesQuaternion);
+    }
+
+    if (!isHologramEnabled) {
+        aframeCamera.object3D.position.lerp(cameraPosition, 0.5);
+        aframeCamera.object3D.quaternion.slerp(cameraQuaternion, 0.5);
+    }
 
     const threeCamera = aframeCamera?.components?.camera?.camera;
     if (threeCamera) {
@@ -118,8 +162,28 @@ ARSessionManager.addEventListener("camera", (event) => {
     scene.renderer.toneMappingExposure = camera.exposureOffset;
 });
 
-const eyeBlinkThreshold = 0.5;
 const faceEntity = document.getElementById("face");
+const leftEyeEntity = document.getElementById("leftEye");
+const rightEyeEntity = document.getElementById("rightEye");
+const lookAtPointEntity = document.getElementById("lookAtPoint");
+const eyeBlinkThreshold = 0.5;
+
+/** @type {Vector3} */
+const facePosition = new THREE.Vector3();
+/** @type {Quaternion} */
+const faceQuaternion = new THREE.Quaternion();
+
+/** @type {Vector3} */
+const leftEyePosition = new THREE.Vector3();
+/** @type {Quaternion} */
+const leftEyeQuaternion = new THREE.Quaternion();
+
+/** @type {Vector3} */
+const rightEyePosition = new THREE.Vector3();
+/** @type {Quaternion} */
+const rightEyeQuaternion = new THREE.Quaternion();
+/** @type {Vector3} */
+const lookAtPoint = new THREE.Vector3();
 
 /** @typedef {import("../../src/three/three.module.min.js").Vector3} Vector3 */
 /** @typedef {import("../../src/three/three.module.min.js").Quaternion} Quaternion */
@@ -129,22 +193,93 @@ ARSessionManager.addEventListener("faceAnchors", (event) => {
     const faceAnchors = event.message.faceAnchors;
     const faceAnchor = faceAnchors[0];
     if (faceAnchor) {
-        /** @type {Vector3} */
-        const newPosition = new THREE.Vector3(...faceAnchor.position);
-        /** @type {Quaternion} */
-        const newQuaternion = new THREE.Quaternion(...faceAnchor.quaternion);
+        facePosition.set(...faceAnchor.position);
+        faceQuaternion.set(...faceAnchor.quaternion);
 
-        faceEntity.object3D.position.lerp(newPosition, 0.5);
-        faceEntity.object3D.quaternion.slerp(newQuaternion, 0.5);
+        if (configurationType == "worldTracking") {
+            faceQuaternion.multiply(rotate180DegreesQuaternion);
+        }
 
-        //console.log(aframeCamera.object3D.position);
+        if (configurationType == "faceTracking") {
+            facePosition.x *= -1;
+            mirrorQuaternionAboutAxes(faceQuaternion, "z", "y");
+            faceQuaternion.multiply(rotate180DegreesQuaternion);
+        }
+
+        if (isHologramEnabled) {
+            aframeCamera.object3D.position.copy(facePosition);
+            //aframeCamera.object3D.quaternion.copy(faceQuaternion); // fun effect, but wrong
+            //aframeCamera.object3D.lookAt(cameraPosition);
+        }
+
+        faceEntity.object3D.position.lerp(facePosition, 0.5);
+        faceEntity.object3D.quaternion.slerp(faceQuaternion, 0.5);
 
         const isLeftEyeClosed = faceAnchor.blendShapes.eyeBlinkLeft > eyeBlinkThreshold;
         const isRightEyeClosed = faceAnchor.blendShapes.eyeBlinkRight > eyeBlinkThreshold;
 
-        // FILL - can use eyes to show/hide stuff...
+        leftEyePosition.set(...faceAnchor.leftEye.position);
+        leftEyeQuaternion.set(...faceAnchor.leftEye.quaternion);
+        if (configurationType == "faceTracking") {
+            //mirrorQuaternionAboutAxes(leftEyeQuaternion, "x", "y");
+        }
+        if (configurationType == "worldTracking") {
+            //mirrorQuaternionAboutAxes(leftEyeQuaternion, "x", "y");
+        }
+        leftEyeEntity.object3D.position.lerp(leftEyePosition, 0.5);
+        leftEyeEntity.object3D.quaternion.slerp(leftEyeQuaternion, 0.5);
+
+        rightEyePosition.set(...faceAnchor.rightEye.position);
+        rightEyeQuaternion.set(...faceAnchor.rightEye.quaternion);
+        if (configurationType == "faceTracking") {
+            //mirrorQuaternionAboutAxes(rightEyeQuaternion, "x", "y");
+        }
+        if (configurationType == "worldTracking") {
+            //mirrorQuaternionAboutAxes(rightEyeQuaternion, "x", "y");
+        }
+        rightEyeEntity.object3D.position.lerp(rightEyePosition, 0.5);
+        rightEyeEntity.object3D.quaternion.slerp(rightEyeQuaternion, 0.5);
+
+        lookAtPoint.set(...faceAnchor.lookAtPoint);
+        if (configurationType == "worldTracking") {
+            lookAtPoint.z *= -1;
+        }
+        if (configurationType == "faceTracking") {
+            lookAtPoint.z *= -1;
+        }
+        lookAtPointEntity.object3D.position.lerp(lookAtPoint, 0.5);
+        lookAtPointEntity.object3D.lookAt(facePosition);
+
+        const showLeftEye = !isLeftEyeClosed;
+        if (leftEyeEntity.object3D.visible != showLeftEye) {
+            leftEyeEntity.object3D.visible = showLeftEye;
+        }
+
+        const showRightEye = !isRightEyeClosed;
+        if (rightEyeEntity.object3D.visible != showRightEye) {
+            rightEyeEntity.object3D.visible = showRightEye;
+        }
     }
 });
+
+var isHologramEnabled = false;
+/** @type {HTMLButtonElement} */
+const toggleHologramButton = document.getElementById("toggleHologram");
+toggleHologramButton.addEventListener("click", () => {
+    setIsHologramEnabled(!isHologramEnabled);
+});
+toggleHologramButton.disabled = !ARSessionManager.isSupported;
+function setIsHologramEnabled(newIsHologramEnabled) {
+    if (newIsHologramEnabled == isHologramEnabled) {
+        return;
+    }
+    isHologramEnabled = newIsHologramEnabled;
+    console.log({ isHologramEnabled });
+    toggleHologramButton.innerText = isHologramEnabled ? "disable hologram" : "enable hologram";
+
+    // FILL
+}
+setIsHologramEnabled(false);
 
 /** @type {HTMLButtonElement} */
 const toggleShowCameraButton = document.getElementById("toggleShowCamera");
@@ -169,6 +304,8 @@ ARSessionManager.addEventListener("showCamera", (event) => {
 
 const ambientLight = document.getElementById("ambientLight");
 const directionalLight = document.getElementById("directionalLight");
+/** @type {Vector3} */
+const primaryLightDirection = new THREE.Vector3();
 
 ARSessionManager.addEventListener("lightEstimate", (event) => {
     /** @type {ARSLightEstimate} */
@@ -178,7 +315,11 @@ ARSessionManager.addEventListener("lightEstimate", (event) => {
     ambientLight.components.light.light.color.setRGB(...lightColor);
     directionalLight.components.light.light.color.setRGB(...lightColor);
     if (lightEstimate.primaryLightDirection) {
+        primaryLightDirection.set(...lightEstimate.primaryLightDirection.map((v) => -v));
+        if (configurationType == "faceTracking") {
+            primaryLightDirection.applyEuler(rotateYaw180DegreesEuler);
+        }
         directionalLight.components.light.light.intensity = lightEstimate.primaryLightIntensity / 1000;
-        directionalLight.object3D.position.set(...lightEstimate.primaryLightDirection.map((v) => -v));
+        directionalLight.object3D.position.lerp(primaryLightDirection, 0.5);
     }
 });

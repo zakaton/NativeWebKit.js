@@ -114,6 +114,7 @@ ARSessionManager.addEventListener("camera", (event) => {
     if (configurationType == "faceTracking" && !isMirrorModeEnabled) {
         newCameraPosition.x *= -1;
         mirrorQuaternionAboutAxes(newCameraQuaternion, "z", "y");
+        // newCameraQuaternion.multiply(rotate180DegreesQuaternion); // to emulate the rear camera
     }
 
     virtualCameraEntity.object3D.position.lerp(newCameraPosition, 0.5);
@@ -242,7 +243,11 @@ ARSessionManager.addEventListener("lightEstimate", (event) => {
     directionalLight.components.light.light.color.setRGB(...lightColor);
     if (lightEstimate.primaryLightDirection) {
         directionalLight.components.light.light.intensity = lightEstimate.primaryLightIntensity / 1000;
+        /** @type {Vector3} */
         const primaryLightDirection = new THREE.Vector3(...lightEstimate.primaryLightDirection.map((v) => -v));
+        if (configurationType == "faceTracking" && !isMirrorModeEnabled) {
+            primaryLightDirection.applyEuler(rotateYaw180DegreesEuler);
+        }
         directionalLight.object3D.position.copy(primaryLightDirection);
 
         /** @type {Vector3} */
