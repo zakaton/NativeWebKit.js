@@ -7,7 +7,6 @@ ARSessionManager.checkWorldTrackingSupportOnLoad = true;
 ARSessionManager.checkFaceTrackingSupportOnLoad = true;
 ARSessionManager.checkIsRunningOnLoad = true;
 ARSessionManager.pauseOnUnload = true;
-ARSessionManager.checkCameraModeOnLoad = true;
 
 const scene = document.querySelector("a-scene");
 

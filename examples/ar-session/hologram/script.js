@@ -4,10 +4,9 @@ window.ARSessionManager = ARSessionManager;
 console.log(ARSessionManager);
 
 ARSessionManager.checkWorldTrackingSupportOnLoad = true;
+ARSessionManager.checkFaceTrackingSupportOnLoad = true;
 ARSessionManager.checkIsRunningOnLoad = true;
 ARSessionManager.pauseOnUnload = true;
-ARSessionManager.checkDebugOptionsOnLoad = true;
-ARSessionManager.checkCameraModeOnLoad = true;
 ARSessionManager.checkShowCameraOnLoad = true;
 
 const scene = document.querySelector("a-scene");
@@ -32,18 +31,54 @@ ARSessionManager.addEventListener("worldTrackingSupport", (event) => {
     isWorldTrackingSupportedWithFaceTrackingCheckbox.checked =
         worldTrackingSupport.isSupported && worldTrackingSupport.supportsUserFaceTracking;
 });
+/** @type {HTMLInputElement} */
+const isFaceTrackingSupportedWithWorldTrackingCheckbox = document.getElementById(
+    "isFaceTrackingSupportedWithWorldTracking"
+);
+ARSessionManager.addEventListener("faceTrackingSupport", (event) => {
+    /** @type {import("../../../src/ARSessionManager.js").ARSFaceTrackingSupport} */
+    const faceTrackingSupport = event.message.faceTrackingSupport;
+    console.log("faceTrackingSupper", faceTrackingSupport);
+    isFaceTrackingSupportedWithWorldTrackingCheckbox.checked =
+        faceTrackingSupport.isSupported && faceTrackingSupport.supportsWorldTracking;
+});
+
+/** @type {"faceTracking" | "worldTracking"} */
+var configurationType;
+
+/** @type {HTMLSelectElement} */
+const configurationTypeSelect = document.getElementById("configurationType");
+configurationTypeSelect.addEventListener("input", () => {
+    configurationType = configurationTypeSelect.value;
+    console.log("configurationType", configurationType);
+    if (ARSessionManager.isRunning) {
+        runARSession();
+    }
+});
+configurationType = configurationTypeSelect.value;
+ARSessionManager.addEventListener("configuration", () => {
+    configurationTypeSelect.value = ARSessionManager.configuration.type;
+});
 
 /** @typedef {import("../../../src/ARSessionManager.js").ARSConfigurationType} ARSConfigurationType */
 /** @typedef {import("../../../src/ARSessionManager.js").ARSConfiguration} ARSConfiguration */
 /** @typedef {import("../../../src/ARSessionManager.js").ARSWorldTrackingConfiguration} ARSWorldTrackingConfiguration */
+/** @typedef {import("../../../src/ARSessionManager.js").ARSFaceTrackingConfiguration} ARSFaceTrackingConfiguration */
 
+/** @type {ARSFaceTrackingConfiguration} */
+var faceTrackingConfiguration = { type: "faceTracking", isWorldTrackingEnabled: true };
 /** @type {ARSWorldTrackingConfiguration} */
-var configuration = { type: "worldTracking", userFaceTrackingEnabled: true };
+var worldTrackingConfiguration = { type: "worldTracking", userFaceTrackingEnabled: true };
+
+function runARSession() {
+    const configuration = configurationType == "faceTracking" ? faceTrackingConfiguration : worldTrackingConfiguration;
+    ARSessionManager.run(configuration);
+}
 
 /** @type {HTMLButtonElement} */
 const runButton = document.getElementById("run");
 runButton.addEventListener("click", () => {
-    ARSessionManager.run(configuration);
+    runARSession();
 });
 runButton.disabled = !ARSessionManager.isSupported;
 
@@ -63,19 +98,14 @@ ARSessionManager.addEventListener("isRunning", (event) => {
     pauseButton.disabled = !isRunning;
 });
 
-const virtualCameraEntity = document.getElementById("virtualCamera");
-const faceEntity = document.getElementById("face");
-
 const aframeCamera = document.getElementById("camera");
 var latestFocalLength;
 ARSessionManager.addEventListener("camera", (event) => {
     /** @type {import("../../../src/ARSessionManager.js").ARSCamera} */
     const camera = event.message.camera;
 
-    virtualCameraEntity.object3D.position.set(...camera.position);
-    virtualCameraEntity.object3D.quaternion.set(...camera.quaternion);
-
-    //aframeCamera.object3D.quaternion.set(...camera.quaternion);
+    aframeCamera.object3D.position.set(...camera.position);
+    aframeCamera.object3D.quaternion.set(...camera.quaternion);
 
     const threeCamera = aframeCamera?.components?.camera?.camera;
     if (threeCamera) {
@@ -89,11 +119,7 @@ ARSessionManager.addEventListener("camera", (event) => {
 });
 
 const eyeBlinkThreshold = 0.5;
-
-/** @type {Vector3} */
-const faceWorldPosition = new THREE.Vector3();
-/** @type {Quaternion} */
-const faceWorldQuaternion = new THREE.Quaternion();
+const faceEntity = document.getElementById("face");
 
 /** @typedef {import("../../src/three/three.module.min.js").Vector3} Vector3 */
 /** @typedef {import("../../src/three/three.module.min.js").Quaternion} Quaternion */
@@ -111,22 +137,21 @@ ARSessionManager.addEventListener("faceAnchors", (event) => {
         faceEntity.object3D.position.lerp(newPosition, 0.5);
         faceEntity.object3D.quaternion.slerp(newQuaternion, 0.5);
 
-        faceEntity.object3D.getWorldPosition(faceWorldPosition);
-        faceEntity.object3D.getWorldQuaternion(faceWorldQuaternion);
-
-        aframeCamera.object3D.position.copy(faceWorldPosition);
-        aframeCamera.object3D.quaternion.copy(faceWorldQuaternion);
-
-        console.log("face position", faceWorldPosition);
-
         //console.log(aframeCamera.object3D.position);
 
         const isLeftEyeClosed = faceAnchor.blendShapes.eyeBlinkLeft > eyeBlinkThreshold;
         const isRightEyeClosed = faceAnchor.blendShapes.eyeBlinkRight > eyeBlinkThreshold;
 
-        // FILL - can eye eyes to show/hide stuff...
+        // FILL - can use eyes to show/hide stuff...
     }
 });
+
+/** @type {HTMLButtonElement} */
+const toggleShowCameraButton = document.getElementById("toggleShowCamera");
+toggleShowCameraButton.addEventListener("click", () => {
+    ARSessionManager.setShowCamera(!ARSessionManager.showCamera);
+});
+toggleShowCameraButton.disabled = !ARSessionManager.isSupported;
 
 const sky = document.querySelector("a-sky");
 ARSessionManager.addEventListener("showCamera", (event) => {
@@ -137,30 +162,7 @@ ARSessionManager.addEventListener("showCamera", (event) => {
     if (newVisible != sky.object3D.visible) {
         sky.object3D.visible = newVisible;
     }
-});
-
-/** @typedef {import("../../../src/ARSessionManager.js").ARSDebugOptions} ARSDebugOptions */
-
-var isDebugEnabled = false;
-
-/** @type {HTMLButtonElement} */
-const toggleDebugButton = document.getElementById("toggleDebug");
-toggleDebugButton.addEventListener("click", () => {
-    const newIsDebugEnabled = !isDebugEnabled;
-    ARSessionManager.setDebugOptions({
-        showWorldOrigin: newIsDebugEnabled,
-        showSceneUnderstanding: newIsDebugEnabled,
-        showFeaturePoints: newIsDebugEnabled,
-    });
-});
-toggleDebugButton.disabled = !ARSessionManager.isSupported;
-
-ARSessionManager.addEventListener("debugOptions", (event) => {
-    /** @type {ARSDebugOptions} */
-    const debugOptions = event.message.debugOptions;
-    console.log("debugOptions", debugOptions);
-    isDebugEnabled = debugOptions.showSceneUnderstanding;
-    toggleDebugButton.innerText = isDebugEnabled ? "hide debug" : "show debug";
+    toggleShowCameraButton.innerText = showCamera ? "hide camera" : "show camera";
 });
 
 /** @typedef {import("../../../src/ARSessionManager.js").ARSLightEstimate} ARSLightEstimate */

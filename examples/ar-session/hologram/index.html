@@ -62,14 +62,24 @@
                 <div>
                     <label>is supported? <input id="isSupported" type="checkbox" disabled /></label>
                     <label>
-                        world/face tracking supported?
+                        world w/face?
                         <input id="isWorldTrackingSupportedWithFaceTracking" type="checkbox" disabled />
+                    </label>
+                    <label>
+                        face w/world?
+                        <input id="isFaceTrackingSupportedWithWorldTracking" type="checkbox" disabled />
                     </label>
                 </div>
                 <div>
                     <button id="run" disabled>run</button>
                     <button id="pause" disabled>pause</button>
-                    <button id="toggleDebug" disabled>show debug</button>
+                    <select id="configurationType">
+                        <optgroup label="configuration type">
+                            <option selected value="faceTracking">face</option>
+                            <option value="worldTracking">world</option>
+                        </optgroup>
+                    </select>
+                    <button id="toggleShowCamera" disabled>show camera</button>
                 </div>
             </div>
         </div>
@@ -87,9 +97,7 @@
                 position="0 0 0"
             ></a-camera>
 
-            <a-entity id="virtualCamera">
-                <a-entity id="face"></a-entity>
-            </a-entity>
+            <a-entity id="face"></a-entity>
 
             <a-entity id="ambientLight" light="color: #BBB; type: ambient"></a-entity>
             <a-entity
