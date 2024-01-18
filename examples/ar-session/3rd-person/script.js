@@ -180,7 +180,7 @@ ARSessionManager.addEventListener("faceAnchors", (event) => {
         /** @type {Quaternion} */
         const newLeftEyeQuaternion = new THREE.Quaternion(...faceAnchor.leftEye.quaternion);
         if (configurationType == "faceTracking" && !isMirrorModeEnabled) {
-            mirrorQuaternionAboutAxes(newLeftEyeQuaternion, "y");
+            mirrorQuaternionAboutAxes(newLeftEyeQuaternion, "y", "x");
         }
         if (configurationType == "worldTracking" && shouldCorrectData) {
             mirrorQuaternionAboutAxes(newLeftEyeQuaternion, "y", "x");
@@ -193,7 +193,7 @@ ARSessionManager.addEventListener("faceAnchors", (event) => {
         /** @type {Quaternion} */
         const newRightEyeQuaternion = new THREE.Quaternion(...faceAnchor.rightEye.quaternion);
         if (configurationType == "faceTracking" && !isMirrorModeEnabled) {
-            mirrorQuaternionAboutAxes(newRightEyeQuaternion, "y");
+            mirrorQuaternionAboutAxes(newRightEyeQuaternion, "y", "x");
         }
         if (configurationType == "worldTracking" && shouldCorrectData) {
             mirrorQuaternionAboutAxes(newRightEyeQuaternion, "y", "x");
