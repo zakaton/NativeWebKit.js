@@ -51,6 +51,7 @@ const configurationTypeSelect = document.getElementById("configurationType");
 configurationTypeSelect.addEventListener("input", () => {
     configurationType = configurationTypeSelect.value;
     console.log("configurationType", configurationType);
+    setMirrorMode(false);
     if (ARSessionManager.isRunning) {
         runARSession();
     }
@@ -106,8 +107,18 @@ ARSessionManager.addEventListener("camera", (event) => {
     /** @type {import("../../../src/ARSessionManager.js").ARSCamera} */
     const camera = event.message.camera;
 
-    virtualCameraEntity.object3D.position.set(...camera.position);
-    virtualCameraEntity.object3D.quaternion.set(...camera.quaternion);
+    /** @type {Vector3} */
+    const newCameraPosition = new THREE.Vector3(...camera.position);
+    /** @type {Quaternion} */
+    const newCameraQuaternion = new THREE.Quaternion(...camera.quaternion);
+
+    if (configurationType == "faceTracking" && !isMirrorModeEnabled) {
+        newCameraPosition.x *= -1;
+        mirrorQuaternionAboutAxes(newCameraQuaternion, "z", "y");
+    }
+
+    virtualCameraEntity.object3D.position.lerp(newCameraPosition, 0.5);
+    virtualCameraEntity.object3D.quaternion.slerp(newCameraQuaternion, 0.5);
 
     if (virtualCameraEntity.object3D) {
         if (latestFocalLength != camera.focalLength) {
@@ -152,6 +163,12 @@ ARSessionManager.addEventListener("faceAnchors", (event) => {
             }
         }
 
+        if (configurationType == "faceTracking" && !isMirrorModeEnabled) {
+            newFacePosition.x *= -1;
+            mirrorQuaternionAboutAxes(newFaceQuaternion, "z", "y");
+            newFaceQuaternion.multiply(rotate180DegreesQuaternion);
+        }
+
         faceEntity.object3D.position.lerp(newFacePosition, 0.5);
         faceEntity.object3D.quaternion.slerp(newFaceQuaternion, 0.5);
 
@@ -162,8 +179,11 @@ ARSessionManager.addEventListener("faceAnchors", (event) => {
         const newLeftEyePosition = new THREE.Vector3(...faceAnchor.leftEye.position);
         /** @type {Quaternion} */
         const newLeftEyeQuaternion = new THREE.Quaternion(...faceAnchor.leftEye.quaternion);
-        if (shouldCorrectData) {
-        } else {
+        if (configurationType == "faceTracking" && !isMirrorModeEnabled) {
+            mirrorQuaternionAboutAxes(newLeftEyeQuaternion, "y");
+        }
+        if (configurationType == "worldTracking" && shouldCorrectData) {
+            mirrorQuaternionAboutAxes(newLeftEyeQuaternion, "y", "x");
         }
         leftEyeEntity.object3D.position.lerp(newLeftEyePosition, 0.5);
         leftEyeEntity.object3D.quaternion.slerp(newLeftEyeQuaternion, 0.5);
@@ -172,6 +192,12 @@ ARSessionManager.addEventListener("faceAnchors", (event) => {
         const newRightEyePosition = new THREE.Vector3(...faceAnchor.rightEye.position);
         /** @type {Quaternion} */
         const newRightEyeQuaternion = new THREE.Quaternion(...faceAnchor.rightEye.quaternion);
+        if (configurationType == "faceTracking" && !isMirrorModeEnabled) {
+            mirrorQuaternionAboutAxes(newRightEyeQuaternion, "y");
+        }
+        if (configurationType == "worldTracking" && shouldCorrectData) {
+            mirrorQuaternionAboutAxes(newRightEyeQuaternion, "y", "x");
+        }
         rightEyeEntity.object3D.position.lerp(newRightEyePosition, 0.5);
         rightEyeEntity.object3D.quaternion.slerp(newRightEyeQuaternion, 0.5);
 
@@ -180,8 +206,11 @@ ARSessionManager.addEventListener("faceAnchors", (event) => {
         if (shouldCorrectData) {
             if (configurationType == "worldTracking") {
                 newLookAtPointEntityPosition.z *= -1;
-            } else {
-                // FILL?
+            }
+        }
+        if (configurationType == "faceTracking") {
+            if (!isMirrorModeEnabled) {
+                newLookAtPointEntityPosition.z *= -1;
             }
         }
         lookAtPointEntity.object3D.position.lerp(newLookAtPointEntityPosition, 0.5);
@@ -238,19 +267,48 @@ toggleDataCorrectionButton.addEventListener("click", () => {
     toggleDataCorrectionButton.innerText = shouldCorrectData ? "disable correction" : "enable correction";
 });
 
-var isMirrorModeEnabled = false;
+/** @type {boolean} */
+var isMirrorModeEnabled;
 /** @type {HTMLButtonElement} */
 const toggleMirrorModeButton = document.getElementById("toggleMirrorMode");
 toggleMirrorModeButton.addEventListener("click", () => {
-    isMirrorModeEnabled = !isMirrorModeEnabled;
-    console.log("isMirrorModeEnabled", isMirrorModeEnabled);
-    toggleMirrorModeButton.innerText = isMirrorModeEnabled ? "disable mirror mode" : "enable mirror mode";
+    setMirrorMode(!isMirrorModeEnabled);
 });
 ARSessionManager.addEventListener("configuration", () => {
     if (configurationType == "faceTracking") {
         toggleMirrorModeButton.removeAttribute("hidden");
+        toggleDataCorrectionButton.setAttribute("hidden", "");
     } else {
         toggleMirrorModeButton.setAttribute("hidden", "");
+        toggleDataCorrectionButton.removeAttribute("hidden");
     }
     configurationTypeSelect.value = ARSessionManager.configuration.type;
 });
+
+function setMirrorMode(newIsMirrorModeEnabled) {
+    if (isMirrorModeEnabled === newIsMirrorModeEnabled) {
+        return;
+    }
+    isMirrorModeEnabled = newIsMirrorModeEnabled;
+    console.log({ isMirrorModeEnabled });
+    toggleMirrorModeButton.innerText = isMirrorModeEnabled ? "disable mirror mode" : "enable mirror mode";
+
+    faceEntity.querySelector(".nose").object3D.rotation.y = isMirrorModeEnabled ? 0 : Math.PI;
+    leftEyeEntity.querySelector(".pupil").object3D.position.z = 0.01 * (isMirrorModeEnabled ? 1 : -1);
+    rightEyeEntity.querySelector(".pupil").object3D.position.z = 0.01 * (isMirrorModeEnabled ? 1 : -1);
+}
+setMirrorMode(true);
+
+/** @type {Euler} */
+const mirrorEuler = new THREE.Euler(0, 0, 0, "YZX");
+/**
+ * @param {Quaternion} quaternion
+ * @param  {...string} axes
+ */
+const mirrorQuaternionAboutAxes = (quaternion, ...axes) => {
+    mirrorEuler.setFromQuaternion(quaternion);
+    axes.forEach((axis) => {
+        mirrorEuler[axis] *= -1;
+    });
+    quaternion.setFromEuler(mirrorEuler);
+};

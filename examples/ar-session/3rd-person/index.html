@@ -90,7 +90,7 @@
                     </select>
                 </div>
                 <div>
-                    <button id="toggleMirrorMode" hidden>enable mirror mode</button>
+                    <button id="toggleMirrorMode" hidden>disable mirror mode</button>
                     <button id="toggleDataCorrection">enable correction</button>
                 </div>
             </div>
@@ -108,7 +108,7 @@
             </a-assets>
 
             <a-entity id="virtualPrimaryLight" visible="false">
-                <a-cone color="yellow" rotation="-90 0 0" height="0.1" radius-bottom="0.05"></a-cone>
+                <a-cone color="yellow" rotation="90 0 0" height="0.1" radius-top="0" radius-bottom="0.05"></a-cone>
             </a-entity>
 
             <a-camera
@@ -134,19 +134,33 @@
                     color="blue"
                     rotation="90 180 0"
                     height="0.1"
+                    radius-top="0"
                     radius-bottom="0.05"
                 ></a-cone>
             </a-entity>
 
             <a-entity id="face" position="0 0 0.5">
                 <a-cone
+                    class="nose"
                     shadow="cast: true;"
                     color="green"
                     position="0 0 0.02"
-                    rotation="90 180 0"
+                    rotation="90 0 0"
                     height="0.05"
+                    radius-top="0"
                     radius-bottom="0.05"
                 ></a-cone>
+
+                <a-entity id="leftEye" position="-0.03 0.04 0.02">
+                    <a-sphere radius="0.01" color="white">
+                        <a-sphere class="pupil" radius="0.005" color="black" position="0 0 0.01"></a-sphere>
+                    </a-sphere>
+                </a-entity>
+                <a-entity id="rightEye" position="0.03 0.04 00.02">
+                    <a-sphere radius="0.01" color="white">
+                        <a-sphere class="pupil" radius="0.005" color="black" position="0 0 0.01"></a-sphere>
+                    </a-sphere>
+                </a-entity>
 
                 <a-entity id="lookAtPoint">
                     <a-cone
@@ -154,19 +168,9 @@
                         position="0 0 -0.2"
                         rotation="90 180 0"
                         height="0.05"
+                        radius-top="0"
                         radius-bottom="0.02"
                     ></a-cone>
-                </a-entity>
-
-                <a-entity id="leftEye" position="-0.03 0.04 0.02">
-                    <a-sphere radius="0.01" color="white">
-                        <a-sphere radius="0.005" color="black" position="0 0 -0.01"></a-sphere>
-                    </a-sphere>
-                </a-entity>
-                <a-entity id="rightEye" position="0.03 0.04 00.02">
-                    <a-sphere radius="0.01" color="white">
-                        <a-sphere radius="0.005" color="black" position="0 0 -0.01"></a-sphere>
-                    </a-sphere>
                 </a-entity>
             </a-entity>
 
