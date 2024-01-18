@@ -6,6 +6,7 @@ console.log(ARSessionManager);
 /** @typedef {import("../../src/three/three.module.min.js").Vector3} Vector3 */
 /** @typedef {import("../../src/three/three.module.min.js").Euler} Euler */
 /** @typedef {import("../../src/three/three.module.min.js").Quaternion} Quaternion */
+/** @typedef {import("../../src/three/three.module.min.js").PerspectiveCamera} PerspectiveCamera */
 
 /** @type {Euler} */
 const rotateYaw180DegreesEuler = new THREE.Euler();
@@ -15,17 +16,28 @@ const rotate180DegreesQuaternion = new THREE.Quaternion();
 rotate180DegreesQuaternion.setFromEuler(rotateYaw180DegreesEuler);
 
 /** @type {Euler} */
-const mirrorEuler = new THREE.Euler(0, 0, 0, "YZX");
+const euler = new THREE.Euler(0, 0, 0, "YZX");
 /**
  * @param {Quaternion} quaternion
  * @param  {...string} axes
  */
 const mirrorQuaternionAboutAxes = (quaternion, ...axes) => {
-    mirrorEuler.setFromQuaternion(quaternion);
+    euler.setFromQuaternion(quaternion);
     axes.forEach((axis) => {
-        mirrorEuler[axis] *= -1;
+        euler[axis] *= -1;
     });
-    quaternion.setFromEuler(mirrorEuler);
+    quaternion.setFromEuler(euler);
+};
+/**
+ * @param {Quaternion} quaternion
+ * @param  {...string} axes
+ */
+const removeAxesFromQuaternion = (quaternion, ...axes) => {
+    euler.setFromQuaternion(quaternion);
+    axes.forEach((axis) => {
+        euler[axis] = 0;
+    });
+    quaternion.setFromEuler(euler);
 };
 
 ARSessionManager.checkWorldTrackingSupportOnLoad = true;
@@ -130,6 +142,8 @@ ARSessionManager.addEventListener("isRunning", (event) => {
 const cameraPosition = new THREE.Vector3();
 /** @type {Quaternion} */
 const cameraQuaternion = new THREE.Quaternion();
+/** @type {PerspectiveCamera} */
+var threeCamera;
 
 const aframeCamera = document.getElementById("camera");
 var latestFocalLength;
@@ -146,12 +160,21 @@ ARSessionManager.addEventListener("camera", (event) => {
         cameraQuaternion.multiply(rotate180DegreesQuaternion);
     }
 
-    if (!isHologramEnabled) {
-        aframeCamera.object3D.position.lerp(cameraPosition, 0.5);
-        aframeCamera.object3D.quaternion.slerp(cameraQuaternion, 0.5);
+    if (aframeCamera.object3D.rotation.order == "YXZ") {
+        aframeCamera.object3D.rotation.reorder("ZYX");
     }
 
-    const threeCamera = aframeCamera?.components?.camera?.camera;
+    if (!isHologramEnabled || !faceAnchorFound) {
+        aframeCamera.object3D.position.lerp(cameraPosition, 0.5);
+    }
+    if (faceAnchorFound && isHologramEnabled) {
+        if (configurationType == "worldTracking") {
+            removeAxesFromQuaternion(cameraQuaternion, "x", "y");
+        }
+    }
+    aframeCamera.object3D.quaternion.slerp(cameraQuaternion, 0.5);
+
+    threeCamera = threeCamera || aframeCamera?.components?.camera?.camera;
     if (threeCamera) {
         if (latestFocalLength != camera.focalLength) {
             threeCamera.setFocalLength(camera.focalLength * 1.14);
@@ -185,6 +208,16 @@ const rightEyeQuaternion = new THREE.Quaternion();
 /** @type {Vector3} */
 const lookAtPoint = new THREE.Vector3();
 
+const faceDistanceRange = [0.2, 1];
+const focalLengthRange = [5, 30]; // FIX
+const zoomRange = [2, 1]; // FIX
+/** @type {Vector3} */
+const faceToCamera = new THREE.Vector3();
+const upVector = new THREE.Vector3(0, 1, 0);
+const rightVector = new THREE.Vector3(1, 0, 0);
+
+var faceAnchorFound = false;
+
 /** @typedef {import("../../src/three/three.module.min.js").Vector3} Vector3 */
 /** @typedef {import("../../src/three/three.module.min.js").Quaternion} Quaternion */
 /** @typedef {import("../../../src/ARSessionManager.js").ARSFaceAnchor} ARSFaceAnchor */
@@ -192,6 +225,7 @@ ARSessionManager.addEventListener("faceAnchors", (event) => {
     /** @type {ARSFaceAnchor[]} */
     const faceAnchors = event.message.faceAnchors;
     const faceAnchor = faceAnchors[0];
+    faceAnchorFound = Boolean(faceAnchor);
     if (faceAnchor) {
         facePosition.set(...faceAnchor.position);
         faceQuaternion.set(...faceAnchor.quaternion);
@@ -207,9 +241,31 @@ ARSessionManager.addEventListener("faceAnchors", (event) => {
         }
 
         if (isHologramEnabled) {
-            aframeCamera.object3D.position.copy(facePosition);
-            //aframeCamera.object3D.quaternion.copy(faceQuaternion); // fun effect, but wrong
-            //aframeCamera.object3D.lookAt(cameraPosition);
+            if (threeCamera) {
+                const faceDistance = facePosition.distanceTo(cameraPosition);
+                var distanceInterpolation = THREE.MathUtils.inverseLerp(...faceDistanceRange, faceDistance);
+                distanceInterpolation = THREE.MathUtils.clamp(distanceInterpolation, 0, 1);
+                const newFocalLength = THREE.MathUtils.lerp(...focalLengthRange, distanceInterpolation);
+                const newZoom = THREE.MathUtils.lerp(...zoomRange, distanceInterpolation);
+                //console.log({ faceDistance, distanceInterpolation, newFocalLength, newZoom });
+                threeCamera.zoom = newZoom;
+                threeCamera.setFocalLength(newFocalLength);
+            }
+            aframeCamera.object3D.position.lerp(facePosition, 0.5);
+
+            //threeCamera.lookAt(cameraPosition); // doesn't work how you'd want it to...
+            //aframeCamera.lookAt(cameraPosition); // this neither...
+
+            faceToCamera.subVectors(cameraPosition, facePosition).normalize();
+            const yaw = faceToCamera.angleTo(rightVector) - Math.PI / 2;
+            var pitch = faceToCamera.angleTo(upVector) - Math.PI / 2;
+            pitch *= -1;
+            if (configurationType == "faceTracking") {
+                pitch -= Math.PI;
+            }
+            //console.log({ yaw, pitch, _pitch: aframeCamera.object3D.rotation.x });
+            aframeCamera.object3D.rotation.x = pitch;
+            aframeCamera.object3D.rotation.y = yaw;
         }
 
         faceEntity.object3D.position.lerp(facePosition, 0.5);
@@ -259,10 +315,17 @@ ARSessionManager.addEventListener("faceAnchors", (event) => {
         if (rightEyeEntity.object3D.visible != showRightEye) {
             rightEyeEntity.object3D.visible = showRightEye;
         }
+    } else {
+        if (leftEyeEntity.object3D.visible) {
+            leftEyeEntity.object3D.visible = false;
+        }
+        if (rightEyeEntity.object3D.visible) {
+            rightEyeEntity.object3D.visible = false;
+        }
     }
 });
 
-var isHologramEnabled = false;
+var isHologramEnabled = null;
 /** @type {HTMLButtonElement} */
 const toggleHologramButton = document.getElementById("toggleHologram");
 toggleHologramButton.addEventListener("click", () => {
@@ -274,12 +337,13 @@ function setIsHologramEnabled(newIsHologramEnabled) {
         return;
     }
     isHologramEnabled = newIsHologramEnabled;
+    if (!isHologramEnabled) {
+        threeCamera.setFocalLength(latestFocalLength);
+    }
     console.log({ isHologramEnabled });
     toggleHologramButton.innerText = isHologramEnabled ? "disable hologram" : "enable hologram";
-
-    // FILL
 }
-setIsHologramEnabled(false);
+setIsHologramEnabled(true);
 
 /** @type {HTMLButtonElement} */
 const toggleShowCameraButton = document.getElementById("toggleShowCamera");

@@ -628,8 +628,9 @@ class ARSessionManager {
         if (frame.lightEstimate) {
             this.#onLightEstimate(frame.lightEstimate);
         }
-        if (frame.faceAnchors) {
-            this.#onFaceAnchors(frame.faceAnchors);
+        // dispatch messages so we can detect no anchors that frame
+        if (true || frame.faceAnchors) {
+            this.#onFaceAnchors(frame.faceAnchors || []);
         }
     }
 
