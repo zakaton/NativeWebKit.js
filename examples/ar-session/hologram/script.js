@@ -163,9 +163,9 @@ const faceDistanceRange = [0.2, 1];
 const focalLengthRange = [5, 25]; // FIX
 const zoomRange = [2.5, 1]; // FIX
 /** @type {Vector3} */
-const faceToCamera = new THREE.Vector3();
 const upVector = new THREE.Vector3(0, 1, 0);
-const rightVector = new THREE.Vector3(1, 0, 0);
+/** @type {Matrix4} */
+const lookAtMatrix = new THREE.Matrix4();
 
 var faceAnchorFound = false;
 
@@ -197,17 +197,8 @@ ARSessionManager.addEventListener("faceAnchors", (event) => {
         }
         //aframeCamera.object3D.position.lerp(facePosition, 0.5);
 
-        //threeCamera.lookAt(cameraPosition); // doesn't work how you'd want it to...
-        //aframeCamera.lookAt(cameraPosition); // this neither...
-
-        faceToCamera.subVectors(cameraPosition, facePosition).normalize();
-        const yaw = faceToCamera.angleTo(rightVector) - Math.PI / 2;
-        var pitch = faceToCamera.angleTo(upVector) - Math.PI / 2;
-        pitch *= -1;
-        pitch -= Math.PI;
-        //console.log({ yaw, pitch, _pitch: aframeCamera.object3D.rotation.x });
-        //aframeCamera.object3D.rotation.x = pitch;
-        //aframeCamera.object3D.rotation.y = yaw;
+        lookAtMatrix.lookAt(facePosition, cameraPosition, upVector);
+        aframeCamera.object3D.setRotationFromMatrix(lookAtMatrix);
 
         faceEntity.object3D.position.lerp(facePosition, 0.5);
         faceEntity.object3D.quaternion.slerp(faceQuaternion, 0.5);

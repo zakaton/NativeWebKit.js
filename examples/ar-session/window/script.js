@@ -164,7 +164,7 @@ ARSessionManager.addEventListener("camera", (event) => {
         aframeCamera.object3D.rotation.reorder("ZYX");
     }
 
-    if (!isHologramEnabled || !faceAnchorFound) {
+    if (!isHologramEnabled) {
         aframeCamera.object3D.position.lerp(cameraPosition, 0.5);
     }
     if (faceAnchorFound && isHologramEnabled) {
@@ -212,14 +212,16 @@ const faceDistanceRange = [0.2, 1];
 const focalLengthRange = [5, 30]; // FIX
 const zoomRange = [2, 1]; // FIX
 /** @type {Vector3} */
-const faceToCamera = new THREE.Vector3();
 const upVector = new THREE.Vector3(0, 1, 0);
-const rightVector = new THREE.Vector3(1, 0, 0);
+/** @type {Matrix4} */
+const lookAtMatrix = new THREE.Matrix4();
 
 var faceAnchorFound = false;
 
 /** @typedef {import("../../src/three/three.module.min.js").Vector3} Vector3 */
 /** @typedef {import("../../src/three/three.module.min.js").Quaternion} Quaternion */
+/** @typedef {import("../../src/three/three.module.min.js").Matrix4} Matrix4 */
+
 /** @typedef {import("../../../src/ARSessionManager.js").ARSFaceAnchor} ARSFaceAnchor */
 ARSessionManager.addEventListener("faceAnchors", (event) => {
     /** @type {ARSFaceAnchor[]} */
@@ -256,16 +258,8 @@ ARSessionManager.addEventListener("faceAnchors", (event) => {
             //threeCamera.lookAt(cameraPosition); // doesn't work how you'd want it to...
             //aframeCamera.lookAt(cameraPosition); // this neither...
 
-            faceToCamera.subVectors(cameraPosition, facePosition).normalize();
-            const yaw = faceToCamera.angleTo(rightVector) - Math.PI / 2;
-            var pitch = faceToCamera.angleTo(upVector) - Math.PI / 2;
-            pitch *= -1;
-            if (configurationType == "faceTracking") {
-                pitch -= Math.PI;
-            }
-            //console.log({ yaw, pitch, _pitch: aframeCamera.object3D.rotation.x });
-            aframeCamera.object3D.rotation.x = pitch;
-            aframeCamera.object3D.rotation.y = yaw;
+            lookAtMatrix.lookAt(facePosition, cameraPosition, upVector);
+            aframeCamera.object3D.setRotationFromMatrix(lookAtMatrix);
         }
 
         faceEntity.object3D.position.lerp(facePosition, 0.5);
