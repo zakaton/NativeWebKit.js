@@ -214,7 +214,7 @@ const zoomRange = [2, 1]; // FIX
 /** @type {Vector3} */
 const upVector = new THREE.Vector3(0, 1, 0);
 /** @type {Matrix4} */
-const lookAtMatrix = new THREE.Matrix4();
+const faceLookAtCameraMatrix = new THREE.Matrix4();
 
 var faceAnchorFound = false;
 
@@ -258,8 +258,8 @@ ARSessionManager.addEventListener("faceAnchors", (event) => {
             //threeCamera.lookAt(cameraPosition); // doesn't work how you'd want it to...
             //aframeCamera.lookAt(cameraPosition); // this neither...
 
-            lookAtMatrix.lookAt(facePosition, cameraPosition, upVector);
-            aframeCamera.object3D.setRotationFromMatrix(lookAtMatrix);
+            faceLookAtCameraMatrix.lookAt(facePosition, cameraPosition, upVector);
+            aframeCamera.object3D.setRotationFromMatrix(faceLookAtCameraMatrix);
         }
 
         faceEntity.object3D.position.lerp(facePosition, 0.5);

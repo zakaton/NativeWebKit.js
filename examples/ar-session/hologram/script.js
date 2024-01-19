@@ -46,7 +46,8 @@ ARSessionManager.pauseOnUnload = true;
 ARSessionManager.checkShowCameraOnLoad = true;
 
 const scene = document.querySelector("a-scene");
-const sceneContainerEntity = document.getElementById("sceneContainer");
+//const sceneContainerEntity = document.getElementById("sceneContainer");
+const sceneContainerEntity = document.getElementById("avatarRotation");
 
 /** @type {HTMLInputElement} */
 const isSupportedCheckbox = document.getElementById("isSupported");
@@ -165,7 +166,9 @@ const zoomRange = [2.5, 1]; // FIX
 /** @type {Vector3} */
 const upVector = new THREE.Vector3(0, 1, 0);
 /** @type {Matrix4} */
-const lookAtMatrix = new THREE.Matrix4();
+const faceLookAtCameraMatrix = new THREE.Matrix4();
+/** @type {Quaternion} */
+const faceLookAtCameraQuaternion = new THREE.Quaternion();
 
 var faceAnchorFound = false;
 
@@ -197,8 +200,12 @@ ARSessionManager.addEventListener("faceAnchors", (event) => {
         }
         //aframeCamera.object3D.position.lerp(facePosition, 0.5);
 
-        lookAtMatrix.lookAt(facePosition, cameraPosition, upVector);
-        aframeCamera.object3D.setRotationFromMatrix(lookAtMatrix);
+        faceLookAtCameraMatrix.lookAt(facePosition, cameraPosition, upVector);
+        faceLookAtCameraQuaternion.setFromRotationMatrix(faceLookAtCameraMatrix);
+        faceLookAtCameraQuaternion.invert();
+        faceLookAtCameraQuaternion.multiply(rotate180DegreesQuaternion);
+        sceneContainerEntity.object3D.quaternion.slerp(faceLookAtCameraQuaternion, 0.5);
+        //aframeCamera.object3D.setRotationFromMatrix(faceLookAtCameraMatrix);
 
         faceEntity.object3D.position.lerp(facePosition, 0.5);
         faceEntity.object3D.quaternion.slerp(faceQuaternion, 0.5);

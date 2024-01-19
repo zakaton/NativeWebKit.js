@@ -1764,8 +1764,9 @@
 	        if (frame.lightEstimate) {
 	            this.#onLightEstimate(frame.lightEstimate);
 	        }
-	        if (frame.faceAnchors) {
-	            this.#onFaceAnchors(frame.faceAnchors);
+	        // dispatch messages so we can detect no anchors that frame
+	        {
+	            this.#onFaceAnchors(frame.faceAnchors || []);
 	        }
 	    }
 
