@@ -316,6 +316,32 @@ function setMirrorMode(newIsMirrorModeEnabled) {
 }
 setMirrorMode(true);
 
+/** @type {HTMLButtonElement} */
+const toggleWorldTrackingButton = document.getElementById("toggleWorldTracking");
+toggleWorldTrackingButton.addEventListener("click", () => {
+    setWorldTracking(!faceTrackingConfiguration.isWorldTrackingEnabled);
+});
+ARSessionManager.addEventListener("configuration", () => {
+    if (configurationType == "faceTracking") {
+        toggleWorldTrackingButton.removeAttribute("hidden");
+    } else {
+        toggleWorldTrackingButton.setAttribute("hidden", "");
+    }
+});
+function setWorldTracking(newIsWorldTrackingEnabled) {
+    console.log("setting world tracking...", newIsWorldTrackingEnabled);
+    if (faceTrackingConfiguration.isWorldTrackingEnabled === newIsWorldTrackingEnabled) {
+        return;
+    }
+    faceTrackingConfiguration.isWorldTrackingEnabled = newIsWorldTrackingEnabled;
+    console.log({ isWorldTrackingEnabled: faceTrackingConfiguration.isWorldTrackingEnabled });
+    runARSession();
+    toggleWorldTrackingButton.innerText = faceTrackingConfiguration.isWorldTrackingEnabled
+        ? "disable world tracking"
+        : "enable world tracking";
+}
+setWorldTracking(true);
+
 /** @type {Euler} */
 const mirrorEuler = new THREE.Euler(0, 0, 0, "YZX");
 /**

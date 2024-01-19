@@ -16,7 +16,7 @@ const rotate180DegreesQuaternion = new THREE.Quaternion();
 rotate180DegreesQuaternion.setFromEuler(rotateYaw180DegreesEuler);
 
 /** @type {Euler} */
-const euler = new THREE.Euler(0, 0, 0, "YZX");
+const euler = new THREE.Euler(0, 0, 0, "YXZ");
 /**
  * @param {Quaternion} quaternion
  * @param  {...string} axes
@@ -107,6 +107,8 @@ ARSessionManager.addEventListener("isRunning", (event) => {
 const cameraPosition = new THREE.Vector3();
 /** @type {Quaternion} */
 const cameraQuaternion = new THREE.Quaternion();
+/** @type {Quaternion} */
+const cameraQuaternionWithoutRoll = new THREE.Quaternion();
 /** @type {PerspectiveCamera} */
 var threeCamera;
 
@@ -121,10 +123,19 @@ ARSessionManager.addEventListener("camera", (event) => {
 
     cameraPosition.x *= -1;
     mirrorQuaternionAboutAxes(cameraQuaternion, "z", "y");
-    cameraQuaternion.multiply(rotate180DegreesQuaternion); // to emulate the rear camera
+    rearCameraQuaternion.copy(cameraQuaternion);
+    rearCameraQuaternion.multiply(rotate180DegreesQuaternion); // to emulate the rear camera
+    rearCameraQuaternionInverse.copy(rearCameraQuaternion);
+    rearCameraQuaternionInverse.invert();
+
+    cameraQuaternionWithoutRoll.copy(rearCameraQuaternion);
+    removeAxesFromQuaternion(cameraQuaternionWithoutRoll, "z");
 
     aframeCamera.object3D.position.lerp(cameraPosition, 0.5);
     aframeCamera.object3D.quaternion.slerp(cameraQuaternion, 0.5);
+
+    inverseCameraQuaternion.copy(cameraQuaternion);
+    inverseCameraQuaternion.invert();
 
     threeCamera = threeCamera || aframeCamera?.components?.camera?.camera;
     if (threeCamera) {
@@ -162,13 +173,25 @@ const lookAtPoint = new THREE.Vector3();
 
 const faceDistanceRange = [0.2, 1];
 const focalLengthRange = [5, 25]; // FIX
-const zoomRange = [2.5, 1]; // FIX
+const zoomRange = [3, 1]; // FIX
 /** @type {Vector3} */
 const upVector = new THREE.Vector3(0, 1, 0);
 /** @type {Matrix4} */
 const faceLookAtCameraMatrix = new THREE.Matrix4();
 /** @type {Quaternion} */
 const faceLookAtCameraQuaternion = new THREE.Quaternion();
+/** @type {Quaternion} */
+const invertedFaceLookAtCameraQuaternion = new THREE.Quaternion();
+/** @type {Quaternion} */
+const sceneContainerQuaternion = new THREE.Quaternion();
+/** @type {Quaternion} */
+const inverseCameraQuaternion = new THREE.Quaternion();
+/** @type {Quaternion} */
+const rearCameraQuaternion = new THREE.Quaternion();
+/** @type {Quaternion} */
+const rearCameraQuaternionInverse = new THREE.Quaternion();
+/** @type {Quaternion} */
+const faceCameraDifferenceQuaternion = new THREE.Quaternion();
 
 var faceAnchorFound = false;
 
@@ -180,6 +203,7 @@ ARSessionManager.addEventListener("faceAnchors", (event) => {
     const faceAnchors = event.message.faceAnchors;
     const faceAnchor = faceAnchors[0];
     faceAnchorFound = Boolean(faceAnchor);
+
     if (faceAnchor) {
         facePosition.set(...faceAnchor.position);
         faceQuaternion.set(...faceAnchor.quaternion);
@@ -187,6 +211,9 @@ ARSessionManager.addEventListener("faceAnchors", (event) => {
         facePosition.x *= -1;
         mirrorQuaternionAboutAxes(faceQuaternion, "z", "y");
         faceQuaternion.multiply(rotate180DegreesQuaternion);
+
+        faceEntity.object3D.position.lerp(facePosition, 0.5);
+        faceEntity.object3D.quaternion.slerp(faceQuaternion, 0.5);
 
         if (threeCamera) {
             const faceDistance = facePosition.distanceTo(cameraPosition);
@@ -200,15 +227,26 @@ ARSessionManager.addEventListener("faceAnchors", (event) => {
         }
         //aframeCamera.object3D.position.lerp(facePosition, 0.5);
 
+        faceCameraDifferenceQuaternion.copy(faceQuaternion).premultiply(rearCameraQuaternionInverse);
+        faceCameraDifferenceQuaternion.invert();
+        removeAxesFromQuaternion(faceCameraDifferenceQuaternion, "z");
+
+        const euler = new THREE.Euler(0, 0, 0, "XYZ");
+        euler.setFromQuaternion(faceCameraDifferenceQuaternion);
+        console.log(euler);
+
         faceLookAtCameraMatrix.lookAt(facePosition, cameraPosition, upVector);
         faceLookAtCameraQuaternion.setFromRotationMatrix(faceLookAtCameraMatrix);
-        faceLookAtCameraQuaternion.invert();
-        faceLookAtCameraQuaternion.multiply(rotate180DegreesQuaternion);
-        sceneContainerEntity.object3D.quaternion.slerp(faceLookAtCameraQuaternion, 0.5);
-        //aframeCamera.object3D.setRotationFromMatrix(faceLookAtCameraMatrix);
+        invertedFaceLookAtCameraQuaternion.copy(faceLookAtCameraQuaternion);
+        invertedFaceLookAtCameraQuaternion.invert();
 
-        faceEntity.object3D.position.lerp(facePosition, 0.5);
-        faceEntity.object3D.quaternion.slerp(faceQuaternion, 0.5);
+        // FIX!!!
+
+        mirrorQuaternionAboutAxes(faceLookAtCameraQuaternion, "y");
+        sceneContainerQuaternion.copy(faceCameraDifferenceQuaternion);
+        sceneContainerQuaternion.multiply(faceLookAtCameraQuaternion);
+        sceneContainerQuaternion.multiply(rotate180DegreesQuaternion);
+        sceneContainerEntity.object3D.quaternion.slerp(sceneContainerQuaternion, 0.5);
 
         const isLeftEyeClosed = faceAnchor.blendShapes.eyeBlinkLeft > eyeBlinkThreshold;
         const isRightEyeClosed = faceAnchor.blendShapes.eyeBlinkRight > eyeBlinkThreshold;
