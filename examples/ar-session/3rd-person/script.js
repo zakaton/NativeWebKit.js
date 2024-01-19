@@ -101,24 +101,27 @@ ARSessionManager.addEventListener("isRunning", (event) => {
 const virtualCameraEntity = document.getElementById("virtualCamera");
 const faceEntity = document.getElementById("face");
 
+/** @type {Vector3} */
+const cameraPosition = new THREE.Vector3();
+/** @type {Quaternion} */
+const cameraQuaternion = new THREE.Quaternion();
+
 var latestFocalLength;
 ARSessionManager.addEventListener("camera", (event) => {
     /** @type {import("../../../src/ARSessionManager.js").ARSCamera} */
     const camera = event.message.camera;
 
-    /** @type {Vector3} */
-    const newCameraPosition = new THREE.Vector3(...camera.position);
-    /** @type {Quaternion} */
-    const newCameraQuaternion = new THREE.Quaternion(...camera.quaternion);
+    cameraPosition.set(...camera.position);
+    cameraQuaternion.set(...camera.quaternion);
 
     if (configurationType == "faceTracking" && !isMirrorModeEnabled) {
-        newCameraPosition.x *= -1;
-        mirrorQuaternionAboutAxes(newCameraQuaternion, "z", "y");
-        // newCameraQuaternion.multiply(rotate180DegreesQuaternion); // to emulate the rear camera
+        cameraPosition.x *= -1;
+        mirrorQuaternionAboutAxes(cameraQuaternion, "z", "y");
+        // cameraQuaternion.multiply(rotate180DegreesQuaternion); // to emulate the rear camera
     }
 
-    virtualCameraEntity.object3D.position.lerp(newCameraPosition, 0.5);
-    virtualCameraEntity.object3D.quaternion.slerp(newCameraQuaternion, 0.5);
+    virtualCameraEntity.object3D.position.lerp(cameraPosition, 0.5);
+    virtualCameraEntity.object3D.quaternion.slerp(cameraQuaternion, 0.5);
 
     if (virtualCameraEntity.object3D) {
         if (latestFocalLength != camera.focalLength) {
@@ -139,6 +142,23 @@ const eyeBlinkThreshold = 0.5;
 /** @typedef {import("../../src/three/three.module.min.js").Euler} Euler */
 /** @typedef {import("../../src/three/three.module.min.js").Quaternion} Quaternion */
 
+/** @type {Vector3} */
+const facePosition = new THREE.Vector3();
+/** @type {Quaternion} */
+const faceQuaternion = new THREE.Quaternion();
+
+/** @type {Vector3} */
+const leftEyePosition = new THREE.Vector3();
+/** @type {Quaternion} */
+const leftEyeQuaternion = new THREE.Quaternion();
+
+/** @type {Vector3} */
+const rightEyePosition = new THREE.Vector3();
+/** @type {Quaternion} */
+const rightEyeQuaternion = new THREE.Quaternion();
+/** @type {Vector3} */
+const lookAtPoint = new THREE.Vector3();
+
 /** @type {Euler} */
 const rotateYaw180DegreesEuler = new THREE.Euler();
 rotateYaw180DegreesEuler.y = Math.PI;
@@ -152,69 +172,62 @@ ARSessionManager.addEventListener("faceAnchors", (event) => {
     const faceAnchors = event.message.faceAnchors;
     const faceAnchor = faceAnchors[0];
     if (faceAnchor) {
-        /** @type {Vector3} */
-        const newFacePosition = new THREE.Vector3(...faceAnchor.position);
-        /** @type {Quaternion} */
-        const newFaceQuaternion = new THREE.Quaternion(...faceAnchor.quaternion);
+        facePosition.set(...faceAnchor.position);
+        faceQuaternion.set(...faceAnchor.quaternion);
 
         if (shouldCorrectData) {
             if (configurationType == "worldTracking") {
-                newFaceQuaternion.multiply(rotate180DegreesQuaternion);
+                faceQuaternion.multiply(rotate180DegreesQuaternion);
             }
         }
 
         if (configurationType == "faceTracking" && !isMirrorModeEnabled) {
-            newFacePosition.x *= -1;
-            mirrorQuaternionAboutAxes(newFaceQuaternion, "z", "y");
-            newFaceQuaternion.multiply(rotate180DegreesQuaternion);
+            facePosition.x *= -1;
+            mirrorQuaternionAboutAxes(faceQuaternion, "z", "y");
+            faceQuaternion.multiply(rotate180DegreesQuaternion);
         }
 
-        faceEntity.object3D.position.lerp(newFacePosition, 0.5);
-        faceEntity.object3D.quaternion.slerp(newFaceQuaternion, 0.5);
+        faceEntity.object3D.position.lerp(facePosition, 0.5);
+        faceEntity.object3D.quaternion.slerp(faceQuaternion, 0.5);
 
         const isLeftEyeClosed = faceAnchor.blendShapes.eyeBlinkLeft > eyeBlinkThreshold;
         const isRightEyeClosed = faceAnchor.blendShapes.eyeBlinkRight > eyeBlinkThreshold;
 
-        /** @type {Vector3} */
-        const newLeftEyePosition = new THREE.Vector3(...faceAnchor.leftEye.position);
-        /** @type {Quaternion} */
-        const newLeftEyeQuaternion = new THREE.Quaternion(...faceAnchor.leftEye.quaternion);
+        leftEyePosition.set(...faceAnchor.leftEye.position);
+        leftEyeQuaternion.set(...faceAnchor.leftEye.quaternion);
         if (configurationType == "faceTracking" && !isMirrorModeEnabled) {
-            mirrorQuaternionAboutAxes(newLeftEyeQuaternion, "y", "x");
+            mirrorQuaternionAboutAxes(leftEyeQuaternion, "y", "x");
         }
         if (configurationType == "worldTracking" && shouldCorrectData) {
-            mirrorQuaternionAboutAxes(newLeftEyeQuaternion, "y", "x");
+            mirrorQuaternionAboutAxes(leftEyeQuaternion, "y", "x");
         }
-        leftEyeEntity.object3D.position.lerp(newLeftEyePosition, 0.5);
-        leftEyeEntity.object3D.quaternion.slerp(newLeftEyeQuaternion, 0.5);
+        leftEyeEntity.object3D.position.lerp(leftEyePosition, 0.5);
+        leftEyeEntity.object3D.quaternion.slerp(leftEyeQuaternion, 0.5);
 
-        /** @type {Vector3} */
-        const newRightEyePosition = new THREE.Vector3(...faceAnchor.rightEye.position);
-        /** @type {Quaternion} */
-        const newRightEyeQuaternion = new THREE.Quaternion(...faceAnchor.rightEye.quaternion);
+        rightEyePosition.set(...faceAnchor.rightEye.position);
+        rightEyeQuaternion.set(...faceAnchor.rightEye.quaternion);
         if (configurationType == "faceTracking" && !isMirrorModeEnabled) {
-            mirrorQuaternionAboutAxes(newRightEyeQuaternion, "y", "x");
+            mirrorQuaternionAboutAxes(rightEyeQuaternion, "y", "x");
         }
         if (configurationType == "worldTracking" && shouldCorrectData) {
-            mirrorQuaternionAboutAxes(newRightEyeQuaternion, "y", "x");
+            mirrorQuaternionAboutAxes(rightEyeQuaternion, "y", "x");
         }
-        rightEyeEntity.object3D.position.lerp(newRightEyePosition, 0.5);
-        rightEyeEntity.object3D.quaternion.slerp(newRightEyeQuaternion, 0.5);
+        rightEyeEntity.object3D.position.lerp(rightEyePosition, 0.5);
+        rightEyeEntity.object3D.quaternion.slerp(rightEyeQuaternion, 0.5);
 
-        /** @type {Vector3} */
-        const newLookAtPointEntityPosition = new THREE.Vector3(...faceAnchor.lookAtPoint);
+        lookAtPoint.set(...faceAnchor.lookAtPoint);
         if (shouldCorrectData) {
             if (configurationType == "worldTracking") {
-                newLookAtPointEntityPosition.z *= -1;
+                lookAtPoint.z *= -1;
             }
         }
         if (configurationType == "faceTracking") {
             if (!isMirrorModeEnabled) {
-                newLookAtPointEntityPosition.z *= -1;
+                lookAtPoint.z *= -1;
             }
         }
-        lookAtPointEntity.object3D.position.lerp(newLookAtPointEntityPosition, 0.5);
-        lookAtPointEntity.object3D.lookAt(faceEntity.object3D.position);
+        lookAtPointEntity.object3D.position.lerp(lookAtPoint, 0.5);
+        lookAtPointEntity.object3D.lookAt(facePosition);
 
         const showLeftEye = !isLeftEyeClosed;
         if (leftEyeEntity.object3D.visible != showLeftEye) {
@@ -233,6 +246,8 @@ ARSessionManager.addEventListener("faceAnchors", (event) => {
 const ambientLight = document.getElementById("ambientLight");
 const directionalLight = document.getElementById("directionalLight");
 const virtualPrimaryLightEntity = document.getElementById("virtualPrimaryLight");
+/** @type {Vector3} */
+const virtualPrimaryLightPosition = new THREE.Vector3();
 
 ARSessionManager.addEventListener("lightEstimate", (event) => {
     /** @type {ARSLightEstimate} */
@@ -250,12 +265,10 @@ ARSessionManager.addEventListener("lightEstimate", (event) => {
         }
         directionalLight.object3D.position.copy(primaryLightDirection);
 
-        /** @type {Vector3} */
-        const virtualPrimaryLightPosition = new THREE.Vector3();
-        virtualPrimaryLightPosition.copy(faceEntity.object3D.position);
+        virtualPrimaryLightPosition.copy(facePosition);
         virtualPrimaryLightPosition.addScaledVector(primaryLightDirection, 0.5);
         virtualPrimaryLightEntity.object3D.position.copy(virtualPrimaryLightPosition);
-        virtualPrimaryLightEntity.object3D.lookAt(faceEntity.object3D.position);
+        virtualPrimaryLightEntity.object3D.lookAt(facePosition);
     }
     if (virtualPrimaryLightEntity.object3D.visible != Boolean(lightEstimate.primaryLightDirection)) {
         virtualPrimaryLightEntity.object3D.visible = Boolean(lightEstimate.primaryLightDirection);
