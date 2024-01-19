@@ -117,7 +117,7 @@ ARSessionManager.addEventListener("camera", (event) => {
     if (configurationType == "faceTracking" && !isMirrorModeEnabled) {
         cameraPosition.x *= -1;
         mirrorQuaternionAboutAxes(cameraQuaternion, "z", "y");
-        // cameraQuaternion.multiply(rotate180DegreesQuaternion); // to emulate the rear camera
+        cameraQuaternion.multiply(rotate180DegreesQuaternion); // to emulate the rear camera
     }
 
     virtualCameraEntity.object3D.position.lerp(cameraPosition, 0.5);

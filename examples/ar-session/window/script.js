@@ -208,7 +208,7 @@ const rightEyeQuaternion = new THREE.Quaternion();
 /** @type {Vector3} */
 const lookAtPoint = new THREE.Vector3();
 
-const faceDistanceRange = [0.2, 1];
+const faceDistanceRange = [0.2, 0.8];
 const focalLengthRange = [5, 30]; // FIX
 const zoomRange = [2, 1]; // FIX
 /** @type {Vector3} */

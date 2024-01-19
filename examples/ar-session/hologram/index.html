@@ -71,6 +71,9 @@
                     <button id="pause" disabled>pause</button>
                     <button id="toggleShowCamera" disabled>show camera</button>
                 </div>
+                <div>
+                    <div>faceToCamera: <span id="faceToCameraEuler"></span></div>
+                </div>
             </div>
         </div>
 
@@ -98,7 +101,7 @@
                     </a-entity>
                 </a-entity>
 
-                <a-entity id="avatarPosition" position="0 0 -0.5">
+                <a-entity id="avatarPosition" position="0 0 -0.1">
                     <a-entity id="avatarRotation" rotation="0 0 0">
                         <a-entity id="avatar" gltf-model="#avatarAsset" position="0 -0.59 0"></a-entity>
                     </a-entity>
