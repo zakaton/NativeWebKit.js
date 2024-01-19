@@ -118,6 +118,11 @@ ARSessionManager.addEventListener("camera", (event) => {
     cameraPosition.set(...camera.position);
     cameraQuaternion.set(...camera.quaternion);
 
+    cameraPosition.x *= -1;
+    mirrorQuaternionAboutAxes(cameraQuaternion, "z", "y");
+    cameraQuaternion.multiply(rotate180DegreesQuaternion); // to emulate the rear camera
+
+    aframeCamera.object3D.position.lerp(cameraPosition, 0.5);
     aframeCamera.object3D.quaternion.slerp(cameraQuaternion, 0.5);
 
     threeCamera = threeCamera || aframeCamera?.components?.camera?.camera;
@@ -282,6 +287,7 @@ ARSessionManager.addEventListener("lightEstimate", (event) => {
     if (lightEstimate.primaryLightDirection) {
         directionalLight.components.light.light.intensity = lightEstimate.primaryLightIntensity / 1000;
         primaryLightDirection.set(...lightEstimate.primaryLightDirection.map((v) => -v));
+        //primaryLightDirection.applyEuler(rotateYaw180DegreesEuler);
         directionalLight.object3D.position.lerp(primaryLightDirection, 0.5);
     }
 });
