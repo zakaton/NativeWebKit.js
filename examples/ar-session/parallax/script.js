@@ -195,7 +195,6 @@ ARSessionManager.addEventListener("faceAnchors", (event) => {
         faceQuaternion.set(...faceAnchor.quaternion);
 
         facePosition.x *= -1;
-        console.log(facePosition);
         mirrorQuaternionAboutAxes(faceQuaternion, "z", "y");
         faceQuaternion.multiply(rotate180DegreesQuaternion);
 

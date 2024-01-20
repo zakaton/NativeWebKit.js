@@ -21,8 +21,6 @@ HeadphoneMotionManager.addEventListener("isActive", (event) => {
 
     startUpdatesButton.disabled = HeadphoneMotionManager.isActive;
     stopUpdatesButton.disabled = !HeadphoneMotionManager.isActive;
-
-    resetOrientationButton.disabled = !HeadphoneMotionManager.isActive;
 });
 
 /** @type {HTMLButtonElement} */
@@ -52,13 +50,15 @@ HeadphoneMotionManager.addEventListener("motionData", (event) => {
 /** @typedef {import("../../src/three/three.module.min.js").Euler} Euler */
 
 /** @type {Euler} */
-const eulerOffset = new THREE.Euler();
-eulerOffset.order = "YXZ";
+const headphoneEulerOffset = new THREE.Euler();
+headphoneEulerOffset.order = "YXZ";
 /** @type {Euler} */
 const _euler = new THREE.Euler();
 _euler.order = "YXZ";
 /** @type {Quaternion} */
 const headQuaternion = new THREE.Quaternion();
+/** @type {Quaternion} */
+const calibratedHeadQuaternion = new THREE.Quaternion();
 
 /** @type {Euler} */
 const rotateYaw180DegreesEuler = new THREE.Euler();
@@ -104,31 +104,44 @@ const resetOrientationButton = document.getElementById("resetOrientation");
 resetOrientationButton.addEventListener("click", () => {
     console.log("resetting orientation");
     /** @type {Quaternion} */
-    const quaternion = new THREE.Quaternion(...HeadphoneMotionManager.motionData.quaternion);
-    eulerOffset.setFromQuaternion(quaternion);
+    const quaternion = new THREE.Quaternion();
+
+    if (HeadphoneMotionManager.motionData) {
+        /** @type {Quaternion} */
+        quaternion.set(...HeadphoneMotionManager.motionData.quaternion);
+        headphoneEulerOffset.setFromQuaternion(quaternion);
+    }
+
+    quaternion.copy(deviceQuaternion);
+    deviceEulerOffset.setFromQuaternion(quaternion);
+    deviceEulerOffset.x = 0;
+    deviceEulerOffset.z = 0;
+    deviceEulerOffset.y *= -1;
+    deviceQuaternionOffset.setFromEuler(deviceEulerOffset);
 });
+resetOrientationButton.disabled = false;
 
 const parallaxTargetEntity = document.getElementById("rotation");
+/** @type {Quaternion} */
+const parallaxTargetQuaternion = new THREE.Quaternion();
 
 /** @param {HeadphoneMotionData} motionData */
 function onHeadphoneMotionData(motionData) {
     headQuaternion.set(...motionData.quaternion);
     _euler.setFromQuaternion(headQuaternion);
-    _euler.x -= eulerOffset.x;
-    _euler.y -= eulerOffset.y;
-    _euler.z -= eulerOffset.z;
+    _euler.x -= headphoneEulerOffset.x;
+    _euler.y -= headphoneEulerOffset.y;
+    _euler.z -= headphoneEulerOffset.z;
+    _euler.z = 0;
 
-    if (false) {
-        _euler.z *= -1;
-        _euler.y *= -1;
-        _euler.y += Math.PI;
-    }
+    calibratedHeadQuaternion.setFromEuler(_euler);
 
-    headQuaternion.setFromEuler(_euler);
-    removeAxesFromQuaternion(headQuaternion, "z");
-    mirrorQuaternionAboutAxes(headQuaternion, "y", "x");
+    parallaxTargetQuaternion.copy(calibratedHeadQuaternion);
+    parallaxTargetQuaternion.premultiply(inverseDeviceQuaternion);
+    removeAxesFromQuaternion(parallaxTargetQuaternion, "z");
+    mirrorQuaternionAboutAxes(parallaxTargetQuaternion, "x", "y");
 
-    parallaxTargetEntity.object3D.quaternion.slerp(headQuaternion, 0.5);
+    parallaxTargetEntity.object3D.quaternion.slerp(parallaxTargetQuaternion, 0.5);
 }
 
 /** @type {Euler} */
@@ -136,16 +149,32 @@ const deviceEuler = new THREE.Euler();
 deviceEuler.order = "YXZ";
 /** @type {Quaternion} */
 const deviceQuaternion = new THREE.Quaternion();
+/** @type {Euler} */
+const deviceEulerOffset = new THREE.Euler(0, 0, 0, "YXZ");
+/** @type {Quaternion} */
+const deviceQuaternionOffset = new THREE.Quaternion();
+/** @type {Quaternion} */
+const calibratedDeviceQuaternion = new THREE.Quaternion();
+/** @type {Quaternion} */
+const inverseDeviceQuaternion = new THREE.Quaternion();
 window.addEventListener("deviceorientation", (event) => {
     const { alpha, beta, gamma } = event;
     const pitch = THREE.MathUtils.degToRad(beta);
     const yaw = THREE.MathUtils.degToRad(alpha);
     const roll = -THREE.MathUtils.degToRad(gamma);
-    console.log({ pitch, yaw });
     deviceEuler.set(pitch, yaw, roll);
+
     deviceQuaternion.setFromEuler(deviceEuler);
     deviceQuaternion.multiply(rotatePitch90DegreesQuaternion);
-    //parallaxTargetEntity.object3D.quaternion.slerp(deviceQuaternion, 0.5);
+    removeAxesFromQuaternion(deviceQuaternion, "z");
+
+    calibratedDeviceQuaternion.copy(deviceQuaternion);
+    calibratedDeviceQuaternion.premultiply(deviceQuaternionOffset);
+
+    inverseDeviceQuaternion.copy(calibratedDeviceQuaternion);
+    inverseDeviceQuaternion.invert();
+
+    //parallaxTargetEntity.object3D.quaternion.slerp(calibratedDeviceQuaternion, 0.5);
 });
 
 document.addEventListener(
