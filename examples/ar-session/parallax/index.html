@@ -1,6 +1,6 @@
 <html>
     <head>
-        <title>Hologram | AR Session | NativeWebKit.js</title>
+        <title>Parallax | AR Session | NativeWebKit.js</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="shortcut icon" type="image/x-icon" href="favicon.ico" />
         <script src="../../src/aframe/aframe-v1.5.0.min.js"></script>
@@ -71,9 +71,6 @@
                     <button id="pause" disabled>pause</button>
                     <button id="toggleShowCamera" disabled>show camera</button>
                 </div>
-                <div>
-                    <div>faceToCamera: <span id="faceToCameraEuler"></span></div>
-                </div>
             </div>
         </div>
 
@@ -84,7 +81,7 @@
             renderer="physicallyCorrectLights: true; toneMapping: reinhard;"
         >
             <a-assets>
-                <a-asset-item id="avatarAsset" src="../../../assets/3d/avatar.glb"></a-asset-item>
+                <a-asset-item id="astronautAsset" src="../../../assets/3d/astronaut.glb"></a-asset-item>
             </a-assets>
 
             <a-camera id="camera" look-controls="enabled: false;" wasd-controls="enabled: false;" position="0 0 0">
@@ -101,41 +98,14 @@
                     </a-entity>
                 </a-entity>
 
-                <a-entity id="avatarPosition" position="0 0 -0.1">
-                    <a-entity id="avatarRotation" rotation="0 0 0">
-                        <a-entity id="avatar" gltf-model="#avatarAsset" position="0 -0.59 0"></a-entity>
-                    </a-entity>
-                </a-entity>
-
-                <a-entity id="sceneContainer" visible="false">
-                    <a-entity position="0 -0.2 -0.3" rotation="90 0 0" scale="0.05 0.05 0.05">
-                        <a-box
-                            shadow="cast: true; receive: true"
-                            position="-1 0.5 -3"
-                            rotation="0 45 0"
-                            color="#4CC3D9"
-                        ></a-box>
-                        <a-sphere
-                            shadow="cast: true; receive: true"
-                            position="0 1.25 -5"
-                            radius="0.5"
-                            color="#EF2D5E"
-                        ></a-sphere>
-                        <a-cylinder
-                            shadow="cast: true; receive: true"
-                            position="1 0.75 -3"
-                            radius="0.5"
-                            height="1.5"
-                            color="#FFC65D"
-                        ></a-cylinder>
-                        <a-plane
-                            shadow="receive: true"
-                            position="0 0 -4"
-                            rotation="-90 0 0"
-                            width="4"
-                            height="4"
-                            color="#7BC8A4"
-                        ></a-plane>
+                <a-entity id="position" position="0 0 -0.4">
+                    <a-entity id="rotation" rotation="0 0 0">
+                        <a-entity
+                            id="astronaut"
+                            gltf-model="#astronautAsset"
+                            position="0 -0.2 0"
+                            scale="0.2 0.2 0.2"
+                        ></a-entity>
                     </a-entity>
                 </a-entity>
             </a-camera>
@@ -154,7 +124,7 @@
                     radius-bottom="0.05"
                 ></a-cone>
 
-                <a-entity id="lookAtPoint">
+                <a-entity id="lookAtPoint" visible="false">
                     <a-cone
                         color="red"
                         position="0 0 -0.2"

@@ -164,10 +164,10 @@ ARSessionManager.addEventListener("camera", (event) => {
         aframeCamera.object3D.rotation.reorder("ZYX");
     }
 
-    if (!isHologramEnabled) {
+    if (!isParallaxEnabled) {
         aframeCamera.object3D.position.lerp(cameraPosition, 0.5);
     }
-    if (faceAnchorFound && isHologramEnabled) {
+    if (faceAnchorFound && isParallaxEnabled) {
         if (configurationType == "worldTracking") {
             removeAxesFromQuaternion(cameraQuaternion, "x", "y");
         }
@@ -242,7 +242,7 @@ ARSessionManager.addEventListener("faceAnchors", (event) => {
             faceQuaternion.multiply(rotate180DegreesQuaternion);
         }
 
-        if (isHologramEnabled) {
+        if (isParallaxEnabled) {
             if (threeCamera) {
                 const faceDistance = facePosition.distanceTo(cameraPosition);
                 var distanceInterpolation = THREE.MathUtils.inverseLerp(...faceDistanceRange, faceDistance);
@@ -319,25 +319,25 @@ ARSessionManager.addEventListener("faceAnchors", (event) => {
     }
 });
 
-var isHologramEnabled = null;
+var isParallaxEnabled = null;
 /** @type {HTMLButtonElement} */
-const toggleHologramButton = document.getElementById("toggleHologram");
-toggleHologramButton.addEventListener("click", () => {
-    setIsHologramEnabled(!isHologramEnabled);
+const toggleParallaxButton = document.getElementById("toggleParallax");
+toggleParallaxButton.addEventListener("click", () => {
+    setIsParallaxEnabled(!isParallaxEnabled);
 });
-toggleHologramButton.disabled = !ARSessionManager.isSupported;
-function setIsHologramEnabled(newIsHologramEnabled) {
-    if (newIsHologramEnabled == isHologramEnabled) {
+toggleParallaxButton.disabled = !ARSessionManager.isSupported;
+function setIsParallaxEnabled(newIsParallaxEnabled) {
+    if (newIsParallaxEnabled == isParallaxEnabled) {
         return;
     }
-    isHologramEnabled = newIsHologramEnabled;
-    if (!isHologramEnabled) {
+    isParallaxEnabled = newIsParallaxEnabled;
+    if (!isParallaxEnabled) {
         threeCamera.setFocalLength(latestFocalLength);
     }
-    console.log({ isHologramEnabled });
-    toggleHologramButton.innerText = isHologramEnabled ? "disable hologram" : "enable hologram";
+    console.log({ isParallaxEnabled });
+    toggleParallaxButton.innerText = isParallaxEnabled ? "disable parallax" : "enable parallax";
 }
-setIsHologramEnabled(true);
+setIsParallaxEnabled(true);
 
 /** @type {HTMLButtonElement} */
 const toggleShowCameraButton = document.getElementById("toggleShowCamera");

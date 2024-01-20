@@ -83,7 +83,7 @@
                             <option value="faceTracking">face</option>
                         </optgroup>
                     </select>
-                    <button id="toggleHologram">enable hologram</button>
+                    <button id="toggleParallax">enable parallax</button>
                 </div>
             </div>
         </div>
@@ -94,7 +94,7 @@
             device-orientation-permission-ui="enabled: false"
             renderer="physicallyCorrectLights: true; toneMapping: reinhard;"
         >
-            <a-camera id="camera" look-controls="enabled: false;" wasd-controls="enabled: false;" position="0 0 0">
+            <a-camera id="camera" look-controls="enabled: false;" wasd-controls="enabled: false;" position="0 0 0.5">
                 <a-entity id="eyes" position="0 0.12 -0.3" rotation="30 0 0">
                     <a-entity id="leftEye" position="-0.03 0 0">
                         <a-sphere radius="0.01" color="white">

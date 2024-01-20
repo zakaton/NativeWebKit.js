@@ -47,7 +47,7 @@ ARSessionManager.checkShowCameraOnLoad = true;
 
 const scene = document.querySelector("a-scene");
 //const sceneContainerEntity = document.getElementById("sceneContainer");
-const sceneContainerEntity = document.getElementById("avatarRotation");
+const sceneContainerEntity = document.getElementById("rotation");
 
 /** @type {HTMLInputElement} */
 const isSupportedCheckbox = document.getElementById("isSupported");
@@ -123,13 +123,6 @@ ARSessionManager.addEventListener("camera", (event) => {
 
     cameraPosition.x *= -1;
     mirrorQuaternionAboutAxes(cameraQuaternion, "z", "y");
-    rearCameraQuaternion.copy(cameraQuaternion);
-    rearCameraQuaternion.multiply(rotate180DegreesQuaternion); // to emulate the rear camera
-    rearCameraQuaternionInverse.copy(rearCameraQuaternion);
-    rearCameraQuaternionInverse.invert();
-
-    cameraQuaternionWithoutRoll.copy(rearCameraQuaternion);
-    removeAxesFromQuaternion(cameraQuaternionWithoutRoll, "z");
 
     aframeCamera.object3D.position.lerp(cameraPosition, 0.5);
     aframeCamera.object3D.quaternion.slerp(cameraQuaternion, 0.5);
@@ -184,11 +177,9 @@ const faceLookAtCameraQuaternion = new THREE.Quaternion();
 const sceneContainerQuaternion = new THREE.Quaternion();
 /** @type {Quaternion} */
 const inverseCameraQuaternion = new THREE.Quaternion();
-/** @type {Quaternion} */
-const rearCameraQuaternion = new THREE.Quaternion();
-/** @type {Quaternion} */
-const rearCameraQuaternionInverse = new THREE.Quaternion();
 var faceAnchorFound = false;
+
+var applyDistortion = false;
 
 /** @typedef {import("../../src/three/three.module.min.js").Vector3} Vector3 */
 /** @typedef {import("../../src/three/three.module.min.js").Quaternion} Quaternion */
@@ -211,7 +202,7 @@ ARSessionManager.addEventListener("faceAnchors", (event) => {
         faceEntity.object3D.position.lerp(facePosition, 0.5);
         faceEntity.object3D.quaternion.slerp(faceQuaternion, 0.5);
 
-        if (threeCamera) {
+        if (threeCamera && applyDistortion) {
             const faceDistance = facePosition.distanceTo(cameraPosition);
             var distanceInterpolation = THREE.MathUtils.inverseLerp(...faceDistanceRange, faceDistance);
             distanceInterpolation = THREE.MathUtils.clamp(distanceInterpolation, 0, 1);
@@ -220,13 +211,13 @@ ARSessionManager.addEventListener("faceAnchors", (event) => {
             console.log({ faceDistance, distanceInterpolation, newFocalLength, newZoom });
             threeCamera.zoom = newZoom;
             threeCamera.setFocalLength(newFocalLength);
+
+            sceneContainerEntity.object3D.position.lerp(facePosition, 0.5);
+            sceneContainerEntity.object3D.position.z *= 1;
+            sceneContainerEntity.object3D.position.x = 0;
+            sceneContainerEntity.object3D.position.y = 0;
         }
         //aframeCamera.object3D.position.lerp(facePosition, 0.5);
-
-        sceneContainerEntity.object3D.position.lerp(facePosition, 0.5);
-        sceneContainerEntity.object3D.position.z *= 1;
-        sceneContainerEntity.object3D.position.x = 0;
-        sceneContainerEntity.object3D.position.y = 0;
 
         faceLookAtCameraMatrix.lookAt(cameraPosition, facePosition, upVector);
         faceLookAtCameraQuaternion.setFromRotationMatrix(faceLookAtCameraMatrix);
