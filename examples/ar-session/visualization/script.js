@@ -117,7 +117,7 @@ ARSessionManager.addEventListener("camera", (event) => {
     if (configurationType == "faceTracking" && !isMirrorModeEnabled) {
         cameraPosition.x *= -1;
         mirrorQuaternionAboutAxes(cameraQuaternion, "z", "y");
-        cameraQuaternion.multiply(rotate180DegreesQuaternion); // to emulate the rear camera
+        //cameraQuaternion.multiply(rotate180DegreesQuaternion); // to emulate the rear camera
     }
 
     virtualCameraEntity.object3D.position.lerp(cameraPosition, 0.5);
@@ -248,6 +248,8 @@ const directionalLight = document.getElementById("directionalLight");
 const virtualPrimaryLightEntity = document.getElementById("virtualPrimaryLight");
 /** @type {Vector3} */
 const virtualPrimaryLightPosition = new THREE.Vector3();
+/** @type {Vector3} */
+const primaryLightDirection = new THREE.Vector3();
 
 ARSessionManager.addEventListener("lightEstimate", (event) => {
     /** @type {ARSLightEstimate} */
@@ -258,8 +260,7 @@ ARSessionManager.addEventListener("lightEstimate", (event) => {
     directionalLight.components.light.light.color.setRGB(...lightColor);
     if (lightEstimate.primaryLightDirection) {
         directionalLight.components.light.light.intensity = lightEstimate.primaryLightIntensity / 1000;
-        /** @type {Vector3} */
-        const primaryLightDirection = new THREE.Vector3(...lightEstimate.primaryLightDirection.map((v) => -v));
+        primaryLightDirection.set(...lightEstimate.primaryLightDirection.map((v) => -v));
         if (configurationType == "faceTracking" && !isMirrorModeEnabled) {
             primaryLightDirection.applyEuler(rotateYaw180DegreesEuler);
         }

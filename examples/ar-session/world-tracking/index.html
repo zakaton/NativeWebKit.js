@@ -62,13 +62,28 @@
                 <div>
                     <label>is supported? <input id="isSupported" type="checkbox" disabled /></label>
                     <label>
-                        is world tracking supported? <input id="isWorldTrackingSupported" type="checkbox" disabled />
+                        world w/face?
+                        <input id="isWorldTrackingSupportedWithFaceTracking" type="checkbox" disabled />
+                    </label>
+                    <label>
+                        face w/world?
+                        <input id="isFaceTrackingSupportedWithWorldTracking" type="checkbox" disabled />
                     </label>
                 </div>
                 <div>
                     <button id="run" disabled>run</button>
                     <button id="pause" disabled>pause</button>
                     <button id="toggleDebug" disabled>show debug</button>
+                </div>
+                <div>
+                    <button id="toggleShowCamera" disabled>show camera</button>
+                    <select id="configurationType">
+                        <optgroup label="configuration type">
+                            <option selected value="worldTracking">world</option>
+                            <option value="faceTracking">face</option>
+                        </optgroup>
+                    </select>
+                    <button id="togglePlaneDetection" disabled>enable plane detection</button>
                 </div>
             </div>
         </div>
@@ -93,10 +108,12 @@
                 position="-0.5 1 1"
             ></a-entity>
 
-            <a-box position="-1 0.5 -3" rotation="0 45 0" color="#4CC3D9"></a-box>
-            <a-sphere position="0 1.25 -5" radius="1.25" color="#EF2D5E"></a-sphere>
-            <a-cylinder position="1 0.75 -3" radius="0.5" height="1.5" color="#FFC65D"></a-cylinder>
-            <a-plane position="0 0 -4" rotation="-90 0 0" width="4" height="4" color="#7BC8A4"></a-plane>
+            <a-entity visible="false" id="sceneContainer" scale="0.2 0.2 0.2" position="0 -0.5 0">
+                <a-box position="-1 0.5 -3" rotation="0 45 0" color="#4CC3D9"></a-box>
+                <a-sphere position="0 1.25 -5" radius="1.25" color="#EF2D5E"></a-sphere>
+                <a-cylinder position="1 0.75 -3" radius="0.5" height="1.5" color="#FFC65D"></a-cylinder>
+                <a-plane position="0 0 -4" rotation="-90 0 0" width="4" height="4" color="#7BC8A4"></a-plane>
+            </a-entity>
             <a-sky color="#ECECEC"></a-sky>
         </a-scene>
     </body>

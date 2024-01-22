@@ -1,4 +1,4 @@
-import { HeadphoneMotionManager } from "../../../src/NativeWebKit.js";
+import { HeadphoneMotionManager, utils } from "../../../src/NativeWebKit.js";
 //import { HeadphoneMotionManager } from "../../../build/nativewebkit.module.min.js";
 console.log(HeadphoneMotionManager);
 window.HeadphoneMotionManager = HeadphoneMotionManager;
@@ -21,6 +21,8 @@ HeadphoneMotionManager.addEventListener("isActive", (event) => {
 
     startUpdatesButton.disabled = HeadphoneMotionManager.isActive;
     stopUpdatesButton.disabled = !HeadphoneMotionManager.isActive;
+
+    resetOrientationButton.disabled = !HeadphoneMotionManager.isActive;
 });
 
 /** @type {HTMLButtonElement} */
@@ -119,7 +121,6 @@ resetOrientationButton.addEventListener("click", () => {
     deviceEulerOffset.y *= -1;
     deviceQuaternionOffset.setFromEuler(deviceEulerOffset);
 });
-resetOrientationButton.disabled = false;
 
 const parallaxTargetEntity = document.getElementById("rotation");
 /** @type {Quaternion} */
@@ -177,10 +178,12 @@ window.addEventListener("deviceorientation", (event) => {
     //parallaxTargetEntity.object3D.quaternion.slerp(calibratedDeviceQuaternion, 0.5);
 });
 
-document.addEventListener(
-    "click",
-    () => {
-        DeviceMotionEvent.requestPermission();
-    },
-    { once: true }
-);
+if (utils.is_iOS) {
+    document.addEventListener(
+        "click",
+        () => {
+            DeviceMotionEvent.requestPermission();
+        },
+        { once: true }
+    );
+}

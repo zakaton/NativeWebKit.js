@@ -1,0 +1,99 @@
+<html>
+    <head>
+        <title>Body Tracking | AR Session | NativeWebKit.js</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <link rel="shortcut icon" type="image/x-icon" href="favicon.ico" />
+        <script src="../../src/aframe/aframe-v1.5.0.min.js"></script>
+        <script type="module" src="./script.js"></script>
+    </head>
+    <style>
+        body {
+            margin: 0;
+        }
+        a-scene {
+            width: 100%;
+            height: 100%;
+        }
+
+        #controls {
+            margin: auto;
+            width: fit-content;
+            display: flex;
+            flex-direction: column;
+        }
+        #controls > div {
+            display: flex;
+            flex-direction: row;
+            gap: 0.5rem;
+            justify-content: right;
+        }
+
+        label {
+            display: block;
+        }
+
+        .overlay {
+            position: absolute;
+            z-index: 1;
+            bottom: 1rem;
+            background-color: hsla(0, 0%, 100%, 0.5);
+            width: fit-content;
+            height: fit-content;
+        }
+
+        #controlsOverlay {
+            bottom: 1rem;
+            width: 100%;
+        }
+        #navOverlay {
+            top: 1rem;
+            left: 1rem;
+        }
+    </style>
+    <body>
+        <div id="navOverlay" class="overlay">
+            <div>
+                <small><a href="../../../">home</a></small>
+            </div>
+        </div>
+        <div id="controlsOverlay" class="overlay">
+            <div id="controls">
+                <div>
+                    <label>is supported? <input id="isSupported" type="checkbox" disabled /></label>
+                    <label>
+                        is body tracking supported? <input id="isBodyTrackingSupported" type="checkbox" disabled />
+                    </label>
+                </div>
+                <div>
+                    <button id="run" disabled>run</button>
+                    <button id="pause" disabled>pause</button>
+                    <button id="toggleDebug" disabled>show debug</button>
+                    <button id="toggleShowCamera" disabled>show camera</button>
+                </div>
+            </div>
+        </div>
+
+        <a-scene
+            embedded
+            xr-mode-ui="enabled: false;"
+            device-orientation-permission-ui="enabled: false"
+            renderer="colorManagement: true; physicallyCorrectLights: true; toneMapping: reinhard;"
+        >
+            <a-assets>
+                <a-asset-item id="bodyAsset" src="../../../assets/3d/robot.glb"></a-asset-item>
+            </a-assets>
+
+            <a-entity id="ambientLight" light="color: #BBB; type: ambient"></a-entity>
+            <a-entity
+                id="directionalLight"
+                light="color: #FFF; intensity: 0.3; castShadow: true"
+                position="-0.5 1 1"
+            ></a-entity>
+
+            <a-camera id="camera" look-controls="enabled: false;" wasd-controls="enabled: false;" position="0 0 0">
+            </a-camera>
+
+            <a-entity id="body" gltf-model="#bodyAsset" position="0 0 -2"></a-entity>
+        </a-scene>
+    </body>
+</html>

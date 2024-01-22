@@ -45,6 +45,8 @@
         <label>
             with world face-tracking? <input id="isFaceTrackingSupportedWithWorldTracking" type="checkbox" disabled />
         </label>
+        <br />
+        <label>is body tracking supported? <input id="isBodyTrackingSupported" type="checkbox" disabled /></label>
 
         <p><b>Configuration</b></p>
         <label>
@@ -58,6 +60,26 @@
             <label>
                 face tracking?
                 <input type="checkbox" data-configuration="userFaceTrackingEnabled" />
+            </label>
+            <label>
+                plane detection
+                <select data-configuration="planeDetection">
+                    <optgroup label="plane detection">
+                        <option value="">none</option>
+                        <option value="horizontal">horizontal</option>
+                        <option value="vertical">vertical</option>
+                        <option value="vertical,horizontal">vertical and horizontal</option>
+                    </optgroup>
+                </select>
+            </label>
+            <label>
+                frame semantics
+                <select data-configuration="frameSemantics">
+                    <optgroup label="frame semantics">
+                        <option value="">none</option>
+                        <!-- <option value="bodyDetection">body detection</option> -->
+                    </optgroup>
+                </select>
             </label>
         </div>
 

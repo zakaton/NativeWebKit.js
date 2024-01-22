@@ -6,6 +6,7 @@ window.utils = utils;
 window.ARSessionManager = ARSessionManager;
 
 ARSessionManager.checkFaceTrackingSupportOnLoad = true;
+ARSessionManager.checkBodyTrackingSupportOnLoad = true;
 ARSessionManager.checkWorldTrackingSupportOnLoad = true;
 ARSessionManager.checkIsRunningOnLoad = true;
 ARSessionManager.pauseOnUnload = false;
@@ -41,6 +42,14 @@ ARSessionManager.addEventListener("faceTrackingSupport", (event) => {
     const faceTrackingSupport = event.message.faceTrackingSupport;
     isFaceTrackingSupportedCheckbox.checked = faceTrackingSupport.isSupported;
     isFaceTrackingSupportedWithWorldTrackingCheckbox.checked = faceTrackingSupport.supportsWorldTracking;
+});
+
+/** @type {HTMLInputElement} */
+const isBodyTrackingSupportedCheckbox = document.getElementById("isBodyTrackingSupported");
+ARSessionManager.addEventListener("bodyTrackingSupport", (event) => {
+    /** @type {import("../../../src/ARSessionManager.js").ARSBodyTrackingSupport} */
+    const bodyTrackingSupport = event.message.bodyTrackingSupport;
+    isBodyTrackingSupportedCheckbox.checked = bodyTrackingSupport.isSupported;
 });
 
 /** @typedef {import("../../../src/ARSessionManager.js").ARSConfigurationType} ARSConfigurationType */
@@ -160,6 +169,7 @@ ARSessionManager.addEventListener("configuration", (event) => {
     /** @type {ARSConfiguration} */
     configuration = event.message.configuration;
     configurationTypeSelect.value = configuration.type;
+    console.log("updated configuration", configuration);
     updateConfigurationElements();
 });
 
@@ -179,6 +189,9 @@ document.querySelectorAll("[data-configuration-type]").forEach((configurationDiv
             var value = configurationInput.value;
             if (configurationInput.type == "checkbox") {
                 value = configurationInput.checked;
+            }
+            if (configurationKey == "planeDetection" || configurationKey == "frameSemantics") {
+                value = value.split(",").filter((value) => value.length > 0);
             }
             configuration[configurationKey] = value;
             console.log(
