@@ -70,6 +70,8 @@
                     <button id="toggleDebug" disabled>show debug</button>
                     <button id="toggleShowCamera" disabled>show camera</button>
                 </div>
+                <div>cameraPosition <span id="cameraPosition"></span></div>
+                <div>bodyPosition <span id="bodyPosition"></span></div>
             </div>
         </div>
 
@@ -94,6 +96,8 @@
             </a-camera>
 
             <a-entity id="body" gltf-model="#bodyAsset" position="0 0 -2"></a-entity>
+
+            <a-sky color="#ECECEC"></a-sky>
         </a-scene>
     </body>
 </html>
