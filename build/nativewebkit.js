@@ -1143,9 +1143,9 @@
 
 	const _console = createConsole("ARSession", { log: false });
 
-	/** @typedef {"worldTrackingSupport" | "faceTrackingSupport" | "run" | "pause" | "status" | "frame" | "debugOptions" | "cameraMode" | "configuration" | "showCamera" | "messageConfiguration" | "isRunning"} ARSMessageType */
+	/** @typedef {"worldTrackingSupport" | "bodyTrackingSupport" | "faceTrackingSupport" | "run" | "pause" | "status" | "frame" | "debugOptions" | "cameraMode" | "configuration" | "showCamera" | "messageConfiguration" | "isRunning"} ARSMessageType */
 
-	/** @typedef {"worldTrackingSupport" | "faceTrackingSupport" | "isRunning" | "frame" | "camera" | "faceAnchors" | "faceAnchor" | "debugOptions" | "cameraMode" | "configuration" | "showCamera" | "lightEstimate" | "messageConfiguration"} ARSEventType */
+	/** @typedef {"worldTrackingSupport" | "bodyTrackingSupport" | "faceTrackingSupport" | "isRunning" | "frame" | "camera" | "faceAnchors" | "debugOptions" | "cameraMode" | "configuration" | "showCamera" | "lightEstimate" | "messageConfiguration" | "planeAnchors" | "bodyAnchors"} ARSEventType */
 
 	/** @typedef {import("./utils/messaging.js").NKMessage} NKMessage */
 
@@ -1181,6 +1181,12 @@
 	 */
 
 	/**
+	 * @typedef ARSBodyTrackingSupport
+	 * @type {object}
+	 * @property {boolean} isSupported
+	 */
+
+	/**
 	 * @typedef ARSEvent
 	 * @type {object}
 	 * @property {ARSEventType} type
@@ -1191,19 +1197,25 @@
 	 * @typedef {(event: ARSEvent) => void} ARSEventListener
 	 */
 
-	/** @typedef {"worldTracking"|"faceTracking"} ARSConfigurationType */
+	/** @typedef {"worldTracking"|"faceTracking"|"bodyTracking"} ARSConfigurationType */
 	/**
 	 * @typedef ARSConfiguration
 	 * @type {object}
 	 * @property {ARSConfigurationType} type
 	 */
 
-	/** @typedef {"userFaceTrackingEnabled"} ARSWorldTrackingConfigurationKey */
+	/** @typedef {"userFaceTrackingEnabled" | "planeDetection" | "frameSemantics"} ARSWorldTrackingConfigurationKey */
 	/**
 	 * @typedef _ARSWorldTrackingConfiguration
 	 * @type {object}
 	 * @property {bool} userFaceTrackingEnabled
+	 * @property {ARSPlaneDetection[]} planeDetection
+	 * @property {ARSFrameSemantic[]} frameSemantics
 	 */
+	/** @typedef {"horizontal" | "vertical"} ARSPlaneDetection */
+
+	/** @typedef {"bodyDetection"} ARSFrameSemantic */
+
 	/** @typedef {ARSConfiguration & _ARSWorldTrackingConfiguration} ARSWorldTrackingConfiguration */
 
 	/** @typedef {"isWorldTrackingEnabled" | "maximumNumberOfTrackedFaces"} ARSFaceTrackingConfigurationKey */
@@ -1215,12 +1227,23 @@
 	 */
 	/** @typedef {ARSConfiguration & _ARSFaceTrackingConfiguration} ARSFaceTrackingConfiguration */
 
+	/** @typedef {"planeDetection" | "frameSemantics"} ARSBodyTrackingConfigurationKey */
+	/**
+	 * @typedef _ARSBodyTrackingConfiguration
+	 * @type {object}
+	 * @property {ARSPlaneDetection[]} planeDetection
+	 * @property {ARSFrameSemantic[]} frameSemantics
+	 */
+	/** @typedef {ARSConfiguration & _ARSBodyTrackingConfiguration} ARSBodyTrackingConfiguration */
+
 	/**
 	 * @typedef ARSFrame
 	 * @type {object}
 	 * @property {number} timestamp
 	 * @property {ARSCamera} camera
 	 * @property {ARSFaceAnchor[]?} faceAnchors
+	 * @property {ARSPlaneAnchor[]?} planeAnchors
+	 * @property {ARSBodyAnchor[]?} bodyAnchors
 	 * @property {ARSLightEstimate?} lightEstimate
 	 */
 
@@ -1271,6 +1294,51 @@
 	 * @property {number} triangleCount
 	 * @property {number[]} triangleIndices
 	 * @property {number[][]} textureCoordinates 2d texture coordinate of each vertex
+	 */
+
+	/**
+	 * @typedef ARSPlaneAnchor
+	 * @type {object}
+	 * @property {string} identifier
+	 * @property {number[]} position
+	 * @property {number[]} center
+	 * @property {number[]} quaternion
+	 * @property {ARSPlaneClassification} classification
+	 * @property {ARSPlaneExtent} planeExtent
+	 */
+
+	/** @typedef {"wall" | "floor" | "ceiling" | "table" | "seat" | "window" | "door" | "unknown" | "notAvailable" | "undetermined"} ARSPlaneClassification */
+
+	/**
+	 * @typedef ARSPlaneExtent
+	 * @type {object}
+	 * @property {number} height
+	 * @property {number} width
+	 * @property {number} rotationOnYAxis
+	 */
+
+	/**
+	 * @typedef ARSBodyAnchor
+	 * @type {object}
+	 * @property {string} identifier
+	 * @property {boolean} isTracked
+	 * @property {number} estimatedScaleFactor
+	 * @property {number[]} position
+	 * @property {number[]} quaternion
+	 * @property {ARSSkeleton} skeleton
+	 */
+
+	/** @typedef {"root" | "hips_joint" | "left_upLeg_joint" | "left_leg_joint" | "left_foot_joint" | "left_toes_joint" | "left_toesEnd_joint" | "right_upLeg_joint" | "right_leg_joint" | "right_foot_joint" | "right_toes_joint" | "right_toesEnd_joint" | "spine_1_joint" | "spine_2_joint" | "spine_3_joint" | "spine_4_joint" | "spine_5_joint" | "spine_6_joint" | "spine_7_joint" | "neck_1_joint" | "neck_2_joint" | "neck_3_joint" | "neck_4_joint" | "head_joint" | "jaw_joint" | "chin_joint" | "nose_joint" | "right_eye_joint" | "right_eyeUpperLid_joint" | "right_eyeLowerLid_joint" | "right_eyeball_joint" | "left_eye_joint" | "left_eyeUpperLid_joint" | "left_eyeLowerLid_joint" | "left_eyeball_joint" | "right_shoulder_1_joint" | "right_arm_joint" | "right_forearm_joint" | "right_hand_joint" | "right_handPinkyStart_joint" | "right_handPinky_1_joint" | "right_handPinky_2_joint" | "right_handPinky_3_joint" | "right_handPinkyEnd_joint" | "right_handRingStart_joint" | "right_handRing_1_joint" | "right_handRing_2_joint" | "right_handRing_3_joint" | "right_handRingEnd_joint" | "right_handMidStart_joint" | "right_handMid_1_joint" | "right_handMid_2_joint" | "right_handMid_3_joint" | "right_handMidEnd_joint" | "right_handIndexStart_joint" | "right_handIndex_1_joint" | "right_handIndex_2_joint" | "right_handIndex_3_joint" | "right_handIndexEnd_joint" | "right_handThumbStart_joint" | "right_handThumb_1_joint" | "right_handThumb_2_joint" | "right_handThumbEnd_joint" | "left_shoulder_1_joint" | "left_arm_joint" | "left_forearm_joint" | "left_hand_joint" | "left_handPinkyStart_joint" | "left_handPinky_1_joint" | "left_handPinky_2_joint" | "left_handPinky_3_joint" | "left_handPinkyEnd_joint" | "left_handRingStart_joint" | "left_handRing_1_joint" | "left_handRing_2_joint" | "left_handRing_3_joint" | "left_handRingEnd_joint" | "left_handMidStart_joint" | "left_handMid_1_joint" | "left_handMid_2_joint" | "left_handMid_3_joint" | "left_handMidEnd_joint" | "left_handIndexStart_joint" | "left_handIndex_1_joint" | "left_handIndex_2_joint" | "left_handIndex_3_joint" | "left_handIndexEnd_joint" | "left_handThumbStart_joint" | "left_handThumb_1_joint" | "left_handThumb_2_joint" | "left_handThumbEnd_joint"} ARSSkeletonJointName */
+	/**
+	 * @typedef ARSSkeleton
+	 * @type {Object.<string, ARSSkeletonJoint>}
+	 */
+
+	/**
+	 * @typedef ARSSkeletonJoint
+	 * @type {object}
+	 * @property {number[]} position
+	 * @property {number[]} quaternion
 	 */
 
 	/** @typedef {"faceAnchorBlendshapes" | "faceAnchorGeometry"} ARSMessageConfigurationType */
@@ -1364,17 +1432,19 @@
 	    static #EventsTypes = [
 	        "worldTrackingSupport",
 	        "faceTrackingSupport",
+	        "bodyTrackingSupport",
 	        "isRunning",
 	        "frame",
 	        "camera",
 	        "faceAnchors",
-	        "faceAnchor",
 	        "debugOptions",
 	        "cameraMode",
 	        "configuration",
 	        "showCamera",
 	        "lightEstimate",
 	        "messageConfiguration",
+	        "planeAnchors",
+	        "bodyAnchors",
 	    ];
 	    /** @type {ARSEventType[]} */
 	    get eventTypes() {
@@ -1478,6 +1548,9 @@
 	        if (this.checkWorldTrackingSupportOnLoad) {
 	            messages.push({ type: "worldTrackingSupport" });
 	        }
+	        if (this.checkBodyTrackingSupportOnLoad) {
+	            messages.push({ type: "bodyTrackingSupport" });
+	        }
 	        if (this.checkIsRunningOnLoad) {
 	            messages.push({ type: "isRunning" });
 	        }
@@ -1540,6 +1613,40 @@
 	            newValue
 	        );
 	        this.#checkWorldTrackingSupportOnLoad = newValue;
+	    }
+
+	    /** @type {ARSBodyTrackingSupport} */
+	    #bodyTrackingSupport = {
+	        isSupported: null,
+	    };
+	    get bodyTrackingSupport() {
+	        return this.#bodyTrackingSupport;
+	    }
+	    /** @param {ARSBodyTrackingSupport} newValue */
+	    #onBodyTrackingSupportUpdated(newValue) {
+	        if (!areObjectsEqual(this.#bodyTrackingSupport, newValue)) {
+	            this.#bodyTrackingSupport = newValue;
+	            _console.log("updated bodyTrackingSupport", newValue);
+	            this.dispatchEvent({
+	                type: "bodyTrackingSupport",
+	                message: { bodyTrackingSupport: this.bodyTrackingSupport },
+	            });
+	        }
+	    }
+
+	    /** @type {boolean} */
+	    #checkBodyTrackingSupportOnLoad = false;
+	    get checkBodyTrackingSupportOnLoad() {
+	        return this.#checkBodyTrackingSupportOnLoad;
+	    }
+	    /** @throws {Error} if newValue is not a boolean */
+	    set checkBodyTrackingSupportOnLoad(newValue) {
+	        _console.assertWithError(
+	            typeof newValue == "boolean",
+	            `invalid newValue for checkBodyTrackingSupportOnLoad`,
+	            newValue
+	        );
+	        this.#checkBodyTrackingSupportOnLoad = newValue;
 	    }
 
 	    /** @type {ARSFaceTrackingSupport} */
@@ -1680,6 +1787,8 @@
 	                    "your device doesn't support user world tracking with face tracking"
 	                );
 	                break;
+	            case "bodyTracking":
+	                break;
 	            default:
 	                throw Error(`uncaught configuration type "${configuration.type}"`);
 	        }
@@ -1700,13 +1809,13 @@
 	    }
 
 	    /** @type {ARSConfigurationType[]} */
-	    #allConfigurationTypes = ["worldTracking", "faceTracking"];
+	    #allConfigurationTypes = ["worldTracking", "faceTracking", "bodyTracking"];
 	    get allConfigurationTypes() {
 	        return this.#allConfigurationTypes;
 	    }
 
 	    /** @type {ARSWorldTrackingConfigurationKey[]} */
-	    #worldTrackingConfigurationKeys = ["userFaceTrackingEnabled"];
+	    #worldTrackingConfigurationKeys = ["userFaceTrackingEnabled", "planeDetection", "frameSemantics"];
 	    /** @type {ARSFaceTrackingConfigurationKey[]} */
 	    #faceTrackingConfigurationKeys = ["isWorldTrackingEnabled", "maximumNumberOfTrackedFaces"];
 
@@ -1739,22 +1848,6 @@
 	    get frame() {
 	        return this.#frame;
 	    }
-	    /** @type {ARSCamera?} */
-	    #camera = null;
-	    get camera() {
-	        return this.#camera;
-	    }
-	    /** @type {ARSLightEstimate?} */
-	    #lightEstimate = null;
-	    get lightEstimate() {
-	        return this.#lightEstimate;
-	    }
-	    /** @type {ARSFaceAnchor[]?} */
-	    #faceAnchors = null;
-	    get faceAnchors() {
-	        return this.#faceAnchors;
-	    }
-
 	    /** @param {ARSFrame} frame */
 	    #onFrame(frame) {
 	        this.#frame = frame;
@@ -1768,13 +1861,30 @@
 	        {
 	            this.#onFaceAnchors(frame.faceAnchors || []);
 	        }
+	        {
+	            this.#onPlaneAnchors(frame.planeAnchors || []);
+	        }
+	        {
+	            this.#onBodyAnchors(frame.bodyAnchors || []);
+	        }
 	    }
 
+	    /** @type {ARSCamera?} */
+	    #camera = null;
+	    get camera() {
+	        return this.#camera;
+	    }
 	    /** @param {ARSCamera} camera */
 	    #onCamera(camera) {
 	        this.#camera = camera;
 	        _console.log("received camera", this.camera);
 	        this.dispatchEvent({ type: "camera", message: { camera: this.camera } });
+	    }
+
+	    /** @type {ARSLightEstimate?} */
+	    #lightEstimate = null;
+	    get lightEstimate() {
+	        return this.#lightEstimate;
 	    }
 	    /** @param {ARSLightEstimate} lightEstimate */
 	    #onLightEstimate(lightEstimate) {
@@ -1783,14 +1893,40 @@
 	        this.dispatchEvent({ type: "lightEstimate", message: { lightEstimate: this.lightEstimate } });
 	    }
 
+	    /** @type {ARSFaceAnchor[]?} */
+	    #faceAnchors = null;
+	    get faceAnchors() {
+	        return this.#faceAnchors;
+	    }
 	    /** @param {ARSFaceAnchor[]} faceAnchors */
 	    #onFaceAnchors(faceAnchors) {
 	        this.#faceAnchors = faceAnchors;
 	        _console.log("received faceAnchors", this.faceAnchors);
 	        this.dispatchEvent({ type: "faceAnchors", message: { faceAnchors: this.faceAnchors } });
-	        faceAnchors.forEach((faceAnchor) => {
-	            this.dispatchEvent({ type: "faceAnchor", message: { faceAnchor } });
-	        });
+	    }
+
+	    /** @type {ARSPlaneAnchor[]?} */
+	    #planeAnchors = null;
+	    get planeAnchors() {
+	        return this.#planeAnchors;
+	    }
+	    /** @param {ARSPlaneAnchor[]} planeAnchors */
+	    #onPlaneAnchors(planeAnchors) {
+	        this.#planeAnchors = planeAnchors;
+	        _console.log("received planeAnchors", this.planeAnchors);
+	        this.dispatchEvent({ type: "planeAnchors", message: { planeAnchors: this.planeAnchors } });
+	    }
+
+	    /** @type {ARSBodyAnchor[]?} */
+	    #bodyAnchors = null;
+	    get bodyAnchors() {
+	        return this.#bodyAnchors;
+	    }
+	    /** @param {ARSBodyAnchor[]} bodyAnchors */
+	    #onBodyAnchors(bodyAnchors) {
+	        this.#bodyAnchors = bodyAnchors;
+	        _console.log("received bodyAnchors", this.bodyAnchors);
+	        this.dispatchEvent({ type: "bodyAnchors", message: { bodyAnchors: this.bodyAnchors } });
 	    }
 
 	    /** @type {ARSDebugOption[]} */
@@ -1983,6 +2119,10 @@
 	            case "worldTrackingSupport":
 	                _console.log("received worldTrackingSupport message", message);
 	                this.#onWorldTrackingSupportUpdated(message.worldTrackingSupport);
+	                break;
+	            case "bodyTrackingSupport":
+	                _console.log("received bodyTrackingSupport message", message);
+	                this.#onBodyTrackingSupportUpdated(message.bodyTrackingSupport);
 	                break;
 	            case "isRunning":
 	                _console.log("received isRunning message", message);
