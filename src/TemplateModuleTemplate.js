@@ -1,5 +1,5 @@
 import EventDispatcher from "./utils/EventDispatcher.js";
-import { createConsole } from "./Console.js";
+import { createConsole } from "./utils/Console.js";
 
 import { sendMessageToApp, addAppListener } from "./utils/messaging.js";
 import AppMessagePoll from "./utils/AppMessagePoll.js";
@@ -38,7 +38,7 @@ const _console = createConsole("Template", { log: false });
  * @typedef {(event: TMEvent) => void} TMEventListener
  */
 
-class TemplateModuleManager extends BaseManager {
+class TemplateModuleManager {
     /** @type {TMEventType[]} */
     static #EventsTypes = ["test"];
     /** @type {TMEventType[]} */
@@ -71,9 +71,7 @@ class TemplateModuleManager extends BaseManager {
     hasEventListener(type, listener) {
         return this.#eventDispatcher.hasEventListener(...arguments);
     }
-    /**
-     * @param {TMEvent} event
-     */
+    /** @param {TMEvent} event */
     dispatchEvent(event) {
         return this.#eventDispatcher.dispatchEvent(event);
     }
@@ -93,8 +91,6 @@ class TemplateModuleManager extends BaseManager {
 
     /** @throws {Error} if singleton already exists */
     constructor() {
-        super();
-
         _console.assertWithError(
             !this.shared,
             "TemplateModuleManager is a singleton - use TemplateModuleManager.shared"
@@ -128,9 +124,7 @@ class TemplateModuleManager extends BaseManager {
         return this.#formatMessages(messages);
     }
 
-    /**
-     * @param {TMAppMessage} message
-     */
+    /** @param {TMAppMessage} message */
     async sendMessageToApp(message) {
         message.type = `${this.#prefix}-${message.type}`;
         return sendMessageToApp(message);
@@ -141,9 +135,7 @@ class TemplateModuleManager extends BaseManager {
         return this.sendMessageToApp({ type: "test" });
     }
 
-    /**
-     * @param {TMAppMessage} message
-     */
+    /** @param {TMAppMessage} message */
     #onAppMessage(message) {
         _console.log(`received background message of type ${message.type}`, message);
         const { type } = message;

@@ -195,18 +195,22 @@ class HeadphoneMotionManager {
     get isAvailable() {
         return Boolean(this.#isAvailable);
     }
+    #assertIsAvailable() {
+        _console.assert(this.isAvailable, "not available");
+    }
     /** @param {boolean} newValue */
     #onIsAvailableUpdated(newValue) {
-        if (this.#isAvailable != newValue) {
-            this.#isAvailable = newValue;
-            _console.log(`updated isAvailable to ${newValue}`);
-            this.dispatchEvent({
-                type: "isAvailable",
-                message: { isAvailable: this.isAvailable },
-            });
-            if (this.#isAvailable) {
-                this.#checkIsActive();
-            }
+        if (this.#isAvailable == newValue) {
+            return;
+        }
+        this.#isAvailable = newValue;
+        _console.log(`updated isAvailable to ${newValue}`);
+        this.dispatchEvent({
+            type: "isAvailable",
+            message: { isAvailable: this.isAvailable },
+        });
+        if (this.#isAvailable) {
+            this.#checkIsActive();
         }
     }
     async #checkIsAvailable() {
@@ -221,22 +225,23 @@ class HeadphoneMotionManager {
     }
     /** @param {boolean} newIsActive */
     #onIsActiveUpdated(newIsActive) {
-        if (this.#isActive != newIsActive) {
-            this.#isActive = newIsActive;
-            _console.log(`updated isActive to ${this.isActive}`);
-            this.dispatchEvent({
-                type: "isActive",
-                message: { isActive: this.isActive },
-            });
+        if (this.#isActive == newIsActive) {
+            return;
+        }
+        this.#isActive = newIsActive;
+        _console.log(`updated isActive to ${this.isActive}`);
+        this.dispatchEvent({
+            type: "isActive",
+            message: { isActive: this.isActive },
+        });
 
-            this.#isActivePoll.stop();
-            if (this.#isActive) {
-                _console.log("starting motion data poll");
-                this.#motionDataPoll.start();
-            } else {
-                _console.log("stopping motion data poll");
-                this.#motionDataPoll.stop();
-            }
+        this.#isActivePoll.stop();
+        if (this.#isActive) {
+            _console.log("starting motion data poll");
+            this.#motionDataPoll.start();
+        } else {
+            _console.log("stopping motion data poll");
+            this.#motionDataPoll.stop();
         }
     }
     async #checkIsActive() {
@@ -246,10 +251,7 @@ class HeadphoneMotionManager {
     #isActivePoll = new AppMessagePoll({ type: "isActive" }, this.#prefix, 50, true);
 
     async startUpdates() {
-        if (!this.isAvailable) {
-            _console.warn("not available");
-            return;
-        }
+        this.#assertIsAvailable();
         if (this.isActive) {
             _console.warn("already active");
             return;
@@ -259,10 +261,7 @@ class HeadphoneMotionManager {
         return this.sendMessageToApp({ type: "startUpdates" });
     }
     async stopUpdates() {
-        if (!this.isAvailable) {
-            _console.warn("not available");
-            return;
-        }
+        this.#assertIsAvailable();
         if (!this.isActive) {
             _console.warn("already inactive");
             return;
@@ -273,10 +272,7 @@ class HeadphoneMotionManager {
     }
 
     async toggleMotionUpdates() {
-        if (!this.isAvailable) {
-            _console.log("not available");
-            return;
-        }
+        this.#assertIsAvailable();
         if (this.isActive) {
             return this.stopUpdates();
         } else {
@@ -300,14 +296,15 @@ class HeadphoneMotionManager {
     }
     /** @param {HeadphoneMotionSensorLocation} newValue */
     #onSensorLocationUpdated(newValue) {
-        if (this.#sensorLocation != newValue) {
-            this.#sensorLocation = newValue;
-            _console.log(`updated sensor location to ${newValue}`);
-            this.dispatchEvent({
-                type: "sensorLocation",
-                message: { sensorLocation: this.sensorLocation },
-            });
+        if (this.#sensorLocation == newValue) {
+            return;
         }
+        this.#sensorLocation = newValue;
+        _console.log(`updated sensor location to ${newValue}`);
+        this.dispatchEvent({
+            type: "sensorLocation",
+            message: { sensorLocation: this.sensorLocation },
+        });
     }
 
     /**

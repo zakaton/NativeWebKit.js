@@ -1,5 +1,5 @@
 import EventDispatcher from "./utils/EventDispatcher.js";
-import { createConsole } from "./Console.js";
+import { createConsole } from "./utils/Console.js";
 
 import { sendMessageToApp, addAppListener } from "./utils/messaging.js";
 import AppMessagePoll from "./utils/AppMessagePoll.js";
