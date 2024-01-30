@@ -21,5 +21,20 @@
         <label>is available? <input id="isAvailable" type="checkbox" readonly disabled /></label>
         <button id="startScan" disabled>start scan</button>
         <button id="stopScan" disabled>stop scan</button>
+
+        <p><b>Scan Options</b></p>
+
+        <p>
+            service uuids (comma or newline separated)
+            <br />
+            <textarea id="serviceUUIDs" cols="40" placeholder="service uuids"></textarea>
+        </p>
+
+        <label>allow duplicates? <input type="checkbox" id="allowDuplicates" /> </label>
+        <p>
+            solicited service uuids (comma or newline separated)
+            <br />
+            <textarea id="solicitedServiceUUIDs" cols="40" placeholder="solicited service uuids"></textarea>
+        </p>
     </body>
 </html>

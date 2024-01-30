@@ -469,13 +469,8 @@ class ARSessionManager {
     get checkWorldTrackingSupportOnLoad() {
         return this.#checkWorldTrackingSupportOnLoad;
     }
-    /** @throws {Error} if newValue is not a boolean */
     set checkWorldTrackingSupportOnLoad(newValue) {
-        _console.assertWithError(
-            typeof newValue == "boolean",
-            `invalid newValue for checkWorldTrackingSupportOnLoad`,
-            newValue
-        );
+        _console.assertTypeWithError(newValue, "boolean");
         this.#checkWorldTrackingSupportOnLoad = newValue;
     }
 
@@ -503,13 +498,8 @@ class ARSessionManager {
     get checkBodyTrackingSupportOnLoad() {
         return this.#checkBodyTrackingSupportOnLoad;
     }
-    /** @throws {Error} if newValue is not a boolean */
     set checkBodyTrackingSupportOnLoad(newValue) {
-        _console.assertWithError(
-            typeof newValue == "boolean",
-            `invalid newValue for checkBodyTrackingSupportOnLoad`,
-            newValue
-        );
+        _console.assertTypeWithError(newValue, "boolean");
         this.#checkBodyTrackingSupportOnLoad = newValue;
     }
 
@@ -538,13 +528,8 @@ class ARSessionManager {
     get checkFaceTrackingSupportOnLoad() {
         return this.#checkFaceTrackingSupportOnLoad;
     }
-    /** @throws {Error} if newValue is not a boolean */
     set checkFaceTrackingSupportOnLoad(newValue) {
-        _console.assertWithError(
-            typeof newValue == "boolean",
-            "invalid newValue for checkFaceTrackingSupportOnLoad",
-            newValue
-        );
+        _console.assertTypeWithError(newValue, "boolean");
         this.#checkFaceTrackingSupportOnLoad = newValue;
     }
 
@@ -573,9 +558,8 @@ class ARSessionManager {
     get checkIsRunningOnLoad() {
         return this.#checkIsRunningOnLoad;
     }
-    /** @throws {Error} if newValue is not a boolean */
     set checkIsRunningOnLoad(newValue) {
-        _console.assertWithError(typeof newValue == "boolean", "invalid newValue for checkIsRunningOnLoad", newValue);
+        _console.assertTypeWithError(newValue, "boolean");
         this.#checkIsRunningOnLoad = newValue;
     }
 
@@ -584,9 +568,8 @@ class ARSessionManager {
     get pauseOnUnload() {
         return this.#pauseOnUnload;
     }
-    /** @throws {Error} if newValue is not a boolean */
     set pauseOnUnload(newValue) {
-        _console.assertWithError(typeof newValue == "boolean", `invalid newValue for pauseOnUnload`, newValue);
+        _console.assertTypeWithError(newValue, "boolean");
         this.#pauseOnUnload = newValue;
     }
 
@@ -841,13 +824,8 @@ class ARSessionManager {
     get checkDebugOptionsOnLoad() {
         return this.#checkDebugOptionsOnLoad;
     }
-    /** @throws {Error} if newValue is not a boolean */
     set checkDebugOptionsOnLoad(newValue) {
-        _console.assertWithError(
-            typeof newValue == "boolean",
-            `invalid newValue for checkDebugOptionsOnLoad`,
-            newValue
-        );
+        _console.assertTypeWithError(newValue, "boolean");
         this.#checkDebugOptionsOnLoad = newValue;
     }
 
@@ -887,9 +865,8 @@ class ARSessionManager {
     get checkCameraModeOnLoad() {
         return this.#checkCameraModeOnLoad;
     }
-    /** @throws {Error} if newValue is not a boolean */
     set checkCameraModeOnLoad(newValue) {
-        _console.assertWithError(typeof newValue == "boolean", `invalid newValue for checkCameraModeOnLoad`, newValue);
+        _console.assertTypeWithError(newValue, "boolean");
         this.#checkCameraModeOnLoad = newValue;
     }
 
@@ -926,9 +903,8 @@ class ARSessionManager {
     get checkShowCameraOnLoad() {
         return this.#checkShowCameraOnLoad;
     }
-    /** @throws {Error} if newValue is not a boolean */
     set checkShowCameraOnLoad(newValue) {
-        _console.assertWithError(typeof newValue == "boolean", `invalid newValue for checkShowCameraOnLoad`, newValue);
+        _console.assertTypeWithError(newValue, "boolean");
         this.#checkShowCameraOnLoad = newValue;
     }
 

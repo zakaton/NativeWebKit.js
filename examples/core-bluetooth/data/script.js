@@ -32,9 +32,41 @@ CoreBluetoothManager.addEventListener("isScanning", (event) => {
     stopScanButton.disabled = !isScanning;
 });
 
+/** @type {HTMLTextAreaElement} */
+const serviceUUIDsTextarea = document.getElementById("serviceUUIDs");
+/** @type {HTMLInputElement} */
+const allowDuplicatesCheckbox = document.getElementById("allowDuplicates");
+/** @type {HTMLTextAreaElement} */
+const solicitedServiceUUIDsTextarea = document.getElementById("solicitedServiceUUIDs");
+
 startScanButton.addEventListener("click", () => {
-    CoreBluetoothManager.startScan();
+    /** @type {import("../../../src/CoreBluetoothManager.js").CBScanOptions} */
+    const scanOptions = { options: {} };
+
+    const serviceUUIDs = serviceUUIDsTextarea.value
+        .replace("\n", ",")
+        .split(",")
+        .map((value) => value.trim())
+        .filter((value) => value.length > 0);
+
+    if (serviceUUIDs.length > 0) {
+        scanOptions.serviceUUIDs = serviceUUIDs;
+    }
+
+    scanOptions.options.allowDuplicates = allowDuplicatesCheckbox.checked;
+
+    const solicitedServiceUUIDs = solicitedServiceUUIDsTextarea.value
+        .replace("\n", ",")
+        .split(",")
+        .map((value) => value.trim())
+        .filter((value) => value.length > 0);
+    if (solicitedServiceUUIDs.length > 0) {
+        scanOptions.options.solicitedServiceUUIDs = solicitedServiceUUIDs;
+    }
+
+    CoreBluetoothManager.startScan(scanOptions);
 });
+
 stopScanButton.addEventListener("click", () => {
     CoreBluetoothManager.stopScan();
 });

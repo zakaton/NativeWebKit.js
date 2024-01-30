@@ -148,13 +148,8 @@ class HeadphoneMotionManager {
     get checkAvailabilityOnLoad() {
         return this.#checkAvailabilityOnLoad;
     }
-    /** @throws {Error} if newValue is not a boolean */
     set checkAvailabilityOnLoad(newValue) {
-        _console.assertWithError(
-            typeof newValue == "boolean",
-            "invalid newValue for checkAvailabilityOnLoad",
-            newValue
-        );
+        _console.assertTypeWithError(newValue, "boolean");
         this.#checkAvailabilityOnLoad = newValue;
     }
 
@@ -163,9 +158,8 @@ class HeadphoneMotionManager {
     get stopUpdatesOnUnload() {
         return this.#stopUpdatesOnUnload;
     }
-    /** @throws {Error} if newValue is not a boolean */
     set stopUpdatesOnUnload(newValue) {
-        _console.assertWithError(typeof newValue == "boolean", "invalid newValue for stopUpdatesOnUnload", newValue);
+        _console.assertTypeWithError(newValue, "boolean");
         this.#stopUpdatesOnUnload = newValue;
     }
 

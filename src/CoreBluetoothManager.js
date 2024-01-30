@@ -6,9 +6,9 @@ import AppMessagePoll from "./utils/AppMessagePoll.js";
 
 const _console = createConsole("CoreBluetooth", { log: true });
 
-/** @typedef {"state" | "isScanning"} CBMessageType */
+/** @typedef {"state" | "isScanning" | "discoveredDevices" | "discoveredDevice"} CBMessageType */
 
-/** @typedef {"state" | "isAvailable" | "isScanning"} CBEventType */
+/** @typedef {"state" | "isAvailable" | "isScanning" | "discoveredDevice"} CBEventType */
 
 /** @typedef {import("./utils/EventDispatcher.js").EventDispatcherOptions} EventDispatcherOptions */
 
@@ -40,9 +40,29 @@ const _console = createConsole("CoreBluetooth", { log: true });
 
 /** @typedef {"unknown" | "resetting" | "unsupported" | "unauthorized" | "poweredOff" | "poweredOn"} CBState */
 
+/**
+ * @typedef CBScanOptions
+ * @type {object}
+ * @property {string[]} serviceUUIDs
+ * @property {object} options
+ * @property {bool} options.allowDuplicates
+ * @property {string[]} options.solicitedServiceUUIDs
+ */
+
+/**
+ * @typedef CBDiscoveredPeripheral
+ * @type {object}
+ * @property {string?} name
+ * @property {string} identifier
+ * @property {number} rssi
+ * @property {object} advertisementData
+ * @property {number} advertisementData.timestamp
+ * @property {object.<string, number[]>} advertisementData.serviceData
+ */
+
 class CoreBluetoothManager {
     /** @type {CBEventType[]} */
-    static #EventsTypes = ["state", "isAvailable", "isScanning"];
+    static #EventsTypes = ["state", "isAvailable", "isScanning", "discoveredDevice"];
     /** @type {CBEventType[]} */
     get eventTypes() {
         return CoreBluetoothManager.#EventsTypes;
@@ -197,6 +217,12 @@ class CoreBluetoothManager {
         });
 
         this.#isScanningPoll.stop();
+
+        if (this.isScanning) {
+            this.#discoveredDevicesPoll.start();
+        } else {
+            this.#discoveredDevicesPoll.stop();
+        }
     }
     async #checkIsScanning() {
         _console.log("checking isScanning");
@@ -204,12 +230,13 @@ class CoreBluetoothManager {
     }
     #isScanningPoll = new AppMessagePoll({ type: "isScanning" }, this.#prefix, 50);
 
-    async startScan() {
+    /** @param {CBScanOptions?} scanOptions */
+    async startScan(scanOptions) {
         this.#assertIsAvailable();
         _console.assertWithError(!this.isScanning, "already scanning");
-        _console.log("starting scan");
+        _console.log("starting scan", scanOptions);
         this.#isScanningPoll.start();
-        return this.sendMessageToApp({ type: "startScan" });
+        return this.sendMessageToApp({ type: "startScan", scanOptions });
     }
     async stopScan() {
         this.#assertIsAvailable();
@@ -228,6 +255,21 @@ class CoreBluetoothManager {
         }
     }
 
+    /** @type {CBDiscoveredPeripheral[]} */
+    #discoveredDevices;
+    get discoveredDevices() {
+        return this.#discoveredDevices;
+    }
+    /** @param {CBDiscoveredPeripheral[]} newDiscoveredDevices */
+    #onDiscoveredDevices(newDiscoveredDevices) {
+        // FILL
+    }
+    /** @param {CBDiscoveredPeripheral} newDiscoveredDevice */
+    #onDiscoveredDevice(newDiscoveredDevice) {
+        // FILL
+    }
+    #discoveredDevicesPoll = new AppMessagePoll({ type: "discoveredDevices" }, this.#prefix, 200, true);
+
     /** @param {CBAppMessage} message */
     #onAppMessage(message) {
         _console.log(`received background message of type ${message.type}`, message);
@@ -240,6 +282,14 @@ class CoreBluetoothManager {
             case "isScanning":
                 _console.log("received isScanning message", message.isScanning);
                 this.#onIsScanning(message.isScanning);
+                break;
+            case "discoveredDevice":
+                _console.log("received discoveredDevice message", message.discoveredDevice);
+                this.#onDiscoveredDevice(message.discoveredDevice);
+                break;
+            case "discoveredDevices":
+                _console.log("received discoveredDevices message", message.discoveredDevices);
+                this.#onDiscoveredDevices(message.discoveredDevices);
                 break;
             default:
                 throw Error(`uncaught message type ${type}`);
