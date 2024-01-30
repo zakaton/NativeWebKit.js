@@ -9,7 +9,7 @@ CoreBluetoothManager.stopScanOnUnload = true;
 /** @type {HTMLInputElement} */
 const stateInput = document.getElementById("state");
 CoreBluetoothManager.addEventListener("state", (event) => {
-    /** @type {import("../../../src/CoreBluetoothCentralManager.js").CBState} */
+    /** @type {import("../../../src/CoreBluetoothManager.js").CBState} */
     const state = event.message.state;
     console.log({ state });
     stateInput.value = CoreBluetoothManager.state;
@@ -32,8 +32,8 @@ CoreBluetoothManager.addEventListener("isScanning", (event) => {
     const isScanning = event.message.isScanning;
     console.log({ isScanning });
     if (isScanning) {
-        discoveredDeviceContainers = {};
-        discoveredDevicesContainer.innerHTML = "";
+        discoveredPeripheralContainers = {};
+        discoveredPeripheralsContainer.innerHTML = "";
     }
     startScanButton.disabled = isScanning;
     stopScanButton.disabled = !isScanning;
@@ -47,7 +47,7 @@ const allowDuplicatesCheckbox = document.getElementById("allowDuplicates");
 const solicitedServiceUUIDsTextarea = document.getElementById("solicitedServiceUUIDs");
 
 startScanButton.addEventListener("click", () => {
-    /** @type {import("../../../src/CoreBluetoothCentralManager.js").CBScanOptions} */
+    /** @type {import("../../../src/CoreBluetoothManager.js").CBScanOptions} */
     const scanOptions = { options: {} };
 
     const serviceUUIDs = serviceUUIDsTextarea.value
@@ -79,37 +79,53 @@ stopScanButton.addEventListener("click", () => {
 });
 
 /** @type {HTMLElement} */
-const discoveredDevicesContainer = document.getElementById("discoveredDevices");
+const discoveredPeripheralsContainer = document.getElementById("discoveredPeripherals");
 /** @type {HTMLTemplateElement} */
-const discoveredDeviceTemplate = document.getElementById("discoveredDeviceTemplate");
+const discoveredPeripheralTemplate = document.getElementById("discoveredPeripheralTemplate");
 /** @type {object.<string, HTMLElement>} */
-var discoveredDeviceContainers = {};
+var discoveredPeripheralContainers = {};
 
-CoreBluetoothManager.addEventListener("discoveredDevice", (event) => {
-    /** @type {import("../../../src/CoreBluetoothCentralManager.js").CBDiscoveredPeripheral} */
-    const discoveredDevice = event.message.discoveredDevice;
-    console.log({ discoveredDevice });
+CoreBluetoothManager.addEventListener("discoveredPeripheral", (event) => {
+    /** @type {import("../../../src/CoreBluetoothManager.js").CBDiscoveredPeripheral} */
+    const discoveredPeripheral = event.message.discoveredPeripheral;
+    console.log({ discoveredPeripheral });
 
     /** @type {HTMLElement} */
-    var discoveredDeviceContainer = discoveredDeviceContainers[discoveredDevice.identifier];
-    if (!discoveredDeviceContainer) {
-        discoveredDeviceContainer = discoveredDeviceTemplate.content.cloneNode(true).querySelector(".discoveredDevice");
-        discoveredDeviceContainer.querySelector(".identifier").innerText = discoveredDevice.identifier;
-        discoveredDeviceContainers[discoveredDevice.identifier] = discoveredDeviceContainer;
-        console.log("creating new container for device", { discoveredDevice, discoveredDeviceContainer });
-        discoveredDevicesContainer.appendChild(discoveredDeviceContainer);
+    var discoveredPeripheralContainer = discoveredPeripheralContainers[discoveredPeripheral.identifier];
+    if (!discoveredPeripheralContainer) {
+        discoveredPeripheralContainer = discoveredPeripheralTemplate.content
+            .cloneNode(true)
+            .querySelector(".discoveredPeripheral");
+        discoveredPeripheralContainer.querySelector(".identifier").innerText = discoveredPeripheral.identifier;
+        discoveredPeripheralContainers[discoveredPeripheral.identifier] = discoveredPeripheralContainer;
+        console.log("creating new container for peripheral", { discoveredPeripheral, discoveredPeripheralContainer });
+        discoveredPeripheralsContainer.appendChild(discoveredPeripheralContainer);
+
+        /** @type {HTMLButtonElement} */
+        const connectButton = discoveredPeripheralContainer.querySelector(".connect");
+        connectButton.addEventListener("click", () => {
+            CoreBluetoothManager.connect({
+                identifier: discoveredPeripheral.identifier,
+                //options: { enableAutoReconnect: true },
+            });
+        });
+        /** @type {HTMLButtonElement} */
+        const disconnectButton = discoveredPeripheralContainer.querySelector(".disconnect");
+        disconnectButton.addEventListener("click", () => {
+            CoreBluetoothManager.disconnect(discoveredPeripheral.identifier);
+        });
     }
 
-    discoveredDeviceContainer.querySelector(".name").innerText = discoveredDevice.name;
-    const nameSpan = discoveredDeviceContainer.querySelector(".name");
+    discoveredPeripheralContainer.querySelector(".name").innerText = discoveredPeripheral.name;
+    const nameSpan = discoveredPeripheralContainer.querySelector(".name");
     const nameSpanParent = nameSpan.closest("li");
-    if (discoveredDevice.name) {
+    if (discoveredPeripheral.name) {
         nameSpanParent.removeAttribute("hidden");
     } else {
         nameSpanParent.setAttribute("hidden", "");
     }
-    discoveredDeviceContainer.querySelector(".rssi").innerText = discoveredDevice.rssi;
-    discoveredDeviceContainer.querySelector(".advertisementData").innerText = JSON.stringify(
-        sortObjectKeysAlphabetically(discoveredDevice.advertisementData)
+    discoveredPeripheralContainer.querySelector(".rssi").innerText = discoveredPeripheral.rssi;
+    discoveredPeripheralContainer.querySelector(".advertisementData").innerText = JSON.stringify(
+        sortObjectKeysAlphabetically(discoveredPeripheral.advertisementData)
     );
 });

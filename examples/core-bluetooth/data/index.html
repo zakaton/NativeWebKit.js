@@ -10,7 +10,7 @@
             display: block;
         }
 
-        #discoveredDevices {
+        #discoveredPeripherals {
             display: flex;
             flex-direction: column;
             gap: 1rem;
@@ -49,17 +49,17 @@
             <textarea id="solicitedServiceUUIDs" cols="40" placeholder="solicited service uuids"></textarea>
         </p>
 
-        <p><b>Discovered Devices</b></p>
+        <p><b>Discovered Peripherals</b></p>
 
-        <div id="discoveredDevices">
-            <template id="discoveredDeviceTemplate">
-                <div class="discoveredDevice">
+        <div id="discoveredPeripherals">
+            <template id="discoveredPeripheralTemplate">
+                <div class="discoveredPeripheral">
                     <ul>
                         <li><b>identifier:</b> <span class="identifier"></span></li>
                         <li><b>name:</b> <span class="name"></span></li>
                         <li><b>rssi:</b> <span class="rssi"></span></li>
                         <li><b>advertisement data:</b> <span class="advertisementData"></span></li>
-                        <li>connection state: <span class="connectionState">not connected</span></li>
+                        <li><b>connection state:</b> <span class="connectionState">not connected</span></li>
                         <li>
                             <button class="connect">connect</button>
                             <button disabled class="disconnect">disconnect</button>
