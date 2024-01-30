@@ -4,11 +4,14 @@ import { sortObjectKeysAlphabetically } from "../../../src/utils/objectUtils.js"
 window.CoreBluetoothManager = CoreBluetoothManager;
 console.log(CoreBluetoothManager);
 CoreBluetoothManager.checkStateOnLoad = true;
+CoreBluetoothManager.stopScanOnUnload = true;
 
 /** @type {HTMLInputElement} */
 const stateInput = document.getElementById("state");
 CoreBluetoothManager.addEventListener("state", (event) => {
-    console.log("state", event.message.state);
+    /** @type {import("../../../src/CoreBluetoothCentralManager.js").CBState} */
+    const state = event.message.state;
+    console.log({ state });
     stateInput.value = CoreBluetoothManager.state;
 });
 
@@ -16,7 +19,7 @@ CoreBluetoothManager.addEventListener("state", (event) => {
 const isAvailableCheckbox = document.getElementById("isAvailable");
 CoreBluetoothManager.addEventListener("isAvailable", (event) => {
     const isAvailable = event.message.isAvailable;
-    console.log("isAvailable", isAvailable);
+    console.log({ isAvailable });
     isAvailableCheckbox.checked = isAvailable;
 });
 
@@ -27,7 +30,11 @@ const stopScanButton = document.getElementById("stopScan");
 
 CoreBluetoothManager.addEventListener("isScanning", (event) => {
     const isScanning = event.message.isScanning;
-    console.log("isScanning", isScanning);
+    console.log({ isScanning });
+    if (isScanning) {
+        discoveredDeviceContainers = {};
+        discoveredDevicesContainer.innerHTML = "";
+    }
     startScanButton.disabled = isScanning;
     stopScanButton.disabled = !isScanning;
 });
@@ -40,7 +47,7 @@ const allowDuplicatesCheckbox = document.getElementById("allowDuplicates");
 const solicitedServiceUUIDsTextarea = document.getElementById("solicitedServiceUUIDs");
 
 startScanButton.addEventListener("click", () => {
-    /** @type {import("../../../src/CoreBluetoothManager.js").CBScanOptions} */
+    /** @type {import("../../../src/CoreBluetoothCentralManager.js").CBScanOptions} */
     const scanOptions = { options: {} };
 
     const serviceUUIDs = serviceUUIDsTextarea.value
@@ -69,4 +76,40 @@ startScanButton.addEventListener("click", () => {
 
 stopScanButton.addEventListener("click", () => {
     CoreBluetoothManager.stopScan();
+});
+
+/** @type {HTMLElement} */
+const discoveredDevicesContainer = document.getElementById("discoveredDevices");
+/** @type {HTMLTemplateElement} */
+const discoveredDeviceTemplate = document.getElementById("discoveredDeviceTemplate");
+/** @type {object.<string, HTMLElement>} */
+var discoveredDeviceContainers = {};
+
+CoreBluetoothManager.addEventListener("discoveredDevice", (event) => {
+    /** @type {import("../../../src/CoreBluetoothCentralManager.js").CBDiscoveredPeripheral} */
+    const discoveredDevice = event.message.discoveredDevice;
+    console.log({ discoveredDevice });
+
+    /** @type {HTMLElement} */
+    var discoveredDeviceContainer = discoveredDeviceContainers[discoveredDevice.identifier];
+    if (!discoveredDeviceContainer) {
+        discoveredDeviceContainer = discoveredDeviceTemplate.content.cloneNode(true).querySelector(".discoveredDevice");
+        discoveredDeviceContainer.querySelector(".identifier").innerText = discoveredDevice.identifier;
+        discoveredDeviceContainers[discoveredDevice.identifier] = discoveredDeviceContainer;
+        console.log("creating new container for device", { discoveredDevice, discoveredDeviceContainer });
+        discoveredDevicesContainer.appendChild(discoveredDeviceContainer);
+    }
+
+    discoveredDeviceContainer.querySelector(".name").innerText = discoveredDevice.name;
+    const nameSpan = discoveredDeviceContainer.querySelector(".name");
+    const nameSpanParent = nameSpan.closest("li");
+    if (discoveredDevice.name) {
+        nameSpanParent.removeAttribute("hidden");
+    } else {
+        nameSpanParent.setAttribute("hidden", "");
+    }
+    discoveredDeviceContainer.querySelector(".rssi").innerText = discoveredDevice.rssi;
+    discoveredDeviceContainer.querySelector(".advertisementData").innerText = JSON.stringify(
+        sortObjectKeysAlphabetically(discoveredDevice.advertisementData)
+    );
 });

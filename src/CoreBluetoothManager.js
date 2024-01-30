@@ -6,7 +6,7 @@ import AppMessagePoll from "./utils/AppMessagePoll.js";
 
 const _console = createConsole("CoreBluetooth", { log: true });
 
-/** @typedef {"state" | "isScanning" | "discoveredDevices" | "discoveredDevice"} CBMessageType */
+/** @typedef {"state" | "startScan" | "stopScan" | "isScanning" | "discoveredDevices" | "discoveredDevice"} CBMessageType */
 
 /** @typedef {"state" | "isAvailable" | "isScanning" | "discoveredDevice"} CBEventType */
 
@@ -143,6 +143,9 @@ class CoreBluetoothManager {
     #getWindowUnloadMessages() {
         /** @type {CBMessage[]} */
         const messages = [];
+        if (this.#isScanning && this.#stopScanOnUnload) {
+            messages.push({ type: "stopScan" });
+        }
         return this.#formatMessages(messages);
     }
 
@@ -161,6 +164,16 @@ class CoreBluetoothManager {
     set checkStateOnLoad(newValue) {
         _console.assertWithError(typeof newValue == "boolean", "invalid newValue for checkStateOnLoad", newValue);
         this.#checkStateOnLoad = newValue;
+    }
+
+    /** @type {boolean} */
+    #stopScanOnUnload = true;
+    get stopScanOnUnload() {
+        return this.#stopScanOnUnload;
+    }
+    set stopScanOnUnload(newValue) {
+        _console.assertTypeWithError(newValue, "boolean");
+        this.#stopScanOnUnload = newValue;
     }
 
     async sendTestMessage() {
@@ -187,7 +200,13 @@ class CoreBluetoothManager {
         if (this.state == "poweredOn") {
             this.#checkIsScanning();
         }
+        if (this.#state == "unknown") {
+            this.#checkStatePoll.start();
+        } else {
+            this.#checkStatePoll.stop();
+        }
     }
+    #checkStatePoll = new AppMessagePoll({ type: "state" }, this.#prefix, 500);
 
     get isAvailable() {
         return this.state == "poweredOn";
@@ -256,17 +275,28 @@ class CoreBluetoothManager {
     }
 
     /** @type {CBDiscoveredPeripheral[]} */
-    #discoveredDevices;
+    #discoveredDevices = [];
     get discoveredDevices() {
         return this.#discoveredDevices;
     }
     /** @param {CBDiscoveredPeripheral[]} newDiscoveredDevices */
     #onDiscoveredDevices(newDiscoveredDevices) {
-        // FILL
+        newDiscoveredDevices.forEach((discoveredDevice) => {
+            this.#onDiscoveredDevice(discoveredDevice);
+        });
     }
     /** @param {CBDiscoveredPeripheral} newDiscoveredDevice */
     #onDiscoveredDevice(newDiscoveredDevice) {
-        // FILL
+        var discoveredDevice = this.#discoveredDevices.find(
+            (discoveredDevice) => discoveredDevice.identifier == newDiscoveredDevice.identifier
+        );
+        if (discoveredDevice) {
+            Object.assign(discoveredDevice, newDiscoveredDevice);
+        } else {
+            this.#discoveredDevices.push(newDiscoveredDevice);
+            discoveredDevice = newDiscoveredDevice;
+        }
+        this.dispatchEvent({ type: "discoveredDevice", message: { discoveredDevice } });
     }
     #discoveredDevicesPoll = new AppMessagePoll({ type: "discoveredDevices" }, this.#prefix, 200, true);
 

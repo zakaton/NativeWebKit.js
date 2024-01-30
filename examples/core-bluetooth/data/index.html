@@ -9,6 +9,18 @@
         label {
             display: block;
         }
+
+        #discoveredDevices {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
     </style>
     <body>
         <div>
@@ -36,5 +48,25 @@
             <br />
             <textarea id="solicitedServiceUUIDs" cols="40" placeholder="solicited service uuids"></textarea>
         </p>
+
+        <p><b>Discovered Devices</b></p>
+
+        <div id="discoveredDevices">
+            <template id="discoveredDeviceTemplate">
+                <div class="discoveredDevice">
+                    <ul>
+                        <li><b>identifier:</b> <span class="identifier"></span></li>
+                        <li><b>name:</b> <span class="name"></span></li>
+                        <li><b>rssi:</b> <span class="rssi"></span></li>
+                        <li><b>advertisement data:</b> <span class="advertisementData"></span></li>
+                        <li>connection state: <span class="connectionState">not connected</span></li>
+                        <li>
+                            <button class="connect">connect</button>
+                            <button disabled class="disconnect">disconnect</button>
+                        </li>
+                    </ul>
+                </div>
+            </template>
+        </div>
     </body>
 </html>

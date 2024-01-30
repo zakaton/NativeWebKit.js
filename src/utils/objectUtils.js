@@ -44,4 +44,14 @@ function sortObjectKeysAlphabetically(object, recursive = true) {
     return sortedObject;
 }
 
-export { areObjectsEqual, sortObjectKeysAlphabetically };
+/**
+ *
+ * @param {object} object
+ * @param {boolean} recursive
+ * @returns {string}
+ */
+function stringifyObjectAlphabetically(object, recursive = true) {
+    return JSON.stringify(sortObjectKeysAlphabetically(object, recursive), null, 2);
+}
+
+export { areObjectsEqual, sortObjectKeysAlphabetically, stringifyObjectAlphabetically };
