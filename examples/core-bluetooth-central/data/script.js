@@ -9,7 +9,7 @@ CBCentralManager.stopScanOnUnload = true;
 /** @type {HTMLInputElement} */
 const stateInput = document.getElementById("state");
 CBCentralManager.addEventListener("state", (event) => {
-    /** @type {import("../../../src/CBCentralManager.js").CBState} */
+    /** @type {import("../../../src/CBCentralManager.js").CBCentralState} */
     const state = event.message.state;
     console.log({ state });
     stateInput.value = CBCentralManager.state;
@@ -82,11 +82,14 @@ stopScanButton.addEventListener("click", () => {
 const discoveredPeripheralsContainer = document.getElementById("discoveredPeripherals");
 /** @type {HTMLTemplateElement} */
 const discoveredPeripheralTemplate = document.getElementById("discoveredPeripheralTemplate");
-/** @type {object.<string, HTMLElement>} */
+/** @type {Object.<string, HTMLElement>} */
 var discoveredPeripheralContainers = {};
 
+/** @typedef {import("../../../src/CBCentralManager.js").CBDiscoveredPeripheral} CBDiscoveredPeripheral */
+/** @typedef {import("../../../src/CBCentralManager.js").CBPeripheral} CBPeripheral */
+
 CBCentralManager.addEventListener("discoveredPeripheral", (event) => {
-    /** @type {import("../../../src/CBCentralManager.js").CBDiscoveredPeripheral} */
+    /** @type {CBDiscoveredPeripheral} */
     const discoveredPeripheral = event.message.discoveredPeripheral;
     console.log({ discoveredPeripheral });
 
@@ -128,4 +131,40 @@ CBCentralManager.addEventListener("discoveredPeripheral", (event) => {
     discoveredPeripheralContainer.querySelector(".advertisementData").innerText = JSON.stringify(
         sortObjectKeysAlphabetically(discoveredPeripheral.advertisementData)
     );
+});
+
+CBCentralManager.addEventListener("expiredDiscoveredPeripheral", (event) => {
+    /** @type {CBDiscoveredPeripheral} */
+    const expiredDiscoveredPeripheral = event.message.expiredDiscoveredPeripheral;
+    console.log({ expiredDiscoveredPeripheral });
+    const discoveredPeripheralContainer = discoveredPeripheralContainers[expiredDiscoveredPeripheral.identifier];
+    if (discoveredPeripheralContainer) {
+        console.log("removing container", discoveredPeripheralContainer);
+        discoveredPeripheralContainer.remove();
+        delete discoveredPeripheralContainers[expiredDiscoveredPeripheral.identifier];
+    }
+});
+
+CBCentralManager.addEventListener("peripheralConnectionState", (event) => {
+    /** @type {CBPeripheral} */
+    const peripheral = event.message.peripheral;
+    console.log({ peripheral });
+    const discoveredPeripheralContainer = discoveredPeripheralContainers[peripheral.identifier];
+    if (discoveredPeripheralContainer) {
+        discoveredPeripheralContainer.querySelector(".connectionState").innerText = peripheral.connectionState;
+        const connectButton = discoveredPeripheralContainer.querySelector(".connect");
+        const disconnectButton = discoveredPeripheralContainer.querySelector(".disconnect");
+        switch (peripheral.connectionState) {
+            case "connected":
+            case "connecting":
+                connectButton.disabled = true;
+                disconnectButton.disabled = false;
+                break;
+            case "disconnected":
+            case "disconnecting":
+                connectButton.disabled = false;
+                disconnectButton.disabled = true;
+                break;
+        }
+    }
 });

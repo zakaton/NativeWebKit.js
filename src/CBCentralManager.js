@@ -7,39 +7,39 @@ import AppMessagePoll from "./utils/AppMessagePoll.js";
 
 const _console = createConsole("CBCentral", { log: true });
 
-/** @typedef {"state" | "startScan" | "stopScan" | "isScanning" | "discoveredPeripherals" | "discoveredPeripheral" | "connect" | "disconnect" | "disconnectAll" | "peripheralConnectionState"} CBMessageType */
+/** @typedef {"state" | "startScan" | "stopScan" | "isScanning" | "discoveredPeripherals" | "discoveredPeripheral" | "connect" | "disconnect" | "disconnectAll" | "peripheralConnectionState"} CBCentralMessageType */
 
-/** @typedef {"state" | "isAvailable" | "isScanning" | "discoveredPeripheral" | "peripheralConnectionState" | "expiredDiscoveredPeripheral"} CBEventType */
+/** @typedef {"state" | "isAvailable" | "isScanning" | "discoveredPeripheral" | "peripheralConnectionState" | "expiredDiscoveredPeripheral"} CBCentralEventType */
 
 /** @typedef {import("./utils/EventDispatcher.js").EventDispatcherOptions} EventDispatcherOptions */
 
 /** @typedef {import("./utils/messaging.js").NKMessage} NKMessage */
 
 /**
- * @typedef CBMessage
+ * @typedef CBCentralMessage
  * @type {object}
- * @property {CBMessageType} type
+ * @property {CBCentralMessageType} type
  * @property {object} message
  */
 
 /**
- * @typedef CBAppMessage
+ * @typedef CBCentralAppMessage
  * @type {object}
- * @property {CBMessageType} type
+ * @property {CBCentralMessageType} type
  */
 
 /**
- * @typedef CBEvent
+ * @typedef CBCentralEvent
  * @type {object}
- * @property {CBEventType} type
+ * @property {CBCentralEventType} type
  * @property {object} message
  */
 
 /**
- * @typedef {(event: CBEvent) => void} CBEventListener
+ * @typedef {(event: CBCentralEvent) => void} CBCentralEventListener
  */
 
-/** @typedef {"unknown" | "resetting" | "unsupported" | "unauthorized" | "poweredOff" | "poweredOn"} CBState */
+/** @typedef {"unknown" | "resetting" | "unsupported" | "unauthorized" | "poweredOff" | "poweredOn"} CBCentralState */
 
 /**
  * @typedef CBScanOptions
@@ -75,55 +75,63 @@ const _console = createConsole("CBCentral", { log: true });
  * @property {number} options.startDelay
  */
 
-/** @typedef {"disconnected" | "conecting" | "connected" | "disconnecting" | "unknown"} CBConnectionState */
+/** @typedef {"disconnected" | "connecting" | "connected" | "disconnecting" | "unknown"} CBConnectionState */
 /**
  * @typedef CBPeripheralConnectionState
  * @type {object}
  * @property {string} identifier
- * @property {CBConnectionState} connectonState
+ * @property {CBConnectionState} connectionState
  */
 
 /**
  * @typedef CBPeripheral
  * @type {object}
  * @property {string} identifier
- * @property {CBConnectionState?} connectonState
+ * @property {string?} name
+ * @property {CBConnectionState?} connectionState
  */
 
 class CBCentralManager {
-    /** @type {CBEventType[]} */
-    static #EventsTypes = ["state", "isAvailable", "isScanning", "discoveredPeripheral", "expiredDiscoveredPeripheral"];
-    /** @type {CBEventType[]} */
+    /** @type {CBCentralEventType[]} */
+    static #EventsTypes = [
+        "state",
+        "isAvailable",
+        "isScanning",
+        "discoveredPeripheral",
+        "expiredDiscoveredPeripheral",
+        "peripheralConnectionState",
+    ];
+    /** @type {CBCentralEventType[]} */
     get eventTypes() {
         return CBCentralManager.#EventsTypes;
     }
     #eventDispatcher = new EventDispatcher(this.eventTypes);
 
     /**
-     * @param {CBEventType} type
-     * @param {CBEventListener} listener
+     * @param {CBCentralEventType} type
+     * @param {CBCentralEventListener} listener
      * @param {EventDispatcherOptions?} options
      */
     addEventListener(type, listener, options) {
         return this.#eventDispatcher.addEventListener(...arguments);
     }
     /**
-     * @param {CBEventType} type
-     * @param {CBEventListener} listener
+     * @param {CBCentralEventType} type
+     * @param {CBCentralEventListener} listener
      * @returns {boolean}
      */
     removeEventListener(type, listener) {
         return this.#eventDispatcher.removeEventListener(...arguments);
     }
     /**
-     * @param {CBEventType} type
-     * @param {CBEventListener} listener
+     * @param {CBCentralEventType} type
+     * @param {CBCentralEventListener} listener
      * @returns {boolean}
      */
     hasEventListener(type, listener) {
         return this.#eventDispatcher.hasEventListener(...arguments);
     }
-    /** @param {CBEvent} event */
+    /** @param {CBCentralEvent} event */
     dispatchEvent(event) {
         return this.#eventDispatcher.dispatchEvent(event);
     }
@@ -134,7 +142,7 @@ class CBCentralManager {
     }
     #prefix = "cbc";
     /**
-     * @param {CBMessage[]} messages
+     * @param {CBCentralMessage[]} messages
      * @returns {NKMessage[]}
      */
     #formatMessages(messages) {
@@ -162,7 +170,7 @@ class CBCentralManager {
 
     /** @returns {NKMessage[]?} */
     #getWindowLoadMessages() {
-        /** @type {CBMessage[]} */
+        /** @type {CBCentralMessage[]} */
         const messages = [];
         if (this.checkStateOnLoad) {
             messages.push({ type: "state" });
@@ -171,7 +179,7 @@ class CBCentralManager {
     }
     /** @returns {NKMessage[]?} */
     #getWindowUnloadMessages() {
-        /** @type {CBMessage[]} */
+        /** @type {CBCentralMessage[]} */
         const messages = [];
         if (this.#isScanning && this.#stopScanOnUnload) {
             messages.push({ type: "stopScan" });
@@ -182,7 +190,7 @@ class CBCentralManager {
         return this.#formatMessages(messages);
     }
 
-    /** @param {CBAppMessage} message */
+    /** @param {CBCentralAppMessage} message */
     async sendMessageToApp(message) {
         message.type = `${this.#prefix}-${message.type}`;
         return sendMessageToApp(message);
@@ -219,12 +227,12 @@ class CBCentralManager {
         this.#disconnectOnUnload = newValue;
     }
 
-    /** @type {CBState?} */
+    /** @type {CBCentralState?} */
     #state = null;
     get state() {
         return this.#state || "unknown";
     }
-    /** @param {CBState} newState */
+    /** @param {CBCentralState} newState */
     #onState(newState) {
         if (this.#state == newState) {
             return;
@@ -305,7 +313,7 @@ class CBCentralManager {
 
         expiredDiscoveredPeripherals.forEach((expiredDiscoveredPeripheral) => {
             _console.log({ expiredDiscoveredPeripheral });
-            this.dispatchEvent({ type: "expiredDiscoveredPeripheral", expiredDiscoveredPeripheral });
+            this.dispatchEvent({ type: "expiredDiscoveredPeripheral", message: { expiredDiscoveredPeripheral } });
         });
     }
     #scanTimer = new Timer(this.#checkDiscoveredPeripherals.bind(this), 1000);
@@ -397,14 +405,19 @@ class CBCentralManager {
     async connect(connectOptions) {
         this.#assertIsAvailable();
         this.#assertValidDiscoveredPeripheralIdentifier(connectOptions.identifier);
+        const discoveredPeripheral = this.#getDiscoveredPeripheralByIdentifier(connectOptions.identifier);
         var peripheral = this.#getPeripheralByIdentifier(connectOptions.identifier);
         if (!peripheral) {
-            peripheral = { identifier: connectOptions.identifier, connectonState: null };
+            peripheral = {
+                identifier: connectOptions.identifier,
+                connectionState: null,
+                name: discoveredPeripheral.name,
+            };
             this.#peripherals.push(peripheral);
         } else {
             _console.assertWithError(
-                peripheral.connectonState != "connected" && !peripheral.connectonState.endsWith("ing"),
-                `peripheral is in connectionState "${peripheral.connectonState}"`
+                peripheral.connectionState != "connected" && !peripheral.connectionState.endsWith("ing"),
+                `peripheral is in connectionState "${peripheral.connectionState}"`
             );
         }
         _console.log("connecting to peripheral", connectOptions);
@@ -413,18 +426,31 @@ class CBCentralManager {
     }
     /** @param {string} identifier */
     async disconnect(identifier) {
-        // FILL
         this.#assertValidPeripheralIdentifier(identifier);
-        const peripheral = this.#getPeripheralByIdentifier(connectOptions.identifier);
+        const peripheral = this.#getPeripheralByIdentifier(identifier);
+        _console.assertWithError(
+            !peripheral.connectionState.includes("disconnect"),
+            "peripheral is already disconnected or disconnecting"
+        );
+        peripheral.connectionState = null;
+        this.#checkPeripheralConnectionsPoll.start();
+        _console.log("disconnecting from peripheral...", peripheral);
+        return this.sendMessageToApp({ type: "disconnect", identifier });
     }
 
-    /** @returns {CBAppMessage[]} */
+    /** @returns {CBCentralAppMessage[]} */
     #checkPeripheralConnectionsMessage() {
-        return this.#peripherals
-            .filter((peripheral) => !peripheral.connectonState || peripheral.connectonState.endsWith("ing"))
-            .map((peripheral) => {
+        const peripheralsWithPendingConnections = this.#peripherals.filter(
+            (peripheral) => !peripheral.connectionState || peripheral.connectionState.endsWith("ing")
+        );
+        if (peripheralsWithPendingConnections.length > 0) {
+            return peripheralsWithPendingConnections.map((peripheral) => {
                 return { type: "peripheralConnectionState", identifier: peripheral.identifier };
             });
+        } else {
+            this.#checkPeripheralConnectionsPoll.stop();
+            return [];
+        }
     }
     #checkPeripheralConnectionsPoll = new AppMessagePoll(
         this.#checkPeripheralConnectionsMessage.bind(this),
@@ -433,9 +459,17 @@ class CBCentralManager {
     );
 
     /** @param {CBPeripheralConnectionState} peripheralConnectionState  */
-    #onPeripheralConnectionState(peripheralConnectionState) {}
+    #onPeripheralConnectionState(peripheralConnectionState) {
+        this.#assertValidPeripheralIdentifier(peripheralConnectionState.identifier);
+        const peripheral = this.#getPeripheralByIdentifier(peripheralConnectionState.identifier);
+        if (peripheral.connectionState == peripheralConnectionState.connectionState) {
+            return;
+        }
+        peripheral.connectionState = peripheralConnectionState.connectionState;
+        this.dispatchEvent({ type: "peripheralConnectionState", message: { peripheral } });
+    }
 
-    /** @param {CBAppMessage} message */
+    /** @param {CBCentralAppMessage} message */
     #onAppMessage(message) {
         _console.log(`received background message of type ${message.type}`, message);
         const { type } = message;
