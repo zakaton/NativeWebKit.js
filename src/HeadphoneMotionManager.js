@@ -311,6 +311,7 @@ class HeadphoneMotionManager {
         this.#onSensorLocationUpdated(newMotionData.sensorLocation);
     }
 
+    /** @returns {HMAppMessage} */
     #checkMotionDataMessage() {
         return { type: "getData", timestamp: this.#motionDataTimestamp };
     }

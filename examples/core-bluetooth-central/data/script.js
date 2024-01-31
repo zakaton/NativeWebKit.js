@@ -1,23 +1,23 @@
-import { CoreBluetoothManager } from "../../../src/NativeWebKit.js";
+import { CBCentralManager } from "../../../src/NativeWebKit.js";
 import { sortObjectKeysAlphabetically } from "../../../src/utils/objectUtils.js";
-//import { CoreBluetoothManager } from "../../../build/nativewebkit.module.js";
-window.CoreBluetoothManager = CoreBluetoothManager;
-console.log(CoreBluetoothManager);
-CoreBluetoothManager.checkStateOnLoad = true;
-CoreBluetoothManager.stopScanOnUnload = true;
+//import { CBCentralManager } from "../../../build/nativewebkit.module.js";
+window.CBCentralManager = CBCentralManager;
+console.log(CBCentralManager);
+CBCentralManager.checkStateOnLoad = true;
+CBCentralManager.stopScanOnUnload = true;
 
 /** @type {HTMLInputElement} */
 const stateInput = document.getElementById("state");
-CoreBluetoothManager.addEventListener("state", (event) => {
-    /** @type {import("../../../src/CoreBluetoothManager.js").CBState} */
+CBCentralManager.addEventListener("state", (event) => {
+    /** @type {import("../../../src/CBCentralManager.js").CBState} */
     const state = event.message.state;
     console.log({ state });
-    stateInput.value = CoreBluetoothManager.state;
+    stateInput.value = CBCentralManager.state;
 });
 
 /** @type {HTMLInputElement} */
 const isAvailableCheckbox = document.getElementById("isAvailable");
-CoreBluetoothManager.addEventListener("isAvailable", (event) => {
+CBCentralManager.addEventListener("isAvailable", (event) => {
     const isAvailable = event.message.isAvailable;
     console.log({ isAvailable });
     isAvailableCheckbox.checked = isAvailable;
@@ -28,7 +28,7 @@ const startScanButton = document.getElementById("startScan");
 /** @type {HTMLButtonElement} */
 const stopScanButton = document.getElementById("stopScan");
 
-CoreBluetoothManager.addEventListener("isScanning", (event) => {
+CBCentralManager.addEventListener("isScanning", (event) => {
     const isScanning = event.message.isScanning;
     console.log({ isScanning });
     if (isScanning) {
@@ -47,7 +47,7 @@ const allowDuplicatesCheckbox = document.getElementById("allowDuplicates");
 const solicitedServiceUUIDsTextarea = document.getElementById("solicitedServiceUUIDs");
 
 startScanButton.addEventListener("click", () => {
-    /** @type {import("../../../src/CoreBluetoothManager.js").CBScanOptions} */
+    /** @type {import("../../../src/CBCentralManager.js").CBScanOptions} */
     const scanOptions = { options: {} };
 
     const serviceUUIDs = serviceUUIDsTextarea.value
@@ -71,11 +71,11 @@ startScanButton.addEventListener("click", () => {
         scanOptions.options.solicitedServiceUUIDs = solicitedServiceUUIDs;
     }
 
-    CoreBluetoothManager.startScan(scanOptions);
+    CBCentralManager.startScan(scanOptions);
 });
 
 stopScanButton.addEventListener("click", () => {
-    CoreBluetoothManager.stopScan();
+    CBCentralManager.stopScan();
 });
 
 /** @type {HTMLElement} */
@@ -85,8 +85,8 @@ const discoveredPeripheralTemplate = document.getElementById("discoveredPeripher
 /** @type {object.<string, HTMLElement>} */
 var discoveredPeripheralContainers = {};
 
-CoreBluetoothManager.addEventListener("discoveredPeripheral", (event) => {
-    /** @type {import("../../../src/CoreBluetoothManager.js").CBDiscoveredPeripheral} */
+CBCentralManager.addEventListener("discoveredPeripheral", (event) => {
+    /** @type {import("../../../src/CBCentralManager.js").CBDiscoveredPeripheral} */
     const discoveredPeripheral = event.message.discoveredPeripheral;
     console.log({ discoveredPeripheral });
 
@@ -104,7 +104,7 @@ CoreBluetoothManager.addEventListener("discoveredPeripheral", (event) => {
         /** @type {HTMLButtonElement} */
         const connectButton = discoveredPeripheralContainer.querySelector(".connect");
         connectButton.addEventListener("click", () => {
-            CoreBluetoothManager.connect({
+            CBCentralManager.connect({
                 identifier: discoveredPeripheral.identifier,
                 //options: { enableAutoReconnect: true },
             });
@@ -112,7 +112,7 @@ CoreBluetoothManager.addEventListener("discoveredPeripheral", (event) => {
         /** @type {HTMLButtonElement} */
         const disconnectButton = discoveredPeripheralContainer.querySelector(".disconnect");
         disconnectButton.addEventListener("click", () => {
-            CoreBluetoothManager.disconnect(discoveredPeripheral.identifier);
+            CBCentralManager.disconnect(discoveredPeripheral.identifier);
         });
     }
 

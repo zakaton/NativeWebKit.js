@@ -56,7 +56,7 @@ class AppMessagePoll {
         return AppMessagePoll.#polls.indexOf(this);
     }
 
-    /** @type {function():NKMessage} */
+    /** @type {function():(NKMessage|NKMessage[])} */
     #generateMessage;
     /** @type {string} */
     #prefix = "";
@@ -81,7 +81,7 @@ class AppMessagePoll {
     }
 
     /**
-     * @param {NKMessage|function():NKMessage} messageOrMessageGenerator
+     * @param {NKMessage|function():(NKMessage|NKMessage[])} messageOrMessageGenerator
      * @param {string} prefix
      * @param {number} interval (ms)
      * @param {boolean} runInApp
@@ -134,11 +134,20 @@ class AppMessagePoll {
             return timeSinceLastCallback >= poll.#interval;
         });
 
-        const messages = polls.map((poll) => {
-            const message = Object.assign({}, poll.#generateMessage());
-            message.type = `${poll.#prefix}-${message.type}`;
-            return message;
-        });
+        const messages = polls
+            .map((poll) => {
+                var _messages = poll.#generateMessage();
+                if (!Array.isArray(_messages)) {
+                    _messages = [_messages];
+                }
+                _messages = _messages.map((_message) => {
+                    _message = Object.assign({}, _message);
+                    _message.type = `${poll.#prefix}-${_message.type}`;
+                    return _message;
+                });
+                return _messages;
+            })
+            .flat();
         _console.log("messages", messages);
 
         if (messages.length > 0) {

@@ -1,14 +1,15 @@
 import EventDispatcher from "./utils/EventDispatcher.js";
 import { createConsole } from "./utils/Console.js";
+import Timer from "./utils/Timer.js";
 
 import { sendMessageToApp, addAppListener } from "./utils/messaging.js";
 import AppMessagePoll from "./utils/AppMessagePoll.js";
 
-const _console = createConsole("CoreBluetooth", { log: true });
+const _console = createConsole("CBCentral", { log: true });
 
-/** @typedef {"state" | "startScan" | "stopScan" | "isScanning" | "discoveredPeripherals" | "discoveredPeripheral" | "connect" | "disconnect" | "disconnectAll"} CBMessageType */
+/** @typedef {"state" | "startScan" | "stopScan" | "isScanning" | "discoveredPeripherals" | "discoveredPeripheral" | "connect" | "disconnect" | "disconnectAll" | "peripheralConnectionState"} CBMessageType */
 
-/** @typedef {"state" | "isAvailable" | "isScanning" | "discoveredPeripheral" | "connecting" | "connected" | "disconnecting" | "disconnected"} CBEventType */
+/** @typedef {"state" | "isAvailable" | "isScanning" | "discoveredPeripheral" | "peripheralConnectionState" | "expiredDiscoveredPeripheral"} CBEventType */
 
 /** @typedef {import("./utils/EventDispatcher.js").EventDispatcherOptions} EventDispatcherOptions */
 
@@ -58,6 +59,7 @@ const _console = createConsole("CoreBluetooth", { log: true });
  * @property {object} advertisementData
  * @property {number} advertisementData.timestamp
  * @property {object.<string, number[]>} advertisementData.serviceData
+ * @property {number?} lastTimeUpdated
  */
 
 /**
@@ -73,12 +75,27 @@ const _console = createConsole("CoreBluetooth", { log: true });
  * @property {number} options.startDelay
  */
 
-class CoreBluetoothManager {
+/** @typedef {"disconnected" | "conecting" | "connected" | "disconnecting" | "unknown"} CBConnectionState */
+/**
+ * @typedef CBPeripheralConnectionState
+ * @type {object}
+ * @property {string} identifier
+ * @property {CBConnectionState} connectonState
+ */
+
+/**
+ * @typedef CBPeripheral
+ * @type {object}
+ * @property {string} identifier
+ * @property {CBConnectionState?} connectonState
+ */
+
+class CBCentralManager {
     /** @type {CBEventType[]} */
-    static #EventsTypes = ["state", "isAvailable", "isScanning", "discoveredPeripheral"];
+    static #EventsTypes = ["state", "isAvailable", "isScanning", "discoveredPeripheral", "expiredDiscoveredPeripheral"];
     /** @type {CBEventType[]} */
     get eventTypes() {
-        return CoreBluetoothManager.#EventsTypes;
+        return CBCentralManager.#EventsTypes;
     }
     #eventDispatcher = new EventDispatcher(this.eventTypes);
 
@@ -111,11 +128,11 @@ class CoreBluetoothManager {
         return this.#eventDispatcher.dispatchEvent(event);
     }
 
-    static #shared = new CoreBluetoothManager();
+    static #shared = new CBCentralManager();
     static get shared() {
         return this.#shared;
     }
-    #prefix = "cb";
+    #prefix = "cbc";
     /**
      * @param {CBMessage[]} messages
      * @returns {NKMessage[]}
@@ -126,7 +143,7 @@ class CoreBluetoothManager {
 
     /** @throws {Error} if singleton already exists */
     constructor() {
-        _console.assertWithError(!this.shared, "CoreBluetoothManager is a singleton - use CoreBluetoothManager.shared");
+        _console.assertWithError(!this.shared, "CBCentralManager is a singleton - use CBCentralManager.shared");
 
         addAppListener(this.#getWindowLoadMessages.bind(this), "window.load");
         addAppListener(this.#onAppMessage.bind(this), this.#prefix);
@@ -260,8 +277,10 @@ class CoreBluetoothManager {
 
         if (this.isScanning) {
             this.#discoveredPeripheralsPoll.start();
+            this.#scanTimer.start();
         } else {
             this.#discoveredPeripheralsPoll.stop();
+            this.#scanTimer.stop();
         }
     }
     async #checkIsScanning() {
@@ -270,11 +289,33 @@ class CoreBluetoothManager {
     }
     #isScanningPoll = new AppMessagePoll({ type: "isScanning" }, this.#prefix, 50);
 
+    #checkDiscoveredPeripherals() {
+        const now = Date.now();
+
+        /** @type {CBDiscoveredPeripheral[]} */
+        const expiredDiscoveredPeripherals = [];
+
+        this.#discoveredPeripherals = this.#discoveredPeripherals.filter((discoveredPeripheral) => {
+            const hasExpired = now - discoveredPeripheral.lastTimeUpdated > 4000;
+            if (hasExpired) {
+                expiredDiscoveredPeripherals.push(discoveredPeripheral);
+            }
+            return !hasExpired;
+        });
+
+        expiredDiscoveredPeripherals.forEach((expiredDiscoveredPeripheral) => {
+            _console.log({ expiredDiscoveredPeripheral });
+            this.dispatchEvent({ type: "expiredDiscoveredPeripheral", expiredDiscoveredPeripheral });
+        });
+    }
+    #scanTimer = new Timer(this.#checkDiscoveredPeripherals.bind(this), 1000);
+
     /** @param {CBScanOptions?} scanOptions */
     async startScan(scanOptions) {
         this.#assertIsAvailable();
         _console.assertWithError(!this.isScanning, "already scanning");
         _console.log("starting scan", scanOptions);
+        this.#discoveredPeripherals.length = 0;
         this.#isScanningPoll.start();
         return this.sendMessageToApp({ type: "startScan", scanOptions });
     }
@@ -300,6 +341,19 @@ class CoreBluetoothManager {
     get discoveredPeripherals() {
         return this.#discoveredPeripherals;
     }
+    /** @param {string} identifier */
+    #getDiscoveredPeripheralByIdentifier(identifier) {
+        return this.#discoveredPeripherals.find(
+            (discoveredPeripheral) => discoveredPeripheral.identifier == identifier
+        );
+    }
+    /** @param {string} identifier */
+    #assertValidDiscoveredPeripheralIdentifier(identifier) {
+        _console.assertWithError(
+            this.#getDiscoveredPeripheralByIdentifier(identifier),
+            `no discovered peripheral with identifier "${identifier}" found`
+        );
+    }
     /** @param {CBDiscoveredPeripheral[]} newDiscoveredPeripherals */
     #onDiscoveredPeripherals(newDiscoveredPeripherals) {
         newDiscoveredPeripherals.forEach((discoveredPeripheral) => {
@@ -317,26 +371,69 @@ class CoreBluetoothManager {
             this.#discoveredPeripherals.push(newDiscoveredPeripheral);
             discoveredPeripheral = newDiscoveredPeripheral;
         }
+        discoveredPeripheral.lastTimeUpdated = Date.now();
         this.dispatchEvent({ type: "discoveredPeripheral", message: { discoveredPeripheral } });
     }
     #discoveredPeripheralsPoll = new AppMessagePoll({ type: "discoveredPeripherals" }, this.#prefix, 200);
 
     /** @type {CBPeripheral[]} */
-    #connectedPeripherals = [];
+    #peripherals = [];
+    get peripherals() {
+        return this.#peripherals;
+    }
+    /** @param {string} identifier */
+    #getPeripheralByIdentifier(identifier) {
+        return this.#peripherals.find((connectedPeripheral) => connectedPeripheral.identifier == identifier);
+    }
+    /** @param {string} identifier */
+    #assertValidPeripheralIdentifier(identifier) {
+        _console.assertWithError(
+            this.#getPeripheralByIdentifier(identifier),
+            `no peripheral with identifier "${identifier}" found`
+        );
+    }
 
     /** @param {CBConnectOptions} connectOptions */
     async connect(connectOptions) {
         this.#assertIsAvailable();
-        // FILL - assert peripheral is not connected
+        this.#assertValidDiscoveredPeripheralIdentifier(connectOptions.identifier);
+        var peripheral = this.#getPeripheralByIdentifier(connectOptions.identifier);
+        if (!peripheral) {
+            peripheral = { identifier: connectOptions.identifier, connectonState: null };
+            this.#peripherals.push(peripheral);
+        } else {
+            _console.assertWithError(
+                peripheral.connectonState != "connected" && !peripheral.connectonState.endsWith("ing"),
+                `peripheral is in connectionState "${peripheral.connectonState}"`
+            );
+        }
         _console.log("connecting to peripheral", connectOptions);
-        this.#peripheralConnectionsPoll.start();
+        this.#checkPeripheralConnectionsPoll.start();
         return this.sendMessageToApp({ type: "connect", connectOptions });
     }
     /** @param {string} identifier */
     async disconnect(identifier) {
         // FILL
+        this.#assertValidPeripheralIdentifier(identifier);
+        const peripheral = this.#getPeripheralByIdentifier(connectOptions.identifier);
     }
-    #peripheralConnectionsPoll = new AppMessagePoll({ type: "peripheralConnections" }, this.#prefix, 200);
+
+    /** @returns {CBAppMessage[]} */
+    #checkPeripheralConnectionsMessage() {
+        return this.#peripherals
+            .filter((peripheral) => !peripheral.connectonState || peripheral.connectonState.endsWith("ing"))
+            .map((peripheral) => {
+                return { type: "peripheralConnectionState", identifier: peripheral.identifier };
+            });
+    }
+    #checkPeripheralConnectionsPoll = new AppMessagePoll(
+        this.#checkPeripheralConnectionsMessage.bind(this),
+        this.#prefix,
+        200
+    );
+
+    /** @param {CBPeripheralConnectionState} peripheralConnectionState  */
+    #onPeripheralConnectionState(peripheralConnectionState) {}
 
     /** @param {CBAppMessage} message */
     #onAppMessage(message) {
@@ -359,10 +456,14 @@ class CoreBluetoothManager {
                 _console.log("received discoveredPeripherals message", message.discoveredPeripherals);
                 this.#onDiscoveredPeripherals(message.discoveredPeripherals);
                 break;
+            case "peripheralConnectionState":
+                _console.log("received peripheralConnectionState message", message.peripheralConnectionState);
+                this.#onPeripheralConnectionState(message.peripheralConnectionState);
+                break;
             default:
                 throw Error(`uncaught message type ${type}`);
         }
     }
 }
 
-export default CoreBluetoothManager.shared;
+export default CBCentralManager.shared;
