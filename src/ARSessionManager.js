@@ -342,7 +342,7 @@ class ARSessionManager {
     /**
      * @param {ARSEvent} event
      */
-    dispatchEvent(event) {
+    #dispatchEvent(event) {
         return this.#eventDispatcher.dispatchEvent(...arguments);
     }
 
@@ -393,7 +393,7 @@ class ARSessionManager {
     /**
      * @param {ARSAppMessage} message
      */
-    async sendMessageToApp(message) {
+    async #sendMessageToApp(message) {
         message.type = `${this.#prefix}-${message.type}`;
         return sendMessageToApp(message);
     }
@@ -457,7 +457,7 @@ class ARSessionManager {
         if (!areObjectsEqual(this.#worldTrackingSupport, newValue)) {
             this.#worldTrackingSupport = newValue;
             _console.log("updated worldTrackingSupport", newValue);
-            this.dispatchEvent({
+            this.#dispatchEvent({
                 type: "worldTrackingSupport",
                 message: { worldTrackingSupport: this.worldTrackingSupport },
             });
@@ -486,7 +486,7 @@ class ARSessionManager {
         if (!areObjectsEqual(this.#bodyTrackingSupport, newValue)) {
             this.#bodyTrackingSupport = newValue;
             _console.log("updated bodyTrackingSupport", newValue);
-            this.dispatchEvent({
+            this.#dispatchEvent({
                 type: "bodyTrackingSupport",
                 message: { bodyTrackingSupport: this.bodyTrackingSupport },
             });
@@ -516,7 +516,7 @@ class ARSessionManager {
         if (!areObjectsEqual(this.#faceTrackingSupport, newValue)) {
             this.#faceTrackingSupport = newValue;
             _console.log("updated faceTrackingSupport", newValue);
-            this.dispatchEvent({
+            this.#dispatchEvent({
                 type: "faceTrackingSupport",
                 message: { faceTrackingSupport: this.faceTrackingSupport },
             });
@@ -543,7 +543,7 @@ class ARSessionManager {
         if (this.#isRunning != newValue) {
             this.#isRunning = newValue;
             _console.log(`updated isRunning to ${newValue}`);
-            this.dispatchEvent({
+            this.#dispatchEvent({
                 type: "isRunning",
                 message: { isRunning: this.isRunning },
             });
@@ -647,12 +647,12 @@ class ARSessionManager {
         this.#assertConfigurationIsValid(configuration);
 
         _console.log("running with configuraton", configuration);
-        return this.sendMessageToApp({ type: "run", configuration });
+        return this.#sendMessageToApp({ type: "run", configuration });
     }
 
     async pause() {
         _console.log("pause...");
-        return this.sendMessageToApp({ type: "pause" });
+        return this.#sendMessageToApp({ type: "pause" });
     }
 
     /** @type {ARSConfigurationType[]} */
@@ -677,14 +677,14 @@ class ARSessionManager {
         this.#assertIsRunning();
 
         _console.log("checking configuration...");
-        return this.sendMessageToApp({ type: "configuration" });
+        return this.#sendMessageToApp({ type: "configuration" });
     }
 
     /** @param {ARSConfiguration} newConfiguration  */
     #onConfigurationUpdated(newConfiguration) {
         this.#configuration = newConfiguration;
         _console.log("updated configuration", this.configuration);
-        this.dispatchEvent({
+        this.#dispatchEvent({
             type: "configuration",
             message: { configuration: this.configuration },
         });
@@ -699,7 +699,7 @@ class ARSessionManager {
     #onFrame(frame) {
         this.#frame = frame;
         _console.log("received frame", this.frame);
-        this.dispatchEvent({ type: "frame", message: { frame: this.frame } });
+        this.#dispatchEvent({ type: "frame", message: { frame: this.frame } });
         this.#onCamera(frame.camera);
         if (frame.lightEstimate) {
             this.#onLightEstimate(frame.lightEstimate);
@@ -725,7 +725,7 @@ class ARSessionManager {
     #onCamera(camera) {
         this.#camera = camera;
         _console.log("received camera", this.camera);
-        this.dispatchEvent({ type: "camera", message: { camera: this.camera } });
+        this.#dispatchEvent({ type: "camera", message: { camera: this.camera } });
     }
 
     /** @type {ARSLightEstimate?} */
@@ -737,7 +737,7 @@ class ARSessionManager {
     #onLightEstimate(lightEstimate) {
         this.#lightEstimate = lightEstimate;
         _console.log("received lightEstimate", this.lightEstimate);
-        this.dispatchEvent({ type: "lightEstimate", message: { lightEstimate: this.lightEstimate } });
+        this.#dispatchEvent({ type: "lightEstimate", message: { lightEstimate: this.lightEstimate } });
     }
 
     /** @type {ARSFaceAnchor[]?} */
@@ -749,7 +749,7 @@ class ARSessionManager {
     #onFaceAnchors(faceAnchors) {
         this.#faceAnchors = faceAnchors;
         _console.log("received faceAnchors", this.faceAnchors);
-        this.dispatchEvent({ type: "faceAnchors", message: { faceAnchors: this.faceAnchors } });
+        this.#dispatchEvent({ type: "faceAnchors", message: { faceAnchors: this.faceAnchors } });
     }
 
     /** @type {ARSPlaneAnchor[]?} */
@@ -761,7 +761,7 @@ class ARSessionManager {
     #onPlaneAnchors(planeAnchors) {
         this.#planeAnchors = planeAnchors;
         _console.log("received planeAnchors", this.planeAnchors);
-        this.dispatchEvent({ type: "planeAnchors", message: { planeAnchors: this.planeAnchors } });
+        this.#dispatchEvent({ type: "planeAnchors", message: { planeAnchors: this.planeAnchors } });
     }
 
     /** @type {ARSBodyAnchor[]?} */
@@ -773,7 +773,7 @@ class ARSessionManager {
     #onBodyAnchors(bodyAnchors) {
         this.#bodyAnchors = bodyAnchors;
         _console.log("received bodyAnchors", this.bodyAnchors);
-        this.dispatchEvent({ type: "bodyAnchors", message: { bodyAnchors: this.bodyAnchors } });
+        this.#dispatchEvent({ type: "bodyAnchors", message: { bodyAnchors: this.bodyAnchors } });
     }
 
     /** @type {ARSDebugOption[]} */
@@ -800,7 +800,7 @@ class ARSessionManager {
     #onDebugOptionsUpdated(newDebugOptions) {
         this.#debugOptions = newDebugOptions;
         _console.log("received debugOptions", this.debugOptions);
-        this.dispatchEvent({ type: "debugOptions", message: { debugOptions: this.debugOptions } });
+        this.#dispatchEvent({ type: "debugOptions", message: { debugOptions: this.debugOptions } });
     }
 
     /**
@@ -816,7 +816,7 @@ class ARSessionManager {
         _console.assertWithError(!invalidKey, `invalid debugOptions key ${invalidKey}`);
 
         _console.log("setting debugOptions...", newDebugOptions);
-        return this.sendMessageToApp({ type: "debugOptions", debugOptions: newDebugOptions });
+        return this.#sendMessageToApp({ type: "debugOptions", debugOptions: newDebugOptions });
     }
 
     /** @type {boolean} */
@@ -857,7 +857,7 @@ class ARSessionManager {
         }
 
         _console.log("setting cameraMode...", newCameraMode);
-        return this.sendMessageToApp({ type: "cameraMode", cameraMode: newCameraMode });
+        return this.#sendMessageToApp({ type: "cameraMode", cameraMode: newCameraMode });
     }
 
     /** @type {boolean} */
@@ -878,7 +878,7 @@ class ARSessionManager {
 
         this.#cameraMode = newCameraMode;
         _console.log(`updated cameraMode to ${this.cameraMode}`);
-        this.dispatchEvent({ type: "cameraMode", message: { cameraMode: this.cameraMode } });
+        this.#dispatchEvent({ type: "cameraMode", message: { cameraMode: this.cameraMode } });
     }
 
     /** @type {boolean} */
@@ -895,7 +895,7 @@ class ARSessionManager {
 
         this.#showCamera = newShowCamera;
         _console.log(`updated showCamera to ${this.showCamera}`);
-        this.dispatchEvent({ type: "showCamera", message: { showCamera: this.showCamera } });
+        this.#dispatchEvent({ type: "showCamera", message: { showCamera: this.showCamera } });
     }
 
     /** @type {boolean} */
@@ -917,7 +917,7 @@ class ARSessionManager {
         }
 
         _console.log("setting showCamera...", newShowCamera);
-        return this.sendMessageToApp({ type: "showCamera", showCamera: newShowCamera });
+        return this.#sendMessageToApp({ type: "showCamera", showCamera: newShowCamera });
     }
 
     /** @type {ARSMessageConfiguration} */
@@ -933,13 +933,13 @@ class ARSessionManager {
     async setMessageConfiguration(newMessageConfiguration) {
         this.#assertIsSupported();
         _console.log("setting messageConfiguration...", newMessageConfiguration);
-        return this.sendMessageToApp({ type: "messageConfiguration", messageConfiguration: newMessageConfiguration });
+        return this.#sendMessageToApp({ type: "messageConfiguration", messageConfiguration: newMessageConfiguration });
     }
     /** @param {ARSMessageConfiguration} newMessageConfiguration */
     #onMessageConfigurationUpdated(newMessageConfiguration) {
         this.#messageConfiguration = newMessageConfiguration;
         _console.log("updated messageConfiguration", this.messageConfiguration);
-        this.dispatchEvent({
+        this.#dispatchEvent({
             type: "messageConfiguration",
             message: { messageConfiguration: this.messageConfiguration },
         });

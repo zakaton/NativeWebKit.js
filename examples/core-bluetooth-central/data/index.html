@@ -49,6 +49,32 @@
             <textarea id="solicitedServiceUUIDs" cols="40" placeholder="solicited service uuids"></textarea>
         </p>
 
+        <p>
+            check peripherals with service uuids (comma or newline separated)
+            <br />
+            <textarea id="connectedPeripheralsServiceUUIDs" cols="40" placeholder="connected service uuids"></textarea>
+            <br />
+            <button id="checkConnectedPeripheralsServiceUUIDs">check</button>
+        </p>
+
+        <p><b>Peripherals</b></p>
+        <div id="peripherals">
+            <template id="peripheralTemplate">
+                <div class="peripheral">
+                    <ul>
+                        <li><b>identifier:</b> <span class="identifier"></span></li>
+                        <li><b>name:</b> <span class="name"></span></li>
+                        <li><button class="readRSSI" disabled>read rssi</button> <span class="rssi"></span></li>
+                        <li><b>connection state:</b> <span class="connectionState">not connected</span></li>
+                        <li>
+                            <button class="connect">connect</button>
+                            <button disabled class="disconnect">disconnect</button>
+                        </li>
+                    </ul>
+                </div>
+            </template>
+        </div>
+
         <p><b>Discovered Peripherals</b></p>
 
         <div id="discoveredPeripherals">

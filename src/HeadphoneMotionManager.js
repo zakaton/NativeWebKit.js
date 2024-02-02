@@ -87,7 +87,7 @@ class HeadphoneMotionManager {
     /**
      * @param {HMEvent} event
      */
-    dispatchEvent(event) {
+    #dispatchEvent(event) {
         return this.#eventDispatcher.dispatchEvent(event);
     }
 
@@ -138,7 +138,7 @@ class HeadphoneMotionManager {
     /**
      * @param {HMAppMessage} message
      */
-    async sendMessageToApp(message) {
+    async #sendMessageToApp(message) {
         message.type = `${this.#prefix}-${message.type}`;
         return sendMessageToApp(message);
     }
@@ -199,7 +199,7 @@ class HeadphoneMotionManager {
         }
         this.#isAvailable = newValue;
         _console.log(`updated isAvailable to ${newValue}`);
-        this.dispatchEvent({
+        this.#dispatchEvent({
             type: "isAvailable",
             message: { isAvailable: this.isAvailable },
         });
@@ -209,7 +209,7 @@ class HeadphoneMotionManager {
     }
     async #checkIsAvailable() {
         _console.log("checking isAvailable...");
-        return this.sendMessageToApp({ type: "isAvailable" });
+        return this.#sendMessageToApp({ type: "isAvailable" });
     }
 
     /** @type {boolean?} */
@@ -224,7 +224,7 @@ class HeadphoneMotionManager {
         }
         this.#isActive = newIsActive;
         _console.log(`updated isActive to ${this.isActive}`);
-        this.dispatchEvent({
+        this.#dispatchEvent({
             type: "isActive",
             message: { isActive: this.isActive },
         });
@@ -240,7 +240,7 @@ class HeadphoneMotionManager {
     }
     async #checkIsActive() {
         _console.log("checking isActive");
-        return this.sendMessageToApp({ type: "isActive" });
+        return this.#sendMessageToApp({ type: "isActive" });
     }
     #isActivePoll = new AppMessagePoll({ type: "isActive" }, this.#prefix, 50, true);
 
@@ -252,7 +252,7 @@ class HeadphoneMotionManager {
         }
         _console.log("starting motion updates");
         this.#isActivePoll.start();
-        return this.sendMessageToApp({ type: "startUpdates" });
+        return this.#sendMessageToApp({ type: "startUpdates" });
     }
     async stopUpdates() {
         this.#assertIsAvailable();
@@ -262,7 +262,7 @@ class HeadphoneMotionManager {
         }
         _console.log("stopping motion updates");
         this.#isActivePoll.start();
-        return this.sendMessageToApp({ type: "stopUpdates" });
+        return this.#sendMessageToApp({ type: "stopUpdates" });
     }
 
     async toggleMotionUpdates() {
@@ -295,7 +295,7 @@ class HeadphoneMotionManager {
         }
         this.#sensorLocation = newValue;
         _console.log(`updated sensor location to ${newValue}`);
-        this.dispatchEvent({
+        this.#dispatchEvent({
             type: "sensorLocation",
             message: { sensorLocation: this.sensorLocation },
         });
@@ -307,7 +307,7 @@ class HeadphoneMotionManager {
     #onMotionData(newMotionData) {
         this.#motionData = newMotionData;
         _console.log("received headphone motion data", this.motionData);
-        this.dispatchEvent({ type: "motionData", message: { motionData: this.motionData } });
+        this.#dispatchEvent({ type: "motionData", message: { motionData: this.motionData } });
         this.#onSensorLocationUpdated(newMotionData.sensorLocation);
     }
 

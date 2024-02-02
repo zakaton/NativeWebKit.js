@@ -72,7 +72,7 @@ class TemplateModuleManager {
         return this.#eventDispatcher.hasEventListener(...arguments);
     }
     /** @param {TMEvent} event */
-    dispatchEvent(event) {
+    #dispatchEvent(event) {
         return this.#eventDispatcher.dispatchEvent(event);
     }
 
@@ -125,14 +125,14 @@ class TemplateModuleManager {
     }
 
     /** @param {TMAppMessage} message */
-    async sendMessageToApp(message) {
+    async #sendMessageToApp(message) {
         message.type = `${this.#prefix}-${message.type}`;
         return sendMessageToApp(message);
     }
 
-    async sendTestMessage() {
+    async #sendTestMessage() {
         _console.log("test message...");
-        return this.sendMessageToApp({ type: "test" });
+        return this.#sendMessageToApp({ type: "test" });
     }
 
     /** @param {TMAppMessage} message */

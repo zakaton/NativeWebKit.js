@@ -4,12 +4,13 @@ import Timer from "./utils/Timer.js";
 
 import { sendMessageToApp, addAppListener } from "./utils/messaging.js";
 import AppMessagePoll from "./utils/AppMessagePoll.js";
+import { isInApp } from "./utils.js";
 
 const _console = createConsole("CBCentral", { log: true });
 
-/** @typedef {"state" | "startScan" | "stopScan" | "isScanning" | "discoveredPeripherals" | "discoveredPeripheral" | "connect" | "disconnect" | "disconnectAll" | "peripheralConnectionState"} CBCentralMessageType */
+/** @typedef {"state" | "startScan" | "stopScan" | "isScanning" | "discoveredPeripherals" | "discoveredPeripheral" | "connect" | "disconnect" | "disconnectAll" | "peripheralConnectionState" | "connectedPeripherals" | "disconnectedPeripherals" | "getRSSI" | "readRSSI" } CBCentralMessageType */
 
-/** @typedef {"state" | "isAvailable" | "isScanning" | "discoveredPeripheral" | "peripheralConnectionState" | "expiredDiscoveredPeripheral"} CBCentralEventType */
+/** @typedef {"state" | "isAvailable" | "isScanning" | "discoveredPeripheral" | "peripheralConnectionState" | "expiredDiscoveredPeripheral" | "peripheralRSSI"} CBCentralEventType */
 
 /** @typedef {import("./utils/EventDispatcher.js").EventDispatcherOptions} EventDispatcherOptions */
 
@@ -89,6 +90,17 @@ const _console = createConsole("CBCentral", { log: true });
  * @property {string} identifier
  * @property {string?} name
  * @property {CBConnectionState?} connectionState
+ * @property {number?} rssi
+ * @property {number?} rssiTimestamp
+ * @property {boolean} _pendingRSSI
+ */
+
+/**
+ * @typedef CBPeripheralRSSI
+ * @type {object}
+ * @property {string} identifier
+ * @property {number} rssi
+ * @property {rssi} timestamp
  */
 
 class CBCentralManager {
@@ -100,6 +112,7 @@ class CBCentralManager {
         "discoveredPeripheral",
         "expiredDiscoveredPeripheral",
         "peripheralConnectionState",
+        "peripheralRSSI",
     ];
     /** @type {CBCentralEventType[]} */
     get eventTypes() {
@@ -132,7 +145,7 @@ class CBCentralManager {
         return this.#eventDispatcher.hasEventListener(...arguments);
     }
     /** @param {CBCentralEvent} event */
-    dispatchEvent(event) {
+    #dispatchEvent(event) {
         return this.#eventDispatcher.dispatchEvent(event);
     }
 
@@ -175,6 +188,9 @@ class CBCentralManager {
         if (this.checkStateOnLoad) {
             messages.push({ type: "state" });
         }
+        if (this.checkConnectedPeripheralsOnLoad) {
+            messages.push({ type: "connectedPeripherals", serviceUUIDs: [] });
+        }
         return this.#formatMessages(messages);
     }
     /** @returns {NKMessage[]?} */
@@ -184,14 +200,14 @@ class CBCentralManager {
         if (this.#isScanning && this.#stopScanOnUnload) {
             messages.push({ type: "stopScan" });
         }
-        if (this.#disconnectOnUnload) {
+        if (this.#disconnectOnUnload && this.#peripherals.length > 0) {
             messages.push({ type: "disconnectAll" });
         }
         return this.#formatMessages(messages);
     }
 
     /** @param {CBCentralAppMessage} message */
-    async sendMessageToApp(message) {
+    async #sendMessageToApp(message) {
         message.type = `${this.#prefix}-${message.type}`;
         return sendMessageToApp(message);
     }
@@ -201,9 +217,8 @@ class CBCentralManager {
     get checkStateOnLoad() {
         return this.#checkStateOnLoad;
     }
-    /** @throws {Error} if newValue is not a boolean */
     set checkStateOnLoad(newValue) {
-        _console.assertWithError(typeof newValue == "boolean", "invalid newValue for checkStateOnLoad", newValue);
+        _console.assertTypeWithError(newValue, "boolean");
         this.#checkStateOnLoad = newValue;
     }
 
@@ -240,8 +255,8 @@ class CBCentralManager {
 
         this.#state = newState;
         _console.log("updated state", this.state);
-        this.dispatchEvent({ type: "state", message: { state: this.state } });
-        this.dispatchEvent({ type: "isAvailable", message: { isAvailable: this.isAvailable } });
+        this.#dispatchEvent({ type: "state", message: { state: this.state } });
+        this.#dispatchEvent({ type: "isAvailable", message: { isAvailable: this.isAvailable } });
 
         if (this.state == "poweredOn") {
             this.#checkIsScanning();
@@ -276,7 +291,7 @@ class CBCentralManager {
 
         this.#isScanning = newIsScanning;
         _console.log(`updated isScanning to ${this.#isScanning}`);
-        this.dispatchEvent({
+        this.#dispatchEvent({
             type: "isScanning",
             message: { isScanning: this.isScanning },
         });
@@ -293,27 +308,22 @@ class CBCentralManager {
     }
     async #checkIsScanning() {
         _console.log("checking isScanning");
-        return this.sendMessageToApp({ type: "isScanning" });
+        return this.#sendMessageToApp({ type: "isScanning" });
     }
     #isScanningPoll = new AppMessagePoll({ type: "isScanning" }, this.#prefix, 50);
 
     #checkDiscoveredPeripherals() {
         const now = Date.now();
 
-        /** @type {CBDiscoveredPeripheral[]} */
-        const expiredDiscoveredPeripherals = [];
-
-        this.#discoveredPeripherals = this.#discoveredPeripherals.filter((discoveredPeripheral) => {
+        Object.entries(this.#discoveredPeripherals).forEach(([identifier, discoveredPeripheral]) => {
             const hasExpired = now - discoveredPeripheral.lastTimeUpdated > 4000;
             if (hasExpired) {
-                expiredDiscoveredPeripherals.push(discoveredPeripheral);
+                delete this.#discoveredPeripherals[identifier];
+                this.#dispatchEvent({
+                    type: "expiredDiscoveredPeripheral",
+                    message: { expiredDiscoveredPeripheral: discoveredPeripheral },
+                });
             }
-            return !hasExpired;
-        });
-
-        expiredDiscoveredPeripherals.forEach((expiredDiscoveredPeripheral) => {
-            _console.log({ expiredDiscoveredPeripheral });
-            this.dispatchEvent({ type: "expiredDiscoveredPeripheral", message: { expiredDiscoveredPeripheral } });
         });
     }
     #scanTimer = new Timer(this.#checkDiscoveredPeripherals.bind(this), 1000);
@@ -325,14 +335,14 @@ class CBCentralManager {
         _console.log("starting scan", scanOptions);
         this.#discoveredPeripherals.length = 0;
         this.#isScanningPoll.start();
-        return this.sendMessageToApp({ type: "startScan", scanOptions });
+        return this.#sendMessageToApp({ type: "startScan", scanOptions });
     }
     async stopScan() {
         this.#assertIsAvailable();
         _console.assertWithError(this.isScanning, "already not scanning");
         _console.log("stopping scan");
         this.#isScanningPoll.start();
-        return this.sendMessageToApp({ type: "stopScan" });
+        return this.#sendMessageToApp({ type: "stopScan" });
     }
 
     async toggleScan() {
@@ -344,21 +354,15 @@ class CBCentralManager {
         }
     }
 
-    /** @type {CBDiscoveredPeripheral[]} */
-    #discoveredPeripherals = [];
+    /** @type {Object.<string, CBDiscoveredPeripheral>} */
+    #discoveredPeripherals = {};
     get discoveredPeripherals() {
         return this.#discoveredPeripherals;
     }
     /** @param {string} identifier */
-    #getDiscoveredPeripheralByIdentifier(identifier) {
-        return this.#discoveredPeripherals.find(
-            (discoveredPeripheral) => discoveredPeripheral.identifier == identifier
-        );
-    }
-    /** @param {string} identifier */
     #assertValidDiscoveredPeripheralIdentifier(identifier) {
         _console.assertWithError(
-            this.#getDiscoveredPeripheralByIdentifier(identifier),
+            identifier in this.#discoveredPeripherals,
             `no discovered peripheral with identifier "${identifier}" found`
         );
     }
@@ -370,33 +374,27 @@ class CBCentralManager {
     }
     /** @param {CBDiscoveredPeripheral} newDiscoveredPeripheral */
     #onDiscoveredPeripheral(newDiscoveredPeripheral) {
-        var discoveredPeripheral = this.#discoveredPeripherals.find(
-            (discoveredPeripheral) => discoveredPeripheral.identifier == newDiscoveredPeripheral.identifier
-        );
+        var discoveredPeripheral = this.#discoveredPeripherals[newDiscoveredPeripheral.identifier];
         if (discoveredPeripheral) {
             Object.assign(discoveredPeripheral, newDiscoveredPeripheral);
         } else {
-            this.#discoveredPeripherals.push(newDiscoveredPeripheral);
+            this.#discoveredPeripherals[newDiscoveredPeripheral.identifier] = newDiscoveredPeripheral;
             discoveredPeripheral = newDiscoveredPeripheral;
         }
         discoveredPeripheral.lastTimeUpdated = Date.now();
-        this.dispatchEvent({ type: "discoveredPeripheral", message: { discoveredPeripheral } });
+        this.#dispatchEvent({ type: "discoveredPeripheral", message: { discoveredPeripheral } });
     }
     #discoveredPeripheralsPoll = new AppMessagePoll({ type: "discoveredPeripherals" }, this.#prefix, 200);
 
-    /** @type {CBPeripheral[]} */
-    #peripherals = [];
+    /** @type {Object.<string, CBPeripheral>} */
+    #peripherals = {};
     get peripherals() {
         return this.#peripherals;
     }
     /** @param {string} identifier */
-    #getPeripheralByIdentifier(identifier) {
-        return this.#peripherals.find((connectedPeripheral) => connectedPeripheral.identifier == identifier);
-    }
-    /** @param {string} identifier */
     #assertValidPeripheralIdentifier(identifier) {
         _console.assertWithError(
-            this.#getPeripheralByIdentifier(identifier),
+            identifier in this.#peripherals,
             `no peripheral with identifier "${identifier}" found`
         );
     }
@@ -404,30 +402,34 @@ class CBCentralManager {
     /** @param {CBConnectOptions} connectOptions */
     async connect(connectOptions) {
         this.#assertIsAvailable();
-        this.#assertValidDiscoveredPeripheralIdentifier(connectOptions.identifier);
-        const discoveredPeripheral = this.#getDiscoveredPeripheralByIdentifier(connectOptions.identifier);
-        var peripheral = this.#getPeripheralByIdentifier(connectOptions.identifier);
+        var peripheral = this.#peripherals[connectOptions.identifier];
         if (!peripheral) {
+            const discoveredPeripheral = this.#discoveredPeripherals[connectOptions.identifier];
+            this.#assertValidDiscoveredPeripheralIdentifier(connectOptions.identifier);
             peripheral = {
                 identifier: connectOptions.identifier,
-                connectionState: null,
                 name: discoveredPeripheral.name,
             };
-            this.#peripherals.push(peripheral);
+            this.#peripherals[peripheral.identifier] = peripheral;
         } else {
             _console.assertWithError(
-                peripheral.connectionState != "connected" && !peripheral.connectionState.endsWith("ing"),
+                peripheral.connectionState != "connected" && !peripheral.connectionState?.endsWith("ing"),
                 `peripheral is in connectionState "${peripheral.connectionState}"`
             );
         }
+
         _console.log("connecting to peripheral", connectOptions);
+        peripheral.connectionState = null;
         this.#checkPeripheralConnectionsPoll.start();
-        return this.sendMessageToApp({ type: "connect", connectOptions });
+        if (isInApp) {
+            this.#onPeripheralConnectionState({ identifier: connectOptions.identifier, connectionState: "connecting" });
+        }
+        return this.#sendMessageToApp({ type: "connect", connectOptions });
     }
     /** @param {string} identifier */
     async disconnect(identifier) {
         this.#assertValidPeripheralIdentifier(identifier);
-        const peripheral = this.#getPeripheralByIdentifier(identifier);
+        const peripheral = this.#peripherals[identifier];
         _console.assertWithError(
             !peripheral.connectionState.includes("disconnect"),
             "peripheral is already disconnected or disconnecting"
@@ -435,13 +437,16 @@ class CBCentralManager {
         peripheral.connectionState = null;
         this.#checkPeripheralConnectionsPoll.start();
         _console.log("disconnecting from peripheral...", peripheral);
-        return this.sendMessageToApp({ type: "disconnect", identifier });
+        if (isInApp) {
+            this.#onPeripheralConnectionState({ identifier, connectionState: "disconnecting" });
+        }
+        return this.#sendMessageToApp({ type: "disconnect", identifier });
     }
 
     /** @returns {CBCentralAppMessage[]} */
     #checkPeripheralConnectionsMessage() {
-        const peripheralsWithPendingConnections = this.#peripherals.filter(
-            (peripheral) => !peripheral.connectionState || peripheral.connectionState.endsWith("ing")
+        const peripheralsWithPendingConnections = Object.values(this.#peripherals).filter(
+            (peripheral) => !peripheral.connectionState || peripheral.connectionState?.endsWith("ing")
         );
         if (peripheralsWithPendingConnections.length > 0) {
             return peripheralsWithPendingConnections.map((peripheral) => {
@@ -458,15 +463,131 @@ class CBCentralManager {
         200
     );
 
-    /** @param {CBPeripheralConnectionState} peripheralConnectionState  */
-    #onPeripheralConnectionState(peripheralConnectionState) {
+    /** @type {boolean} */
+    #checkConnectedPeripheralsOnLoad = false;
+    get checkConnectedPeripheralsOnLoad() {
+        return this.#checkConnectedPeripheralsOnLoad;
+    }
+    set checkConnectedPeripheralsOnLoad(newValue) {
+        _console.assertTypeWithError(newValue, "boolean");
+        this.#checkConnectedPeripheralsOnLoad = newValue;
+    }
+
+    /** @param {string[]} serviceUUIDs */
+    checkConnectedPeripherals(serviceUUIDs) {
+        _console.log("checkConnectedPeripherals", { serviceUUIDs });
+        this.#sendMessageToApp({ type: "connectedPeripherals", serviceUUIDs });
+    }
+
+    /** @param {CBPeripheral[]} connectedPeripherals */
+    #onConnectedPeripherals(connectedPeripherals) {
+        connectedPeripherals.forEach((connectedPeripheral) => {
+            this.#peripherals[connectedPeripheral.identifier] = connectedPeripheral;
+            this.#onPeripheralConnectionState(
+                {
+                    identifier: connectedPeripheral.identifier,
+                    connectionState: connectedPeripheral.connectionState,
+                },
+                true
+            );
+        });
+    }
+
+    /**
+     *
+     * @param {CBPeripheralConnectionState} peripheralConnectionState
+     * @param {boolean} override
+     * @returns
+     */
+    #onPeripheralConnectionState(peripheralConnectionState, override = false) {
         this.#assertValidPeripheralIdentifier(peripheralConnectionState.identifier);
-        const peripheral = this.#getPeripheralByIdentifier(peripheralConnectionState.identifier);
-        if (peripheral.connectionState == peripheralConnectionState.connectionState) {
+        const peripheral = this.#peripherals[peripheralConnectionState.identifier];
+        if (peripheral.connectionState == peripheralConnectionState.connectionState && !override) {
             return;
         }
         peripheral.connectionState = peripheralConnectionState.connectionState;
-        this.dispatchEvent({ type: "peripheralConnectionState", message: { peripheral } });
+        this.#dispatchEvent({ type: "peripheralConnectionState", message: { peripheral } });
+
+        if (this.#hasAtLeastOneConnectedConnectedPeripheral) {
+            this.#checkDisconnectionsPoll.start();
+        } else {
+            this.#checkDisconnectionsPoll.stop();
+        }
+    }
+
+    get #hasAtLeastOneConnectedConnectedPeripheral() {
+        return Object.values(this.peripherals).some((peripheral) => peripheral.connectionState == "connected");
+    }
+
+    #checkDisconnectionsPoll = new AppMessagePoll({ type: "disconnectedPeripherals" }, this.#prefix, 2000);
+    /** @param {string[]} disconnectedPeripheralIdentifiers */
+    #onDisconnectedPeripherals(disconnectedPeripheralIdentifiers) {
+        disconnectedPeripheralIdentifiers.forEach((disconnectedPeripheralIdentifier) => {
+            this.#onPeripheralConnectionState({
+                identifier: disconnectedPeripheralIdentifier,
+                connectionState: "disconnected",
+            });
+        });
+    }
+
+    /** @param {...string} identifiers  */
+    async readPeripheralRSSIs(...identifiers) {
+        identifiers.forEach((identifier) => {
+            this.#assertValidPeripheralIdentifier(identifier);
+            const peripheral = this.#peripherals[identifier];
+            peripheral._pendingRSSI = true;
+        });
+        if (identifiers.length > 0) {
+            this.#checkPeripheralRSSIsPoll.start();
+            this.#sendMessageToApp({ type: "readRSSI", identifiers });
+        }
+    }
+    /** @param {string} identifier  */
+    async readPeripheralRSSI(identifier) {
+        return this.readPeripheralRSSIs(identifier);
+    }
+
+    #checkPeripheralRSSIsPoll = new AppMessagePoll(this.#checkPeripheralRSSIsMessage.bind(this), this.#prefix, 200);
+
+    /** @returns {CBCentralAppMessage[]} */
+    #checkPeripheralRSSIsMessage() {
+        const peripheralsWithPendingRSSIs = Object.values(this.#peripherals).filter(
+            (peripheral) => peripheral._pendingRSSI
+        );
+        if (peripheralsWithPendingRSSIs.length > 0) {
+            return {
+                type: "getRSSI",
+                peripherals: peripheralsWithPendingRSSIs.map((peripheral) => ({
+                    identifier: peripheral.identifier,
+                    timestamp: peripheral.rssiTimestamp,
+                })),
+            };
+        } else {
+            this.#checkPeripheralRSSIsPoll.stop();
+            return [];
+        }
+    }
+
+    /** @param {CBPeripheralRSSI[]} peripheralRSSIs */
+    #onPeripheralRSSIs(peripheralRSSIs) {
+        peripheralRSSIs.forEach((peripheralRSSI) => {
+            const peripheral = this.#peripherals[peripheralRSSI.identifier];
+            if (peripheral) {
+                peripheral.rssi = peripheralRSSI.rssi;
+                peripheral.rssiTimestamp = peripheralRSSI.timestamp;
+                peripheral._pendingRSSI = false;
+                this.#dispatchEvent({ type: "peripheralRSSI", message: { peripheral } });
+                if (this.#hasAtLeastOnePendingRSSIPeripheral) {
+                    this.#checkPeripheralRSSIsPoll.stop();
+                }
+            } else {
+                _console.error("no peripheral found for peripheralRSSI", peripheralRSSI);
+            }
+        });
+    }
+
+    get #hasAtLeastOnePendingRSSIPeripheral() {
+        return Object.values(this.peripherals).some((peripheral) => peripheral._pendingRSSI);
     }
 
     /** @param {CBCentralAppMessage} message */
@@ -493,6 +614,18 @@ class CBCentralManager {
             case "peripheralConnectionState":
                 _console.log("received peripheralConnectionState message", message.peripheralConnectionState);
                 this.#onPeripheralConnectionState(message.peripheralConnectionState);
+                break;
+            case "connectedPeripherals":
+                _console.log("received connectedPeripherals message", message.connectedPeripherals);
+                this.#onConnectedPeripherals(message.connectedPeripherals);
+                break;
+            case "disconnectedPeripherals":
+                _console.log("received disconnectedPeripherals message", message.disconnectedPeripherals);
+                this.#onDisconnectedPeripherals(message.disconnectedPeripherals);
+                break;
+            case "getRSSI":
+                _console.log("received getRSSI message", message.peripheralRSSIs);
+                this.#onPeripheralRSSIs(message.peripheralRSSIs);
                 break;
             default:
                 throw Error(`uncaught message type ${type}`);
