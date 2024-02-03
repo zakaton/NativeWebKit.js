@@ -8,7 +8,7 @@ import { isInApp } from "./utils.js";
 
 const _console = createConsole("CBCentral", { log: true });
 
-/** @typedef {"state" | "startScan" | "stopScan" | "isScanning" | "discoveredPeripherals" | "discoveredPeripheral" | "connect" | "disconnect" | "disconnectAll" | "peripheralConnectionState" | "connectedPeripherals" | "disconnectedPeripherals" | "getRSSI" | "readRSSI" } CBCentralMessageType */
+/** @typedef {"state" | "startScan" | "stopScan" | "isScanning" | "discoveredPeripherals" | "discoveredPeripheral" | "connect" | "disconnect" | "disconnectAll" | "peripheralConnectionState" | "connectedPeripherals" | "disconnectedPeripherals" | "getRSSI" | "readRSSI" | "discoverServices" | "getServices" | "getService" | "discoverIncludedServices" | "getIncludedServices" | "discoverCharacteristics" | "getCharacteristics" | "readCharacteristicValue" | "writeCharacteristicValue" | "getCharacteristicValue" | "setCharacteristicNotifyValue" | "getCharacteristicNotifyValue" | "updatedCharacteristicValues" | "discoverDescriptors" | "getDescriptors" | "readDescriptorValue" | "writeDescriptorValue" | "getDescriptorValue" } CBCentralMessageType */
 
 /** @typedef {"state" | "isAvailable" | "isScanning" | "discoveredPeripheral" | "peripheralConnectionState" | "expiredDiscoveredPeripheral" | "peripheralRSSI"} CBCentralEventType */
 
@@ -93,6 +93,8 @@ const _console = createConsole("CBCentral", { log: true });
  * @property {number?} rssi
  * @property {number?} rssiTimestamp
  * @property {boolean} _pendingRSSI
+ *
+ * @property {Object.<string, CBService>} services
  */
 
 /**
@@ -101,6 +103,53 @@ const _console = createConsole("CBCentral", { log: true });
  * @property {string} identifier
  * @property {number} rssi
  * @property {rssi} timestamp
+ */
+
+/**
+ * @typedef CBService
+ * @type {object}
+ * @property {string} uuid
+ * @property {Object.<string, CBCharacteristic>} characteristics
+ */
+
+/**
+ * @typedef CBCharacteristic
+ * @type {object}
+ * @property {string} uuid
+ * @property {CBCharacteristicProperties} properties
+ * @property {Object.<string, CBDescriptor>} descriptors
+ */
+
+/**
+ * @typedef CBCharacteristicProperties
+ * @type {object}
+ * @property {boolean} read
+ * @property {boolean} write
+ * @property {boolean} notify
+ * @property {boolean} indicate
+ */
+
+/**
+ * @typedef CBUpdatedCharacteristicValue
+ * @type {object}
+ * @property {string} identifier
+ * @property {string} serviceUUID
+ * @property {string} characteristicUUID
+ * @property {number[]} value
+ */
+
+/**
+ * @typedef CBDescriptor
+ * @type {object}
+ * @property {string} uuid
+ * @property {CBDescriptorValue} value
+ */
+
+/**
+ * @typedef CBDescriptorValue
+ * @type {object}
+ * @property {string} type
+ * @property {any} value
  */
 
 class CBCentralManager {
@@ -398,6 +447,11 @@ class CBCentralManager {
             `no peripheral with identifier "${identifier}" found`
         );
     }
+    #assertConnectedPeripheralIdentifier(identifier) {
+        this.#assertValidPeripheralIdentifier(identifier);
+        const peripheral = this.#peripherals[identifier];
+        _console.assertWithError(peripheral.connectionState == "connected", "peripheral is not connected");
+    }
 
     /** @param {CBConnectOptions} connectOptions */
     async connect(connectOptions) {
@@ -590,6 +644,292 @@ class CBCentralManager {
         return Object.values(this.peripherals).some((peripheral) => peripheral._pendingRSSI);
     }
 
+    /**
+     * @param {string} identifier
+     * @param {string[]?} serviceUUIDs
+     */
+    async discoverServices(identifier, serviceUUIDs) {
+        this.#assertConnectedPeripheralIdentifier(identifier);
+        _console.log("discovering services", { identifier, serviceUUIDs });
+        return this.#sendMessageToApp({ type: "discoverServices", identifier, serviceUUIDs });
+    }
+    /**
+     * @param {string} identifier
+     * @param {string} serviceUUID
+     */
+    async discoverService(identifier, serviceUUID) {
+        return this.discoverServices(identifier, [serviceUUID]);
+    }
+    /**
+     * @param {string} identifier
+     * @param {string} serviceUUID
+     * @param {string[]?} includedServiceUUIDs
+     */
+    async discoverIncludedServices(identifier, serviceUUID, includedServiceUUIDs) {
+        this.#assertConnectedPeripheralIdentifier(identifier);
+        _console.log("discovering includedServices", { identifier, serviceUUID, includedServiceUUIDs });
+        return this.#sendMessageToApp({
+            type: "discoverIncludedServices",
+            identifier,
+            serviceUUID,
+            includedServiceUUIDs,
+        });
+    }
+    /**
+     * @param {string} identifier
+     * @param {string} serviceUUID
+     * @param {string} includedServiceUUID
+     * @returns
+     */
+    async discoverIncludedService(identifier, serviceUUID, includedServiceUUID) {
+        return this.discoverIncludedServices(identifier, serviceUUID, [includedServiceUUID]);
+    }
+
+    /**
+     * @param {string} identifier
+     * @param {string} serviceUUID
+     * @param {string[]?} characteristicUUIDs
+     */
+    async discoverCharacteristics(identifier, serviceUUID, characteristicUUIDs) {
+        this.#assertConnectedPeripheralIdentifier(identifier);
+        _console.log("discovering characteristics", { identifier, serviceUUID, characteristicUUIDs });
+        return this.#sendMessageToApp({
+            type: "discoverCharacteristics",
+            identifier,
+            serviceUUID,
+            characteristicUUIDs,
+        });
+    }
+
+    /**
+     * @param {string} identifier
+     * @param {string} serviceUUID
+     * @param {string} characteristicUUID
+     */
+    async discoverCharacteristic(identifier, serviceUUID, characteristicUUID) {
+        return this.discoverCharacteristics(identifier, serviceUUID, [characteristicUUID]);
+    }
+
+    /**
+     * @param {string} identifier
+     * @param {string} serviceUUID
+     * @param {string} characteristicUUID
+     * @param {number?} timestamp
+     */
+    async readCharacteristicValue(identifier, serviceUUID, characteristicUUID, timestamp) {
+        this.#assertConnectedPeripheralIdentifier(identifier);
+        _console.log("reading characteristic value", { identifier, serviceUUID, characteristicUUID, timestamp });
+        return this.#sendMessageToApp({
+            type: "readCharacteristicValue",
+            identifier,
+            serviceUUID,
+            characteristicUUID,
+            timestamp,
+        });
+    }
+    /**
+     * @param {string} identifier
+     * @param {string} serviceUUID
+     * @param {string} characteristicUUID
+     * @param {number[]} value
+     */
+    async writeCharacteristicValue() {
+        this.#assertConnectedPeripheralIdentifier(identifier);
+        _console.log("reading characteristic value", { identifier, serviceUUID, characteristicUUID, value });
+        return this.#sendMessageToApp({
+            type: "writeCharacteristicValue",
+            identifier,
+            serviceUUID,
+            characteristicUUID,
+            value,
+        });
+    }
+    /**
+     * @param {string} identifier
+     * @param {string} serviceUUID
+     * @param {string} characteristicUUID
+     * @param {boolean} notifyValue
+     */
+    async setCharacteristicNotifyValue(identifier, serviceUUID, characteristicUUID, notifyValue) {
+        this.#assertConnectedPeripheralIdentifier(identifier);
+        const peripheral = this.#peripherals[identifier];
+        const characteristic = peripheral.services[serviceUUID].characteristics[characteristicUUID];
+        _console.assertWithError(
+            characteristic.properties.notify && characteristic.isNotifying != notifyValue,
+            `characteristic isNotifying already has value ${notifyValue}`
+        );
+        _console.log("setting characteristic notify value", {
+            identifier,
+            serviceUUID,
+            characteristicUUID,
+            notifyValue,
+        });
+        return this.#sendMessageToApp({
+            type: "setCharacteristicNotifyValue",
+            identifier,
+            serviceUUID,
+            characteristicUUID,
+            notifyValue,
+        });
+    }
+
+    /**
+     *
+     * @param {string} identifier
+     * @param {string} serviceUUID
+     * @param {string} characteristicUUID
+     */
+    async discoverDescriptors(identifier, serviceUUID, characteristicUUID) {
+        this.#assertConnectedPeripheralIdentifier(identifier);
+        _console.log("discovering descriptors", {
+            identifier,
+            serviceUUID,
+            characteristicUUID,
+        });
+        return this.#sendMessageToApp({
+            type: "discoverDescriptors",
+            identifier,
+            serviceUUID,
+            characteristicUUID,
+        });
+    }
+    /**
+     *
+     * @param {string} identifier
+     * @param {string} serviceUUID
+     * @param {string} characteristicUUID
+     * @param {string} descriptorUUID
+     * @param {number} timestamp
+     */
+    async readDescriptorValue(identifier, serviceUUID, characteristicUUID, descriptorUUID, timestamp) {
+        this.#assertConnectedPeripheralIdentifier(identifier);
+        _console.log("reading descriptor value", {
+            identifier,
+            serviceUUID,
+            characteristicUUID,
+            descriptorUUID,
+            timestamp,
+        });
+        return this.#sendMessageToApp({
+            type: "readDescriptorValue",
+            identifier,
+            serviceUUID,
+            characteristicUUID,
+            descriptorUUID,
+            timestamp,
+        });
+    }
+    /**
+     *
+     * @param {string} identifier
+     * @param {string} serviceUUID
+     * @param {string} characteristicUUID
+     * @param {string} descriptorUUID
+     * @param {any} value
+     */
+    async writeDescriptorValue(identifier, serviceUUID, characteristicUUID, descriptorUUID, value) {
+        this.#assertConnectedPeripheralIdentifier(identifier);
+        _console.log("writing descriptor value", {
+            identifier,
+            serviceUUID,
+            characteristicUUID,
+            descriptorUUID,
+            value,
+        });
+        return this.#sendMessageToApp({
+            type: "writeDescriptorValue",
+            identifier,
+            serviceUUID,
+            characteristicUUID,
+            descriptorUUID,
+            value,
+        });
+    }
+
+    /**
+     * @param {object} object
+     * @param {string} object.identifier
+     * @param {CBService[]} object.services
+     */
+    #onGetServices({ identifier, services }) {
+        // FILL
+    }
+
+    /**
+     * @param {object} object
+     * @param {string} object.identifier
+     * @param {string} object.serviceUUID
+     * @param {CBService[]} object.includedServices
+     */
+    #onGetIncludedServices({ identifier, serviceUUID, includedServices }) {
+        // FILL
+    }
+
+    /**
+     * @param {object} object
+     * @param {string} object.identifier
+     * @param {string} object.serviceUUID
+     * @param {CBCharacteristic[]} object.characteristics
+     */
+    #onGetCharacteristics({ identifier, serviceUUID, characteristics }) {
+        // FILL
+    }
+
+    /**
+     * @param {object} object
+     * @param {string} object.identifier
+     * @param {string} object.serviceUUID
+     * @param {string} object.characteristicUUID
+     * @param {number[]} object.value
+     * @param {number} object.timestamp
+     */
+    #onGetCharacteristicValue({ identifier, serviceUUID, characteristicUUID, value, timestamp }) {
+        // FILL
+    }
+
+    /**
+     * @param {object} object
+     * @param {string} object.identifier
+     * @param {string} object.serviceUUID
+     * @param {string} object.characteristicUUID
+     * @param {boolean} object.isNotifying
+     */
+    #onGetCharacteristicNotifyValue({ identifier, serviceUUID, characteristicUUID, isNotifying }) {
+        // FILL
+    }
+
+    /**
+     * @param {object} object
+     * @param {string} object.identifier
+     * @param {CBUpdatedCharacteristicValue[]} object.updatedCharacteristicValues
+     */
+    #onUpdatedCharacteristicValues({ identifier, serviceUUID, updatedCharacteristicValues }) {
+        // FILL
+    }
+
+    /**
+     * @param {object} object
+     * @param {string} object.identifier
+     * @param {string} object.serviceUUID
+     * @param {string} object.characteristicUUID
+     * @param {CBDescriptor[]} object.descriptors
+     */
+    #onGetDescriptors({ identifier, serviceUUID, characteristicUUID, descriptors }) {
+        // FILL
+    }
+
+    /**
+     * @param {object} object
+     * @param {string} object.identifier
+     * @param {string} object.serviceUUID
+     * @param {string} object.characteristicUUID
+     * @param {string} object.descriptorUUID
+     * @param {CBDescriptorValue} object.value
+     */
+    #onGetDescriptorValue({ identifier, serviceUUID, characteristicUUID, descriptorUUID, value }) {
+        // FILL
+    }
+
     /** @param {CBCentralAppMessage} message */
     #onAppMessage(message) {
         _console.log(`received background message of type ${message.type}`, message);
@@ -599,6 +939,7 @@ class CBCentralManager {
                 _console.log("received state message", message.state);
                 this.#onState(message.state);
                 break;
+
             case "isScanning":
                 _console.log("received isScanning message", message.isScanning);
                 this.#onIsScanning(message.isScanning);
@@ -607,6 +948,7 @@ class CBCentralManager {
                 _console.log("received discoveredPeripheral message", message.discoveredPeripheral);
                 this.#onDiscoveredPeripheral(message.discoveredPeripheral);
                 break;
+
             case "discoveredPeripherals":
                 _console.log("received discoveredPeripherals message", message.discoveredPeripherals);
                 this.#onDiscoveredPeripherals(message.discoveredPeripherals);
@@ -623,10 +965,47 @@ class CBCentralManager {
                 _console.log("received disconnectedPeripherals message", message.disconnectedPeripherals);
                 this.#onDisconnectedPeripherals(message.disconnectedPeripherals);
                 break;
+
             case "getRSSI":
                 _console.log("received getRSSI message", message.peripheralRSSIs);
                 this.#onPeripheralRSSIs(message.peripheralRSSIs);
                 break;
+
+            case "getServices":
+                _console.log("received getServices message", message.getServices);
+                this.#onGetServices(message.getServices);
+                break;
+            case "getIncludedServices":
+                _console.log("received getIncludedServices message", message.getIncludedServices);
+                this.#onGetIncludedServices(message.getIncludedServices);
+                break;
+
+            case "getCharacteristics":
+                _console.log("received getCharacteristics message", message.getCharacteristics);
+                this.#onGetCharacteristics(message.getCharacteristics);
+                break;
+            case "getCharacteristicValue":
+                _console.log("received getCharacteristicValue message", message.getCharacteristicValue);
+                this.#onGetCharacteristicValue(message.getCharacteristicValue);
+                break;
+            case "getCharacteristicNotifyValue":
+                _console.log("received getCharacteristicNotifyValue message", message.getCharacteristicNotifyValue);
+                this.#onGetCharacteristicNotifyValue(message.getCharacteristicNotifyValue);
+                break;
+            case "updatedCharacteristicValues":
+                _console.log("received updatedCharacteristicValues message", message.updatedCharacteristicValues);
+                this.#onUpdatedCharacteristicValues(message.updatedCharacteristicValues);
+                break;
+
+            case "getDescriptors":
+                _console.log("received getDescriptors message", message.getDescriptors);
+                this.#onGetDescriptors(message.getDescriptors);
+                break;
+            case "getDescriptorValue":
+                _console.log("received getDescriptorValue message", message.getDescriptorValue);
+                this.#onGetDescriptorValue(message.getDescriptorValue);
+                break;
+
             default:
                 throw Error(`uncaught message type ${type}`);
         }
