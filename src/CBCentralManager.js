@@ -10,7 +10,7 @@ const _console = createConsole("CBCentral", { log: true });
 
 /** @typedef {"state" | "startScan" | "stopScan" | "isScanning" | "discoveredPeripherals" | "discoveredPeripheral" | "connect" | "disconnect" | "disconnectAll" | "peripheralConnectionState" | "connectedPeripherals" | "disconnectedPeripherals" | "getRSSI" | "readRSSI" | "discoverServices" | "getServices" | "getService" | "discoverIncludedServices" | "getIncludedServices" | "discoverCharacteristics" | "getCharacteristics" | "readCharacteristicValue" | "writeCharacteristicValue" | "getCharacteristicValue" | "setCharacteristicNotifyValue" | "getCharacteristicNotifyValue" | "updatedCharacteristicValues" | "discoverDescriptors" | "getDescriptors" | "readDescriptorValue" | "writeDescriptorValue" | "getDescriptorValue" } CBCentralMessageType */
 
-/** @typedef {"state" | "isAvailable" | "isScanning" | "discoveredPeripheral" | "peripheralConnectionState" | "expiredDiscoveredPeripheral" | "peripheralRSSI"} CBCentralEventType */
+/** @typedef {"state" | "isAvailable" | "isScanning" | "discoveredPeripheral" | "peripheralConnectionState" | "expiredDiscoveredPeripheral" | "peripheralRSSI" | "discoveredService" | "discoveredServices" | "discoveredIncludedService" | "discoveredIncludedServices" | "discoveredCharacteristic" | "discoveredCharacteristics" | "charactersticValue" | "characteristicNotifyValue" | "discoveredDescriptor" | "discoveredDescriptors" | "descriptorValue"} CBCentralEventType */
 
 /** @typedef {import("./utils/EventDispatcher.js").EventDispatcherOptions} EventDispatcherOptions */
 
@@ -110,6 +110,7 @@ const _console = createConsole("CBCentral", { log: true });
  * @type {object}
  * @property {string} uuid
  * @property {Object.<string, CBCharacteristic>} characteristics
+ * @property {string[]} includedServiceUUIDs
  */
 
 /**
@@ -118,6 +119,9 @@ const _console = createConsole("CBCentral", { log: true });
  * @property {string} uuid
  * @property {CBCharacteristicProperties} properties
  * @property {Object.<string, CBDescriptor>} descriptors
+ * @property {boolean} isNotifying
+ * @property {number[]?} value
+ * @property {number?} valueTimestamp
  */
 
 /**
@@ -136,6 +140,7 @@ const _console = createConsole("CBCentral", { log: true });
  * @property {string} serviceUUID
  * @property {string} characteristicUUID
  * @property {number[]} value
+ * @property {number} timestamp
  */
 
 /**
@@ -440,17 +445,66 @@ class CBCentralManager {
     get peripherals() {
         return this.#peripherals;
     }
-    /** @param {string} identifier */
+    /**
+     * @param {string} identifier
+     * @returns {CBPeripheral}
+     */
     #assertValidPeripheralIdentifier(identifier) {
-        _console.assertWithError(
-            identifier in this.#peripherals,
-            `no peripheral with identifier "${identifier}" found`
-        );
-    }
-    #assertConnectedPeripheralIdentifier(identifier) {
-        this.#assertValidPeripheralIdentifier(identifier);
         const peripheral = this.#peripherals[identifier];
+        _console.assertWithError(peripheral, `no peripheral with identifier "${identifier}" found`);
+        return peripheral;
+    }
+    /**
+     * @param {string} identifier
+     * @returns {CBPeripheral}
+     */
+    #assertConnectedPeripheralIdentifier(identifier) {
+        const peripheral = this.#assertValidPeripheralIdentifier(identifier);
         _console.assertWithError(peripheral.connectionState == "connected", "peripheral is not connected");
+        return peripheral;
+    }
+
+    /**
+     * @param {string} identifier
+     * @param {string} serviceUUID
+     * @returns {{peripheral: CBPeripheral, service: CBService}}
+     */
+    #assertValidServiceUUID(identifier, serviceUUID) {
+        const peripheral = this.#assertValidPeripheralIdentifier(identifier);
+        const service = peripheral.services[serviceUUID];
+        _console.assert(service, `serviceUUID ${serviceUUID} not found`);
+        return { peripheral, service };
+    }
+
+    /**
+     * @param {string} identifier
+     * @param {string} serviceUUID
+     * @param {string} characteristicUUID
+     * @returns {{peripheral: CBPeripheral, service: CBService, characteristic: CBCharacteristic}}
+     */
+    #assertValidCharacteristicUUID(identifier, serviceUUID, characteristicUUID) {
+        const { peripheral, service } = this.#assertValidServiceUUID(identifier);
+        const characteristic = service.characteristics[characteristicUUID];
+        _console.assert(characteristic, `characteristicUUID ${serviceUUID} not found`);
+        return { peripheral, service, characteristic };
+    }
+
+    /**
+     * @param {string} identifier
+     * @param {string} serviceUUID
+     * @param {string} characteristicUUID
+     * @param {string} descriptorUUID
+     * @returns {{peripheral: CBPeripheral, service: CBService, characteristic: CBCharacteristic, descriptor: CBDescriptor}}
+     */
+    #assertValidDescriptorUUID(identifier, serviceUUID, characteristicUUID, descriptorUUID) {
+        const { peripheral, service, characteristic } = this.#assertValidCharacteristicUUID(
+            identifier,
+            serviceUUID,
+            characteristicUUID
+        );
+        const descriptor = characteristic.descriptors[descriptorUUID];
+        _console.assert(descriptor, `descriptorUUID ${descriptorUUID} not found`);
+        return { peripheral, service, characteristic, descriptor };
     }
 
     /** @param {CBConnectOptions} connectOptions */
@@ -482,8 +536,7 @@ class CBCentralManager {
     }
     /** @param {string} identifier */
     async disconnect(identifier) {
-        this.#assertValidPeripheralIdentifier(identifier);
-        const peripheral = this.#peripherals[identifier];
+        const peripheral = this.#assertValidPeripheralIdentifier(identifier);
         _console.assertWithError(
             !peripheral.connectionState.includes("disconnect"),
             "peripheral is already disconnected or disconnecting"
@@ -548,14 +601,11 @@ class CBCentralManager {
     }
 
     /**
-     *
      * @param {CBPeripheralConnectionState} peripheralConnectionState
      * @param {boolean} override
-     * @returns
      */
     #onPeripheralConnectionState(peripheralConnectionState, override = false) {
-        this.#assertValidPeripheralIdentifier(peripheralConnectionState.identifier);
-        const peripheral = this.#peripherals[peripheralConnectionState.identifier];
+        const peripheral = this.#assertValidPeripheralIdentifier(peripheralConnectionState.identifier);
         if (peripheral.connectionState == peripheralConnectionState.connectionState && !override) {
             return;
         }
@@ -587,8 +637,7 @@ class CBCentralManager {
     /** @param {...string} identifiers  */
     async readPeripheralRSSIs(...identifiers) {
         identifiers.forEach((identifier) => {
-            this.#assertValidPeripheralIdentifier(identifier);
-            const peripheral = this.#peripherals[identifier];
+            const peripheral = this.#assertValidPeripheralIdentifier(identifier);
             peripheral._pendingRSSI = true;
         });
         if (identifiers.length > 0) {
@@ -649,8 +698,16 @@ class CBCentralManager {
      * @param {string[]?} serviceUUIDs
      */
     async discoverServices(identifier, serviceUUIDs) {
-        this.#assertConnectedPeripheralIdentifier(identifier);
+        const peripheral = this.#assertConnectedPeripheralIdentifier(identifier);
+        serviceUUIDs = serviceUUIDs.filter((serviceUUID) => {
+            if (peripheral.services[serviceUUID]) {
+                _console.error("already have service", { peripheral, serviceUUID });
+                return false;
+            }
+            return true;
+        });
         _console.log("discovering services", { identifier, serviceUUIDs });
+        // FILL - poll for services
         return this.#sendMessageToApp({ type: "discoverServices", identifier, serviceUUIDs });
     }
     /**
@@ -666,8 +723,17 @@ class CBCentralManager {
      * @param {string[]?} includedServiceUUIDs
      */
     async discoverIncludedServices(identifier, serviceUUID, includedServiceUUIDs) {
-        this.#assertConnectedPeripheralIdentifier(identifier);
+        const peripheral = this.#assertConnectedPeripheralIdentifier(identifier);
+        this.#assertValidServiceUUID(identifier, serviceUUID);
+        includedServiceUUIDs = includedServiceUUIDs.filter((includedServiceUUID) => {
+            if (peripheral.services[includedServiceUUID]) {
+                _console.error("already have includedService", { peripheral, includedServiceUUID });
+                return false;
+            }
+            return true;
+        });
         _console.log("discovering includedServices", { identifier, serviceUUID, includedServiceUUIDs });
+        // FILL - poll for includedServices
         return this.#sendMessageToApp({
             type: "discoverIncludedServices",
             identifier,
@@ -691,8 +757,16 @@ class CBCentralManager {
      * @param {string[]?} characteristicUUIDs
      */
     async discoverCharacteristics(identifier, serviceUUID, characteristicUUIDs) {
-        this.#assertConnectedPeripheralIdentifier(identifier);
+        const { service } = this.#assertValidServiceUUID(identifier, serviceUUID);
+        characteristicUUIDs = characteristicUUIDs.filter((characteristicUUID) => {
+            if (service.characteristics[characteristicUUID]) {
+                _console.error("already have characteristic", { peripheral, characteristicUUID });
+                return false;
+            }
+            return true;
+        });
         _console.log("discovering characteristics", { identifier, serviceUUID, characteristicUUIDs });
+        // FILL - poll for characteristics
         return this.#sendMessageToApp({
             type: "discoverCharacteristics",
             identifier,
@@ -714,17 +788,16 @@ class CBCentralManager {
      * @param {string} identifier
      * @param {string} serviceUUID
      * @param {string} characteristicUUID
-     * @param {number?} timestamp
      */
-    async readCharacteristicValue(identifier, serviceUUID, characteristicUUID, timestamp) {
-        this.#assertConnectedPeripheralIdentifier(identifier);
-        _console.log("reading characteristic value", { identifier, serviceUUID, characteristicUUID, timestamp });
+    async readCharacteristicValue(identifier, serviceUUID, characteristicUUID) {
+        this.#assertValidCharacteristicUUID(identifier, serviceUUID, characteristicUUID);
+        _console.log("reading characteristic value", { identifier, serviceUUID, characteristicUUID });
+        // FILL - poll for characteristicValue (with timestamp)
         return this.#sendMessageToApp({
             type: "readCharacteristicValue",
             identifier,
             serviceUUID,
             characteristicUUID,
-            timestamp,
         });
     }
     /**
@@ -733,9 +806,15 @@ class CBCentralManager {
      * @param {string} characteristicUUID
      * @param {number[]} value
      */
-    async writeCharacteristicValue() {
-        this.#assertConnectedPeripheralIdentifier(identifier);
-        _console.log("reading characteristic value", { identifier, serviceUUID, characteristicUUID, value });
+    async writeCharacteristicValue(identifier, serviceUUID, characteristicUUID, value) {
+        const peripheral = this.#assertConnectedPeripheralIdentifier(identifier);
+        const { service, characteristic } = this.#assertValidCharacteristicUUID(
+            identifier,
+            serviceUUID,
+            characteristicUUID
+        );
+        _console.log("reading characteristic value", { peripheral, service, characteristic, value });
+        // FILL - poll for characteristicValue
         return this.#sendMessageToApp({
             type: "writeCharacteristicValue",
             identifier,
@@ -751,12 +830,11 @@ class CBCentralManager {
      * @param {boolean} notifyValue
      */
     async setCharacteristicNotifyValue(identifier, serviceUUID, characteristicUUID, notifyValue) {
-        this.#assertConnectedPeripheralIdentifier(identifier);
-        const peripheral = this.#peripherals[identifier];
-        const characteristic = peripheral.services[serviceUUID].characteristics[characteristicUUID];
+        const peripheral = this.#assertConnectedPeripheralIdentifier(identifier);
+        const { characteristic } = this.#assertValidCharacteristicUUID(identifier, serviceUUID, characteristicUUID);
         _console.assertWithError(
             characteristic.properties.notify && characteristic.isNotifying != notifyValue,
-            `characteristic isNotifying already has value ${notifyValue}`
+            `characteristic isNotifying already has value "${notifyValue}"`
         );
         _console.log("setting characteristic notify value", {
             identifier,
@@ -764,6 +842,7 @@ class CBCentralManager {
             characteristicUUID,
             notifyValue,
         });
+        // FILL - poll for new notify value
         return this.#sendMessageToApp({
             type: "setCharacteristicNotifyValue",
             identifier,
@@ -780,7 +859,7 @@ class CBCentralManager {
      * @param {string} characteristicUUID
      */
     async discoverDescriptors(identifier, serviceUUID, characteristicUUID) {
-        this.#assertConnectedPeripheralIdentifier(identifier);
+        this.#assertValidCharacteristicUUID(identifier, serviceUUID, characteristicUUID);
         _console.log("discovering descriptors", {
             identifier,
             serviceUUID,
@@ -802,7 +881,7 @@ class CBCentralManager {
      * @param {number} timestamp
      */
     async readDescriptorValue(identifier, serviceUUID, characteristicUUID, descriptorUUID, timestamp) {
-        this.#assertConnectedPeripheralIdentifier(identifier);
+        this.#assertValidDescriptorUUID(identifier, serviceUUID, characteristicUUID, descriptorUUID);
         _console.log("reading descriptor value", {
             identifier,
             serviceUUID,
@@ -828,7 +907,7 @@ class CBCentralManager {
      * @param {any} value
      */
     async writeDescriptorValue(identifier, serviceUUID, characteristicUUID, descriptorUUID, value) {
-        this.#assertConnectedPeripheralIdentifier(identifier);
+        this.#assertValidDescriptorUUID(identifier, serviceUUID, characteristicUUID, descriptorUUID);
         _console.log("writing descriptor value", {
             identifier,
             serviceUUID,
@@ -852,7 +931,19 @@ class CBCentralManager {
      * @param {CBService[]} object.services
      */
     #onGetServices({ identifier, services }) {
-        // FILL
+        const peripheral = this.#assertConnectedPeripheralIdentifier(identifier);
+        const newServices = services.filter((service) => {
+            if (!peripheral.services[service.uuid]) {
+                _console.log("got service", { identifier, service });
+                peripheral.services[service.uuid] = service;
+                this.#dispatchEvent({ type: "discoveredService", message: { discoveredService: service, peripheral } });
+                return true;
+            } else {
+                _console.warn("already have service", { identifier, service });
+            }
+        });
+
+        this.#dispatchEvent({ type: "discoveredServices", message: { discoveredServices: newServices, peripheral } });
     }
 
     /**
@@ -862,7 +953,33 @@ class CBCentralManager {
      * @param {CBService[]} object.includedServices
      */
     #onGetIncludedServices({ identifier, serviceUUID, includedServices }) {
-        // FILL
+        const { peripheral, service } = this.#assertValidServiceUUID(identifier, serviceUUID);
+        const newDiscoveredIncludedServices = includedServices.filter((includedService) => {
+            if (!peripheral.services[includedService.uuid]) {
+                _console.log("got included service", { identifier, service, includedService });
+                peripheral.services[includedService.uuid] = includedService;
+                this.#dispatchEvent({
+                    type: "discoveredIncludedService",
+                    message: { discoveredIncludedService: includedService, peripheral, service },
+                });
+                this.#dispatchEvent({
+                    type: "discoveredService",
+                    message: { discoveredService: includedService, peripheral, service },
+                });
+                return true;
+            } else {
+                _console.warn("already have service", { identifier, includedService, service });
+            }
+        });
+
+        this.#dispatchEvent({
+            type: "discoveredIncludedServices",
+            message: { discoveredIncludedServices: newDiscoveredIncludedServices, peripheral, service },
+        });
+        this.#dispatchEvent({
+            type: "discoveredServices",
+            message: { discoveredServices: newDiscoveredIncludedServices, peripheral, service },
+        });
     }
 
     /**
@@ -872,7 +989,23 @@ class CBCentralManager {
      * @param {CBCharacteristic[]} object.characteristics
      */
     #onGetCharacteristics({ identifier, serviceUUID, characteristics }) {
-        // FILL
+        const { peripheral, service } = this.#assertValidServiceUUID(identifier, serviceUUID);
+        const newCharacteristics = characteristics.filter((characteristic) => {
+            _console.log("got new characteristic", { identifier, service, characteristic });
+            if (!service.characteristics[characteristic.uuid]) {
+                service.characteristics[characteristic.uuid] = characteristic;
+                this.#dispatchEvent({
+                    type: "discoveredCharacteristic",
+                    message: { discoveredCharacteristic: characteristic, peripheral, service },
+                });
+            } else {
+                _console.warn("already have characteristic", { identifier, characteristic });
+            }
+        });
+        this.#dispatchEvent({
+            type: "discoveredCharacteristics",
+            message: { discoveredCharacteristics: newCharacteristics, peripheral, service },
+        });
     }
 
     /**
@@ -884,7 +1017,14 @@ class CBCentralManager {
      * @param {number} object.timestamp
      */
     #onGetCharacteristicValue({ identifier, serviceUUID, characteristicUUID, value, timestamp }) {
-        // FILL
+        const { peripheral, service, characteristic } = this.#assertValidCharacteristicUUID(
+            identifier,
+            serviceUUID,
+            characteristicUUID
+        );
+        characteristic.value = value;
+        characteristic.valueTimestamp = timestamp;
+        this.#dispatchEvent({ type: "charactersticValue", message: { peripheral, service, characteristic } });
     }
 
     /**
@@ -895,16 +1035,53 @@ class CBCentralManager {
      * @param {boolean} object.isNotifying
      */
     #onGetCharacteristicNotifyValue({ identifier, serviceUUID, characteristicUUID, isNotifying }) {
-        // FILL
+        const { peripheral, service, characteristic } = this.#assertValidCharacteristicUUID(
+            identifier,
+            serviceUUID,
+            characteristicUUID
+        );
+
+        if (characteristic.isNotifying != isNotifying) {
+            _console.log("characteristic.isNotifying updated", { characteristic });
+            this.#dispatchEvent({ type: "charactersticValue", message: { peripheral, service, characteristic } });
+
+            // FILL - checking isNotifying poll
+
+            if (this.#hasAtLeastOneCharacteristicWithNotifyEnabled) {
+                // FILL - start updates poll
+            } else {
+                // stop updates poll
+            }
+        }
+    }
+
+    get #hasAtLeastOneCharacteristicWithNotifyEnabled() {
+        return Object.values(this.peripherals)
+            .filter((peripheral) => peripheral.connectionState == "connected")
+            .some((peripheral) => {
+                return Object.values(peripheral.services).some((service) => {
+                    return Object.values(service.characteristics).some((characteristic) => characteristic.isNotifying);
+                });
+            });
     }
 
     /**
      * @param {object} object
-     * @param {string} object.identifier
      * @param {CBUpdatedCharacteristicValue[]} object.updatedCharacteristicValues
      */
-    #onUpdatedCharacteristicValues({ identifier, serviceUUID, updatedCharacteristicValues }) {
-        // FILL
+    #onUpdatedCharacteristicValues({ updatedCharacteristicValues }) {
+        updatedCharacteristicValues.forEach((updatedCharacteristic) => {
+            const { identifier, serviceUUID, characteristicUUID, value, timestamp } = updatedCharacteristic;
+            const { peripheral, service, characteristic } = this.#assertValidCharacteristicUUID(
+                identifier,
+                serviceUUID,
+                characteristicUUID
+            );
+            characteristic.value = value;
+            characteristic.valueTimestamp = timestamp;
+            _console.log("updated characteristicValue", { characteristic });
+            this.#dispatchEvent({ type: "charactersticValue", message: { peripheral, service, characteristic } });
+        });
     }
 
     /**
@@ -915,7 +1092,29 @@ class CBCentralManager {
      * @param {CBDescriptor[]} object.descriptors
      */
     #onGetDescriptors({ identifier, serviceUUID, characteristicUUID, descriptors }) {
-        // FILL
+        const { peripheral, service, characteristic } = this.#assertValidCharacteristicUUID(
+            identifier,
+            serviceUUID,
+            characteristicUUID
+        );
+
+        const newDescriptors = descriptors.filter((descriptor) => {
+            _console.log("got new descriptor", { peripheral, service, characteristic, descriptor });
+            if (!characteristic.descriptors[descriptor.uuid]) {
+                characteristic.descriptors[descriptor.uuid] = descriptor;
+                this.#dispatchEvent({
+                    type: "discoveredDescriptor",
+                    message: { discoveredDescriptor: descriptor, peripheral, service, characteristic },
+                });
+            } else {
+                _console.warn("already have descriptor", { peripheral, service, characteristic, descriptor });
+            }
+        });
+
+        this.#dispatchEvent({
+            type: "discoveredDescriptors",
+            message: { peripheral, service, characteristic, discoveredDescriptors: newDescriptors },
+        });
     }
 
     /**
@@ -927,7 +1126,15 @@ class CBCentralManager {
      * @param {CBDescriptorValue} object.value
      */
     #onGetDescriptorValue({ identifier, serviceUUID, characteristicUUID, descriptorUUID, value }) {
-        // FILL
+        const { peripheral, service, characteristic, descriptor } = this.#assertValidDescriptorUUID(
+            identifier,
+            serviceUUID,
+            characteristicUUID,
+            descriptorUUID
+        );
+        descriptor.value = value;
+        _console.log("descriptorValue", { descriptor });
+        this.#dispatchEvent({ type: "descriptorValue", message: { peripheral, service, characteristic, descriptor } });
     }
 
     /** @param {CBCentralAppMessage} message */
