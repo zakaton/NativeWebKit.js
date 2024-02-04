@@ -1,6 +1,5 @@
 import { CBCentralManager } from "../../../src/NativeWebKit.js";
 import { sortObjectKeysAlphabetically } from "../../../src/utils/objectUtils.js";
-import DecentScale from "./DecentScale.js";
 //import { CBCentralManager } from "../../../build/nativewebkit.module.js";
 window.CBCentralManager = CBCentralManager;
 console.log(CBCentralManager);
@@ -451,21 +450,4 @@ CBCentralManager.addEventListener("characteristicValue", (event) => {
 
     // FILL
     decentScale.onDataCharacteristicValueChanged({ target: { value: new DataView(Uint8Array.from(value).buffer) } });
-});
-
-function hexStringToNumbers(hexString) {
-    return hexString.match(/.{1,2}/g).map((byte) => parseInt(byte, 16));
-}
-function numbersToHexString(numbers) {
-    return numbers.map((n) => n.toString(16).padStart(2, "0")).join(" ");
-}
-function XORNumbers(numbers) {
-    return numbers.slice(1).reduce((xor, number) => xor ^ number, numbers[0]);
-}
-
-const weightSpan = document.getElementById("weight");
-const decentScale = new DecentScale();
-decentScale.addEventListener("weight", (event) => {
-    console.log("WEIGHT", event.message.weight);
-    weightSpan.innerText = event.message.weight;
 });

@@ -6,7 +6,7 @@ import { sendMessageToApp, addAppListener } from "./utils/messaging.js";
 import AppMessagePoll from "./utils/AppMessagePoll.js";
 import { isInApp } from "./utils.js";
 
-const _console = createConsole("CBCentral", { log: true });
+const _console = createConsole("CBCentral", { log: false });
 
 /** @typedef {"state" | "startScan" | "stopScan" | "isScanning" | "discoveredPeripherals" | "discoveredPeripheral" | "connect" | "disconnect" | "disconnectAll" | "peripheralConnectionState" | "connectedPeripherals" | "disconnectedPeripherals" | "getRSSI" | "readRSSI" | "discoverServices" | "getServices" | "getService" | "discoverIncludedServices" | "getIncludedServices" | "discoverCharacteristics" | "getCharacteristics" | "readCharacteristicValue" | "writeCharacteristicValue" | "getCharacteristicValue" | "setCharacteristicNotifyValue" | "getCharacteristicNotifyValue" | "updatedCharacteristicValues" | "discoverDescriptors" | "getDescriptors" | "readDescriptorValue" | "writeDescriptorValue" | "getDescriptorValue" } CBCentralMessageType */
 
@@ -497,7 +497,6 @@ class CBCentralManager {
      */
     #assertValidCharacteristicUUID(identifier, serviceUUID, characteristicUUID) {
         const { peripheral, service } = this.#assertValidServiceUUID(identifier, serviceUUID);
-        console.log({ peripheral, service });
         const characteristic = service.characteristics[characteristicUUID];
         _console.assert(characteristic, `characteristicUUID ${serviceUUID} not found`);
         return { peripheral, service, characteristic };
@@ -724,15 +723,20 @@ class CBCentralManager {
         const peripheral = this.#assertConnectedPeripheralIdentifier(identifier);
         if (serviceUUIDs) {
             serviceUUIDs = serviceUUIDs.filter((serviceUUID) => {
-                if (peripheral.services[serviceUUID]) {
+                if (peripheral.services?.[serviceUUID]) {
                     _console.error("already have service", { peripheral, serviceUUID });
+                    return false;
+                }
+                if (peripheral._pendingServices?.[serviceUUID]) {
+                    return false;
+                }
+                if (peripheral._pendingIncludedServices?.[serviceUUID]) {
                     return false;
                 }
                 return true;
             });
         }
         _console.log("discovering services", { identifier, serviceUUIDs });
-        this.#getServicesPoll.start();
 
         if (!peripheral._pendingServices) {
             peripheral._pendingServices = [];
@@ -740,7 +744,10 @@ class CBCentralManager {
         if (serviceUUIDs?.length > 0) {
             peripheral._pendingServices.push(...serviceUUIDs);
         }
-        return this.#sendMessageToApp({ type: "discoverServices", identifier, serviceUUIDs });
+        if (!serviceUUIDs || serviceUUIDs.length > 0) {
+            this.#getServicesPoll.start();
+            return this.#sendMessageToApp({ type: "discoverServices", identifier, serviceUUIDs });
+        }
     }
     /**
      * @param {string} identifier
@@ -784,22 +791,38 @@ class CBCentralManager {
     async discoverIncludedServices(identifier, serviceUUID, includedServiceUUIDs) {
         const peripheral = this.#assertConnectedPeripheralIdentifier(identifier);
         this.#assertValidServiceUUID(identifier, serviceUUID);
-        includedServiceUUIDs = includedServiceUUIDs.filter((includedServiceUUID) => {
-            if (peripheral.services[includedServiceUUID]) {
-                _console.error("already have includedService", { peripheral, includedServiceUUID });
-                return false;
-            }
-            return true;
-        });
+        if (includedServiceUUIDs) {
+            includedServiceUUIDs = includedServiceUUIDs.filter((includedServiceUUID) => {
+                if (peripheral.services[includedServiceUUID]) {
+                    _console.error("already have includedService", { peripheral, includedServiceUUID });
+                    return false;
+                }
+                if (peripheral._pendingServices?.[serviceUUID]) {
+                    return false;
+                }
+                if (peripheral._pendingIncludedServices?.[serviceUUID]) {
+                    return false;
+                }
+                return true;
+            });
+        }
         _console.log("discovering includedServices", { identifier, serviceUUID, includedServiceUUIDs });
-        peripheral._pendingIncludedServices.push(...includedServiceUUIDs);
-        this.#getIncludedServicesPoll.start();
-        return this.#sendMessageToApp({
-            type: "discoverIncludedServices",
-            identifier,
-            serviceUUID,
-            includedServiceUUIDs,
-        });
+
+        if (!peripheral._pendingServices) {
+            peripheral._pendingServices = [];
+        }
+        if (includedServiceUUIDs?.length > 0) {
+            peripheral._pendingIncludedServices.push(...includedServiceUUIDs);
+        }
+        if (!includedServiceUUIDs || includedServiceUUIDs.length > 0) {
+            this.#getIncludedServicesPoll.start();
+            return this.#sendMessageToApp({
+                type: "discoverIncludedServices",
+                identifier,
+                serviceUUID,
+                includedServiceUUIDs,
+            });
+        }
     }
     /**
      * @param {string} identifier
@@ -834,19 +857,22 @@ class CBCentralManager {
             });
         }
         _console.log("discovering characteristics", { identifier, serviceUUID, characteristicUUIDs });
+
         if (!service._pendingCharacteristics) {
             service._pendingCharacteristics = [];
         }
-        if (characteristicUUIDs) {
+        if (characteristicUUIDs?.length > 0) {
             service._pendingCharacteristics.push(...characteristicUUIDs);
         }
-        this.#getCharacteristicsPoll.start();
-        return this.#sendMessageToApp({
-            type: "discoverCharacteristics",
-            identifier,
-            serviceUUID,
-            characteristicUUIDs,
-        });
+        if (!characteristicUUIDs || characteristicUUIDs.length > 0) {
+            this.#getCharacteristicsPoll.start();
+            return this.#sendMessageToApp({
+                type: "discoverCharacteristics",
+                identifier,
+                serviceUUID,
+                characteristicUUIDs,
+            });
+        }
     }
 
     /**
@@ -937,13 +963,16 @@ class CBCentralManager {
     #getCharacteristicValuesPoll = new AppMessagePoll(
         this.#getCharacteristicValuesMessage.bind(this),
         this.#prefix,
-        200
+        20
     );
     /** @returns {CBCentralAppMessage[]} */
     #getCharacteristicValuesMessage() {
         /** @type {CBCentralAppMessage[]} */
         const messages = [];
         Object.values(this.#peripherals).forEach((peripheral) => {
+            if (peripheral.connectionState != "connected") {
+                return;
+            }
             var shouldRequestUpdatedValues = false;
             Object.values(peripheral.services).some((service) => {
                 Object.values(service.characteristics).some((characteristic) => {

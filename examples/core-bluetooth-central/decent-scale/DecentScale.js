@@ -85,13 +85,13 @@ class DecentScale extends EventDispatcher {
 
     services = {
         main: {
-            uuid: "0000fff0-0000-1000-8000-00805f9b34fb",
+            uuid: "FFF0",
             characteristics: {
                 data: {
-                    uuid: "0000fff4-0000-1000-8000-00805f9b34fb",
+                    uuid: "FFF4",
                 },
                 command: {
-                    uuid: "000036f5-0000-1000-8000-00805f9b34fb",
+                    uuid: "36F5",
                 },
             },
         },
@@ -227,12 +227,16 @@ class DecentScale extends EventDispatcher {
             }
         }
     }
-    async _sendCommandData(commandData) {
+    formatCommandData(commandData) {
         commandData.unshift(0x03);
         commandData.push(this.XORNumbers(commandData));
         this.log("sending command data", commandData, this.numbersToHexString(commandData));
-        commandData = Uint8Array.from(commandData);
-        await this.services.main.characteristics.command.characteristic.writeValue(commandData);
+        //commandData = Uint8Array.from(commandData);
+        return commandData;
+    }
+    async _sendCommandData(commandData) {
+        const formattedCommandData = this.formatCommandData(commandData);
+        await this.services.main.characteristics.command.characteristic.writeValue(formattedCommandData);
     }
 
     async setLED(showWeight = false, showTimer = false, showGrams = true) {
