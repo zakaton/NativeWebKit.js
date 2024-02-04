@@ -29,6 +29,8 @@
 
         <h1>Data | Core Bluetooth Central Manager | NativeWebKit.js</h1>
 
+        <h1>WEIGHT: <span id="weight"></span></h1>
+
         <label>state <input id="state" type="text" readonly /></label>
         <label>is available? <input id="isAvailable" type="checkbox" readonly disabled /></label>
         <button id="startScan" disabled>start scan</button>
@@ -39,7 +41,9 @@
         <p>
             service uuids (comma or newline separated)
             <br />
-            <textarea id="serviceUUIDs" cols="40" placeholder="service uuids"></textarea>
+            <textarea id="serviceUUIDs" cols="40" placeholder="service uuids">
+0000fff0-0000-1000-8000-00805f9b34fb</textarea
+            >
         </p>
 
         <label>allow duplicates? <input type="checkbox" id="allowDuplicates" /> </label>
@@ -59,6 +63,39 @@
 
         <p><b>Peripherals</b></p>
         <div id="peripherals">
+            <template id="characteristicTemplate">
+                <li class="characteristic">
+                    <ul>
+                        <li><b>characteristic uuid:</b> <span class="characteristicUUID"></span></li>
+                        <li><b>properties:</b> <span class="characteristicProperties"></span></li>
+                        <li>
+                            <button class="readValue">read value</button>
+                            <button class="toggleNotifications">enable notifications</button>
+                        </li>
+                        <li><b>value:</b> <span class="value"></span></li>
+                        <li>
+                            <label style="display: inline"
+                                >write value <input type="text" class="valueToWrite"
+                            /></label>
+                            <button class="writeValue">write value</button>
+                        </li>
+                    </ul>
+                </li>
+            </template>
+
+            <template id="serviceTemplate">
+                <li class="service">
+                    <ul>
+                        <li><b>service uuid:</b> <span class="serviceUUID"></span></li>
+                        <li>
+                            <b>characteristics</b>
+                            <button disabled class="discoverCharacteristics">discover characteristics</button>
+                        </li>
+                        <ul class="characteristics"></ul>
+                    </ul>
+                </li>
+            </template>
+
             <template id="peripheralTemplate">
                 <div class="peripheral">
                     <ul>
@@ -69,6 +106,10 @@
                         <li>
                             <button class="connect">connect</button>
                             <button disabled class="disconnect">disconnect</button>
+                        </li>
+                        <li><b>services</b> <button disabled class="discoverServices">discover services</button></li>
+                        <li>
+                            <ul class="services"></ul>
                         </li>
                     </ul>
                 </div>

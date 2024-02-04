@@ -56,7 +56,7 @@ class AppMessagePoll {
         return AppMessagePoll.#polls.indexOf(this);
     }
 
-    /** @type {function():(NKMessage|NKMessage[])} */
+    /** @type {function():(NKMessage?|NKMessage[]?)} */
     #generateMessage;
     /** @type {string} */
     #prefix = "";
@@ -81,7 +81,7 @@ class AppMessagePoll {
     }
 
     /**
-     * @param {NKMessage|function():(NKMessage|NKMessage[])} messageOrMessageGenerator
+     * @param {NKMessage|function():(NKMessage?|NKMessage[]?)} messageOrMessageGenerator
      * @param {string} prefix
      * @param {number} interval (ms)
      * @param {boolean} runInApp
@@ -137,6 +137,9 @@ class AppMessagePoll {
         const messages = polls
             .map((poll) => {
                 var _messages = poll.#generateMessage();
+                if (!_messages) {
+                    return [];
+                }
                 if (!Array.isArray(_messages)) {
                     _messages = [_messages];
                 }

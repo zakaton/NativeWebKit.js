@@ -1,5 +1,6 @@
 import { CBCentralManager } from "../../../src/NativeWebKit.js";
 import { sortObjectKeysAlphabetically } from "../../../src/utils/objectUtils.js";
+import DecentScale from "./DecentScale.js";
 //import { CBCentralManager } from "../../../build/nativewebkit.module.js";
 window.CBCentralManager = CBCentralManager;
 console.log(CBCentralManager);
@@ -268,6 +269,16 @@ const setupPeripheralContainer = (peripheral) => {
         readRssiButton.innerText = "reading rssi...";
         readRssiButton.disabled = true;
     });
+
+    const discoverServicesButton = peripheralContainer.querySelector(".discoverServices");
+    discoverServicesButton.disabled = peripheral.connectionState == "disconnected";
+    discoverServicesButton.addEventListener("click", () => {
+        CBCentralManager.discoverServices(peripheral.identifier);
+        discoverServicesButton.innerText = "discovering services...";
+        discoverServicesButton.disabled = true;
+    });
+
+    const servicesContainer = peripheralContainer.querySelector(".services");
 };
 
 /** @param {CBPeripheral} peripheral  */
@@ -280,6 +291,7 @@ const updatePeripheralContainerOnConnectionState = (peripheral) => {
     peripheralContainer.querySelector(".connectionState").innerText = peripheral.connectionState;
     const connectButton = peripheralContainer.querySelector(".connect");
     const disconnectButton = peripheralContainer.querySelector(".disconnect");
+    const servicesContainer = peripheralContainer.querySelector(".services");
     switch (peripheral.connectionState) {
         case "connected":
         case "connecting":
@@ -290,11 +302,15 @@ const updatePeripheralContainerOnConnectionState = (peripheral) => {
         case "disconnecting":
             connectButton.disabled = false;
             disconnectButton.disabled = true;
+            servicesContainer.innerHTML = ``;
             break;
     }
 
     const readRssiButton = peripheralContainer.querySelector(".readRSSI");
     readRssiButton.disabled = peripheral.connectionState != "connected";
+
+    const discoverServicesButton = peripheralContainer.querySelector(".discoverServices");
+    discoverServicesButton.disabled = peripheral.connectionState == "disconnected";
 };
 
 CBCentralManager.addEventListener("peripheralRSSI", (event) => {
@@ -308,4 +324,148 @@ CBCentralManager.addEventListener("peripheralRSSI", (event) => {
     const readRssiButton = peripheralContainer.querySelector(".readRSSI");
     readRssiButton.innerText = "read rssi";
     readRssiButton.disabled = false;
+});
+
+/** @type {HTMLTemplateElement} */
+const serviceTemplate = document.getElementById("serviceTemplate");
+/** @type {HTMLTemplateElement} */
+const characteristicTemplate = document.getElementById("characteristicTemplate");
+
+/** @typedef {import("../../../src/CBCentralManager.js").CBService} CBService */
+/** @typedef {import("../../../src/CBCentralManager.js").CBCharacteristic} CBCharacteristic */
+
+CBCentralManager.addEventListener("discoveredService", (event) => {
+    /** @type {CBPeripheral} */
+    const peripheral = event.message.peripheral;
+    /** @type {CBService} */
+    const service = event.message.discoveredService;
+    console.log({ peripheral, service });
+
+    const peripheralContainer = peripheralContainers[peripheral.identifier];
+    const servicesContainer = peripheralContainer.querySelector(".services");
+    const serviceContainer = serviceTemplate.content.cloneNode(true).querySelector(".service");
+    serviceContainer.dataset.serviceUuid = service.uuid;
+    serviceContainer.querySelector(".serviceUUID").innerText = service.uuid;
+    const discoverCharacteristicsButton = serviceContainer.querySelector(".discoverCharacteristics");
+    discoverCharacteristicsButton.disabled = peripheral.connectionState != "connected";
+    discoverCharacteristicsButton.addEventListener("click", () => {
+        CBCentralManager.discoverCharacteristics(peripheral.identifier, service.uuid);
+    });
+    servicesContainer.appendChild(serviceContainer);
+});
+
+CBCentralManager.addEventListener("discoveredCharacteristic", (event) => {
+    /** @type {CBPeripheral} */
+    const peripheral = event.message.peripheral;
+    /** @type {CBService} */
+    const service = event.message.service;
+    /** @type {CBCharacteristic} */
+    const characteristic = event.message.discoveredCharacteristic;
+    console.log({ peripheral, service, characteristic });
+
+    const peripheralContainer = peripheralContainers[peripheral.identifier];
+    const serviceContainer = peripheralContainer.querySelector(`[data-service-uuid="${service.uuid}"]`);
+    const characteristicContainer = characteristicTemplate.content.cloneNode(true).querySelector(".characteristic");
+    characteristicContainer.dataset.characteristicUuid = characteristic.uuid;
+    characteristicContainer.querySelector(".characteristicUUID").innerText = characteristic.uuid;
+    characteristicContainer.querySelector(".characteristicProperties").innerText = JSON.stringify(
+        characteristic.properties
+    );
+
+    const readValueButton = characteristicContainer.querySelector(".readValue");
+    if (!characteristic.properties.read) {
+        readValueButton.setAttribute("hidden", "");
+    }
+    readValueButton.disabled = peripheral.connectionState != "connected";
+    readValueButton.addEventListener("click", () => {
+        CBCentralManager.readCharacteristicValue(peripheral.identifier, service.uuid, characteristic.uuid);
+    });
+
+    const toggleNotificationsButton = characteristicContainer.querySelector(".toggleNotifications");
+    if (!characteristic.properties.notify) {
+        toggleNotificationsButton.setAttribute("hidden", "");
+    }
+    toggleNotificationsButton.disabled = peripheral.connectionState != "connected";
+    toggleNotificationsButton.innerText = characteristic.isNotifying ? "disable notifications" : "enable notifications";
+    toggleNotificationsButton.addEventListener("click", () => {
+        console.log(peripheral, service, characteristic);
+        CBCentralManager.setCharacteristicNotifyValue(
+            peripheral.identifier,
+            service.uuid,
+            characteristic.uuid,
+            !peripheral.services[service.uuid].characteristics[characteristic.uuid].isNotifying
+        );
+    });
+
+    /** @type {HTMLInputElement} */
+    const valueToWriteInput = characteristicContainer.querySelector(".valueToWrite");
+    valueToWriteInput.disabled = !characteristic.properties.write;
+
+    const writeValueButton = characteristicContainer.querySelector(".writeValue");
+    writeValueButton.disabled = !characteristic.properties.write;
+    writeValueButton.addEventListener("click", () => {
+        const data = valueToWriteInput.value.split(",").map((value) => Number(value));
+        data.unshift(0x03);
+        data.push(XORNumbers(data));
+        CBCentralManager.writeCharacteristicValue(peripheral.identifier, service.uuid, characteristic.uuid, data);
+    });
+
+    serviceContainer.appendChild(characteristicContainer);
+});
+
+CBCentralManager.addEventListener("characteristicNotifyValue", (event) => {
+    /** @type {CBPeripheral} */
+    const peripheral = event.message.peripheral;
+    /** @type {CBService} */
+    const service = event.message.service;
+    /** @type {CBCharacteristic} */
+    const characteristic = event.message.characteristic;
+    console.log({ peripheral, service, characteristic });
+
+    const peripheralContainer = peripheralContainers[peripheral.identifier];
+    const serviceContainer = peripheralContainer.querySelector(`[data-service-uuid="${service.uuid}"]`);
+    const characteristicContainer = serviceContainer.querySelector(
+        `[data-characteristic-uuid="${characteristic.uuid}"]`
+    );
+    const toggleNotificationsButton = characteristicContainer.querySelector(".toggleNotifications");
+    toggleNotificationsButton.innerText = characteristic.isNotifying ? "disable notifications" : "enable notifications";
+});
+
+CBCentralManager.addEventListener("characteristicValue", (event) => {
+    /** @type {CBPeripheral} */
+    const peripheral = event.message.peripheral;
+    /** @type {CBService} */
+    const service = event.message.service;
+    /** @type {CBCharacteristic} */
+    const characteristic = event.message.characteristic;
+    /** @type {number[]} */
+    const value = characteristic.value;
+    console.log({ peripheral, service, characteristic, value });
+
+    const peripheralContainer = peripheralContainers[peripheral.identifier];
+    const serviceContainer = peripheralContainer.querySelector(`[data-service-uuid="${service.uuid}"]`);
+    const characteristicContainer = serviceContainer.querySelector(
+        `[data-characteristic-uuid="${characteristic.uuid}"]`
+    );
+    characteristicContainer.querySelector(".value").innerText = value;
+
+    // FILL
+    decentScale.onDataCharacteristicValueChanged({ target: { value: new DataView(Uint8Array.from(value).buffer) } });
+});
+
+function hexStringToNumbers(hexString) {
+    return hexString.match(/.{1,2}/g).map((byte) => parseInt(byte, 16));
+}
+function numbersToHexString(numbers) {
+    return numbers.map((n) => n.toString(16).padStart(2, "0")).join(" ");
+}
+function XORNumbers(numbers) {
+    return numbers.slice(1).reduce((xor, number) => xor ^ number, numbers[0]);
+}
+
+const weightSpan = document.getElementById("weight");
+const decentScale = new DecentScale();
+decentScale.addEventListener("weight", (event) => {
+    console.log("WEIGHT", event.message.weight);
+    weightSpan.innerText = event.message.weight;
 });
