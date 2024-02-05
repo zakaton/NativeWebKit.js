@@ -1,0 +1,135 @@
+<html>
+    <head>
+        <title>Data | Core Bluetooth Central Manager | NativeWebKit.js</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <link rel="shortcut icon" type="image/x-icon" href="favicon.ico" />
+        <script type="module" src="./script.js"></script>
+    </head>
+    <style>
+        label {
+            display: block;
+        }
+
+        #discoveredPeripherals {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+    </style>
+    <body>
+        <div>
+            <small><a href="../../../">home</a></small>
+        </div>
+
+        <h1>Data | Core Bluetooth Central Manager | NativeWebKit.js</h1>
+
+        <label>state <input id="state" type="text" readonly /></label>
+        <label>is available? <input id="isAvailable" type="checkbox" readonly disabled /></label>
+        <button id="startScan" disabled>start scan</button>
+        <button id="stopScan" disabled>stop scan</button>
+
+        <p><b>Scan Options</b></p>
+
+        <p>
+            service uuids (comma or newline separated)
+            <br />
+            <textarea id="serviceUUIDs" cols="40" placeholder="service uuids"></textarea>
+        </p>
+
+        <label>allow duplicates? <input type="checkbox" id="allowDuplicates" /> </label>
+        <p>
+            solicited service uuids (comma or newline separated)
+            <br />
+            <textarea id="solicitedServiceUUIDs" cols="40" placeholder="solicited service uuids"></textarea>
+        </p>
+
+        <p>
+            check peripherals with service uuids (comma or newline separated)
+            <br />
+            <textarea id="connectedPeripheralsServiceUUIDs" cols="40" placeholder="connected service uuids"></textarea>
+            <br />
+            <button id="checkConnectedPeripheralsServiceUUIDs">check</button>
+        </p>
+
+        <p><b>Peripherals</b></p>
+        <div id="peripherals">
+            <template id="characteristicTemplate">
+                <li class="characteristic">
+                    <ul>
+                        <li><b>characteristic uuid:</b> <span class="characteristicUUID"></span></li>
+                        <li><b>properties:</b> <span class="characteristicProperties"></span></li>
+                        <li>
+                            <button class="readValue">read value</button>
+                            <button class="toggleNotifications">enable notifications</button>
+                        </li>
+                        <li><b>value:</b> <span class="value"></span></li>
+                        <li>
+                            <label style="display: inline"
+                                >write value <input type="text" class="valueToWrite"
+                            /></label>
+                            <button class="writeValue">write value</button>
+                        </li>
+                    </ul>
+                </li>
+            </template>
+
+            <template id="serviceTemplate">
+                <li class="service">
+                    <ul>
+                        <li><b>service uuid:</b> <span class="serviceUUID"></span></li>
+                        <li>
+                            <b>characteristics</b>
+                            <button disabled class="discoverCharacteristics">discover characteristics</button>
+                        </li>
+                        <ul class="characteristics"></ul>
+                    </ul>
+                </li>
+            </template>
+
+            <template id="peripheralTemplate">
+                <div class="peripheral">
+                    <ul>
+                        <li><b>identifier:</b> <span class="identifier"></span></li>
+                        <li><b>name:</b> <span class="name"></span></li>
+                        <li><button class="readRSSI" disabled>read rssi</button> <span class="rssi"></span></li>
+                        <li><b>connection state:</b> <span class="connectionState">not connected</span></li>
+                        <li>
+                            <button class="connect">connect</button>
+                            <button disabled class="disconnect">disconnect</button>
+                        </li>
+                        <li><b>services</b> <button disabled class="discoverServices">discover services</button></li>
+                        <li>
+                            <ul class="services"></ul>
+                        </li>
+                    </ul>
+                </div>
+            </template>
+        </div>
+
+        <p><b>Discovered Peripherals</b></p>
+
+        <div id="discoveredPeripherals">
+            <template id="discoveredPeripheralTemplate">
+                <div class="discoveredPeripheral">
+                    <ul>
+                        <li><b>identifier:</b> <span class="identifier"></span></li>
+                        <li><b>name:</b> <span class="name"></span></li>
+                        <li><b>rssi:</b> <span class="rssi"></span></li>
+                        <li><b>advertisement data:</b> <span class="advertisementData"></span></li>
+                        <li><b>connection state:</b> <span class="connectionState">not connected</span></li>
+                        <li>
+                            <button class="connect">connect</button>
+                            <button disabled class="disconnect">disconnect</button>
+                        </li>
+                    </ul>
+                </div>
+            </template>
+        </div>
+    </body>
+</html>
