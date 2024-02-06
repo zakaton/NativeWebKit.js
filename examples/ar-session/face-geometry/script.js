@@ -126,7 +126,7 @@ var triangleIndices;
 
 /** @type {Texture} */
 const imageUrl =
-    location.host == "zakaton.github.io" ? "NativeWebKit.js/assets/images/image.jpg" : "/assets/images/image.jpg";
+    location.host == "zakaton.github.io" ? "/NativeWebKit.js/assets/images/image.jpg" : "/assets/images/image.jpg";
 const imageTexture = new THREE.TextureLoader().load(imageUrl);
 imageTexture.encoding = THREE.sRGBEncoding;
 imageTexture.flipY = false;
